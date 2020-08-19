@@ -101,3 +101,13 @@ def metadata_from_package(variant):
         "icon": data.get("icon", ""),
         "hidden": data.get("hidden", False),
     })
+
+
+def style_loader():
+    """Return CSS stylesheet string
+
+    Returns:
+        str: The Stylesheet string.
+
+    """
+    return ""

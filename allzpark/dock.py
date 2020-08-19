@@ -230,6 +230,7 @@ class Console(AbstractDockWidget):
         self.setWidget(panels["central"])
 
         widgets["text"].setReadOnly(True)
+        widgets["text"].setObjectName("consolelog")
 
         layout = QtWidgets.QVBoxLayout(panels["central"])
         layout.setContentsMargins(0, 0, 0, 0)

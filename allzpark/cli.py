@@ -331,14 +331,16 @@ def main():
 
     window = view.Window(ctrl)
     user_css = storage.value("userCss") or ""
+    custom_css = allzparkconfig.style_loader() or ""
 
     with open(resources.find("style.css")) as f:
         css = f.read()
+        originalcss = "\n".join([css, custom_css])
 
         # Store for CSS Editor
-        window._originalcss = css
+        window._originalcss = originalcss
 
-        window.setStyleSheet("\n".join([css, user_css]))
+        window.setStyleSheet("\n".join([originalcss, user_css]))
 
     window.show()
 

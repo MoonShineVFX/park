@@ -14,7 +14,6 @@ from collections import OrderedDict as odict
 
 from .vendor.Qt import QtCore, QtGui
 from .vendor import transitions
-from .vendor.six import PY3
 from . import model, util, allzparkconfig
 
 # Third-party dependencies
@@ -1215,7 +1214,8 @@ class Command(QtCore.QObject):
             "stdout": subprocess.PIPE,
             "stderr": subprocess.PIPE,
             "parent_environ": None,
-            "startupinfo": startupinfo
+            "startupinfo": startupinfo,
+            "universal_newlines": True,
         }
 
         context = self.context
@@ -1253,8 +1253,6 @@ class Command(QtCore.QObject):
         for line in iter(self.popen.stdout.readline, ""):
             if not line:
                 continue
-            if PY3:
-                line = line.decode()
 
             self.stdout.emit(line.rstrip())
 
@@ -1265,7 +1263,5 @@ class Command(QtCore.QObject):
         for line in iter(self.popen.stderr.readline, ""):
             if not line:
                 continue
-            if PY3:
-                line = line.decode()
 
             self.stderr.emit(line.rstrip())

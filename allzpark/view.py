@@ -22,6 +22,16 @@ class Applications(dock.SlimTableView):
         super(Applications, self).__init__(parent)
         self.setItemDelegate(delegates.Package(ctrl, self))
         self.setEditTriggers(self.EditKeyPressed)
+        self._selected_app_ok = False
+
+    def on_state_appfailed(self):
+        self._selected_app_ok = False
+
+    def on_state_appok(self):
+        self._selected_app_ok = True
+
+    def is_selected_app_ok(self):
+        return self._selected_app_ok
 
 
 class Window(QtWidgets.QMainWindow):
@@ -405,6 +415,9 @@ class Window(QtWidgets.QMainWindow):
             # Clicked outside any item
             return
 
+        if not view.is_selected_app_ok():
+            return
+
         model = index.model()
         tools = model.data(index, "tools")
 
@@ -632,10 +645,6 @@ class Window(QtWidgets.QMainWindow):
         page_name = page.objectName()
         self._panels["pages"].setCurrentWidget(page)
 
-        launch_btn = self._docks["app"]._widgets["launchBtn"]
-        launch_btn.setText("Launch")
-        launch_btn.setEnabled(True)
-
         for widget in self._docks.values():
             widget.setEnabled(True)
 
@@ -663,15 +672,21 @@ class Window(QtWidgets.QMainWindow):
 
             page = self._pages["errored"]
             self._panels["pages"].setCurrentWidget(page)
-
             self._widgets["apps"].setEnabled(False)
-            launch_btn.setEnabled(False)
-            launch_btn.setText("Package not found")
+            self._docks["app"].on_state_appfailed()
 
         if state == "notresolved":
-            self._widgets["apps"].setEnabled(False)
-            launch_btn.setEnabled(False)
-            launch_btn.setText("Failed to resolve")
+            pass
+
+        if state == "appfailed":
+            for k in ["app", "context", "packages", "environment"]:
+                self._docks[k].on_state_appfailed()
+            self._widgets["apps"].on_state_appfailed()
+
+        if state == "appok":
+            for k in ["app", "context", "packages", "environment"]:
+                self._docks[k].on_state_appok()
+            self._widgets["apps"].on_state_appok()
 
         self._widgets["stateIndicator"].set_status(str(state))
         self.update_advanced_controls()

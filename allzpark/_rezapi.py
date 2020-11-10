@@ -7,6 +7,7 @@ from rez.package_filter import Rule, PackageFilterList
 from rez.package_repository import package_repository_manager
 from rez.packages_ import Package
 from rez.utils.formatting import PackageRequest
+from rez.system import system
 from rez.config import config
 from rez.util import which
 from rez import __version__ as version
@@ -46,7 +47,7 @@ def find_latest(name, range_=None, paths=None):
 
 
 try:
-    from rez import project
+    from rez import __project__ as project
 except ImportError:
     # nerdvegas/rez
     project = "rez"
@@ -62,6 +63,7 @@ __all__ = [
     "project",
     "copy_package",
     "package_repository_manager",
+    "system",
 
     # Classes
     "Package",

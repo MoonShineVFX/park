@@ -103,11 +103,88 @@ def metadata_from_package(variant):
     })
 
 
-def style_loader():
-    """Return CSS stylesheet string
+def themes():
+    """Allzpark GUI theme list provider
+
+    This will only be called once on startup.
+
+    Each theme in list is a dict object, for example:
+
+    {
+        "name": "theme_name",
+        "source": "my_style.css",
+        "keywords": {"base-tone": "red", "res": "path-to-icons"},
+    }
+
+    * `name` is the theme name, this is required.
+    * `source` can be a file path or plain css code, this is required.
+    * `keywords` is optional, must be dict type if provided, will be
+        used to string format the css code.
 
     Returns:
-        str: The Stylesheet string.
+        list
 
     """
-    return ""
+    return []
+
+
+def application_parent_environment():
+    """Application's launching environment
+
+    You may want to set this so the application won't be inheriting current
+    environment which is used to launch Allzpark. E.g. when Allzaprk is
+    launched from a Rez resolved context.
+
+    But if using bleeding-rez, and `config.inherit_parent_environment` is
+    set to False, config will be respected and this will be ignored.
+
+    Returns:
+        dict
+
+    """
+    return None
+
+
+def subprocess_encoding():
+    """Codec that should be used to decode subprocess stdout/stderr
+
+    See https://docs.python.org/3/library/codecs.html#standard-encodings
+
+    Returns:
+        str: name of codec
+
+    """
+    # nerdvegas/rez sets `encoding='utf-8'` when `universal_newlines=True` and
+    # `encoding` is not in Popen kwarg.
+    return "utf-8"
+
+
+def unicode_decode_error_handler():
+    """Error handler for handling UnicodeDecodeError in subprocess
+
+    See https://docs.python.org/3/library/codecs.html#error-handlers
+
+    Returns:
+        str: name of registered error handler
+
+    """
+    import codecs
+    import locale
+
+    def decode_with_preferred_encoding(exception):
+        encoding = locale.getpreferredencoding(do_setlocale=False)
+        invalid_bytes = exception.object[exception.start:]
+
+        text = invalid_bytes.decode(encoding,
+                                    # second fallback
+                                    errors="backslashreplace")
+
+        return text, len(exception.object)
+
+    handler_name = "decode_with_preferred_encoding"
+    try:
+        codecs.lookup_error(handler_name)
+    except LookupError:
+        codecs.register_error(handler_name, decode_with_preferred_encoding)
+
+    return handler_name

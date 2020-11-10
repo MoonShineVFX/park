@@ -1,7 +1,9 @@
 """Orchestrates view.py and model.py"""
 
 import os
+import sys
 import time
+import json
 import errno
 import shutil
 import logging
@@ -26,8 +28,9 @@ except ImportError:
     localz = None
 
 log = logging.getLogger(__name__)
-Latest = None  # Enum
-NoVersion = None
+
+Latest = model.Latest  # Enum
+NoVersion = model.NoVersion
 
 
 class State(dict):
@@ -42,7 +45,7 @@ class State(dict):
 
     """
 
-    def __init__(self, ctrl, storage):
+    def __init__(self, ctrl, storage, parent_environ=None):
         super(State, self).__init__({
             "profileName": storage.value("startupProfile"),
             "appRequest": storage.value("startupApplication"),
@@ -64,6 +67,12 @@ class State(dict):
 
             # Cache, for performance only
             "rezEnvirons": {},
+
+            # Parent environment for all applications
+            "parentEnviron": parent_environ or {},
+
+            # Cache environment testing result
+            "testedEnvirons": {},
 
             "rezApps": odict(),
             "fullCommand": "rez env",
@@ -202,20 +211,28 @@ class Controller(QtCore.QObject):
         _State("pkgnotfound", help="One or more packages was not found"),
     ]
 
-    def __init__(self, storage, stdio=None, stderr=None, parent=None):
+    def __init__(self,
+                 storage,
+                 parent_environ=None,
+                 stdio=None,
+                 stderr=None,
+                 parent=None):
+
         super(Controller, self).__init__(parent)
 
-        state = State(self, storage)
+        state = State(self, storage, parent_environ)
 
         models = {
-            "profileVersions": QtCore.QStringListModel(),
-            "profileNames": QtCore.QStringListModel(),
             "apps": model.ApplicationModel(),
+            "profileVersions": QtCore.QStringListModel(),
 
             # Docks
+            "profiles": model.ProfileModel(),
             "packages": model.PackagesModel(self),
             "context": model.ContextModel(),
             "environment": model.EnvironmentModel(),
+            "parentenv": model.EnvironmentModel(),
+            "diagnose": model.EnvironmentModel(),
             "commands": model.CommandsModel(),
         }
 
@@ -225,6 +242,8 @@ class Controller(QtCore.QObject):
 
         timers["commandsPoller"].timeout.connect(self.on_tasks_polled)
         timers["commandsPoller"].start(500)
+
+        models["parentenv"].load(state["parentEnviron"].copy())
 
         # Initialize the state machine
         self._machine = transitions.Machine(
@@ -279,6 +298,18 @@ class Controller(QtCore.QObject):
     def context(self, app_request):
         return self._state["rezContexts"][app_request].to_dict()
 
+    def parent_environ(self):
+        environ = self._state["parentEnviron"].copy()
+        # Inject user environment
+        #
+        # NOTE: Rez takes precendence on environment, so a user
+        # cannot edit the environment in such a way that packages break.
+        # However it also means it cannot edit variables also edited
+        # by a package. Win some lose some
+        environ = dict(environ, **self._state.retrieve("userEnv", {}))
+
+        return environ
+
     def environ(self, app_request):
         """Fetch the environment of a context
 
@@ -304,15 +335,18 @@ class Controller(QtCore.QObject):
             return env[app_request]
 
         except KeyError:
+            context = ctx[app_request]
+            parent_env = self.parent_environ()
             try:
-                environ = ctx[app_request].get_environ()
-                env[app_request] = environ
-                return environ
+                environ = context.get_environ(parent_environ=parent_env)
 
             except rez.ResolvedContextError:
                 return {
                     "error": "Failed context"
                 }
+            else:
+                env[app_request] = environ
+                return environ
 
     def resolved_packages(self, app_request):
         return self._state["rezContexts"][app_request].resolved_packages
@@ -465,11 +499,11 @@ class Controller(QtCore.QObject):
 
             yield pkg
 
-    def env(self, request, use_filter=True):
+    def env(self, requests, use_filter=True):
         """Resolve context, relative Allzpark state
 
         Arguments:
-            request (str): Fully formatted request, including any
+            requests (list): Fully formatted request, including any
                 number of packages. E.g. "six==1.2 PySide2"
             use_filter (bool, optional): Whether or not to apply
                 the current package_filter
@@ -480,7 +514,7 @@ class Controller(QtCore.QObject):
         paths = self._package_paths()
 
         return rez.env(
-            request,
+            requests,
             package_paths=paths,
             package_filter=package_filter if use_filter else None
         )
@@ -589,8 +623,6 @@ class Controller(QtCore.QObject):
                 default_profile = name
 
             self._state["rezProfiles"].update(profiles)
-            self._models["profileNames"].setStringList(list(profiles))
-            self._models["profileNames"].layoutChanged.emit()
 
             # On resetting after startup, there will be a
             # currently selected profile that may differ from
@@ -606,6 +638,10 @@ class Controller(QtCore.QObject):
             # or user preferences has been wiped.
             if not current_profile:
                 current_profile = default_profile
+
+            self._models["profiles"].set_favorites(self)
+            self._models["profiles"].set_current(current_profile)
+            self._models["profiles"].reset(profiles)
 
             self._state["profileName"] = current_profile
             self._state["root"] = root
@@ -681,6 +717,8 @@ class Controller(QtCore.QObject):
                 "command", app_model.data(app_index, "tool"))
             is_detached = kwargs.get(
                 "detached", app_model.data(app_index, "detached"))
+            stdout = kwargs.get("stdout", self.info)
+            stderr = kwargs.get("stderr", self.error)
 
             assert tool_name, (
                 "There should have been at least one tool name. "
@@ -689,7 +727,7 @@ class Controller(QtCore.QObject):
 
             overrides = self._models["packages"]._overrides
             disabled = self._models["packages"]._disabled
-            environ = self._state.retrieve("userEnv", {})
+            environ = self.parent_environ()
 
             self.debug(
                 "Launching %s%s.." % (
@@ -711,8 +749,8 @@ class Controller(QtCore.QObject):
                 parent=self
             )
 
-            cmd.stdout.connect(self.info)
-            cmd.stderr.connect(self.error)
+            cmd.stdout.connect(stdout)
+            cmd.stderr.connect(stderr)
             cmd.error.connect(on_error)
 
             cmd.execute()
@@ -806,7 +844,7 @@ class Controller(QtCore.QObject):
                 profiles = root()
 
             except Exception:
-                if log.level == logging.DEBUG:
+                if log.level < logging.INFO:
                     traceback.print_exc()
 
                 self.error("Could not find profiles in %s" % root)
@@ -828,11 +866,13 @@ class Controller(QtCore.QObject):
         self._models["apps"].reset()
         self._models["context"].reset()
         self._models["environment"].reset()
+        self._models["diagnose"].reset()
         self._models["packages"].reset()
         self._models["profileVersions"].setStringList([])
 
         self._state["rezContexts"].clear()
         self._state["rezEnvirons"].clear()
+        self._state["testedEnvirons"].clear()
         self._state["rezApps"].clear()
 
         def on_apps_found(apps):
@@ -920,16 +960,19 @@ class Controller(QtCore.QObject):
             context = self.context(app_request)
             environ = self.environ(app_request)
             packages = self.resolved_packages(app_request)
+            diagnose = self._state["testedEnvirons"].get(app_request, {})
 
         except Exception:
             self._models["packages"].reset()
             self._models["context"].reset()
             self._models["environment"].reset()
+            self._models["diagnose"].reset()
             raise
 
         self._models["packages"].reset(packages)
         self._models["context"].load(context)
         self._models["environment"].load(environ)
+        self._models["diagnose"].load(diagnose)
 
         tools = self._models["apps"].find(app_request)["tools"]
         self._state["tool"] = tools[0]
@@ -967,34 +1010,6 @@ class Controller(QtCore.QObject):
     def _list_apps(self, profile):
         # Each app has a unique context relative the current profile
         # Find it, and keep track of it.
-
-        # Resolve profile
-
-        with util.timing() as t:
-            variants = list(profile.iter_variants())
-            profile_variant = variants[0]
-
-            if len(variants) > 1:
-                # Unsure of whether this is desirable. It would enable
-                # a profile per platform, or potentially other kinds
-                # of special-purpose situations. If you see this,
-                # and want this, submit an issue with your use case!
-                self.warning(
-                    "Profiles with multiple variants are unsupported. "
-                    "Using first found: %s" % profile_variant
-                )
-
-            qualified_profile_name = profile_variant.qualified_package_name
-            profile_request = [qualified_profile_name]
-            self.debug("Resolving request: %s" % qualified_profile_name)
-
-            # Before resolving apps, need to know whether this profile can
-            # be resolved or not.
-            self.env(profile_request)
-
-        self.debug("Resolved profile context in %.2f seconds" % t.duration)
-
-        # Resolve app with profile
 
         apps = []
         _apps = allzparkconfig.applications
@@ -1038,34 +1053,36 @@ class Controller(QtCore.QObject):
                 if package_filter.excludes(app_package):
                     continue
 
+                variants = list(profile.iter_variants())
+                variant = variants[0]
+
+                if len(variants) > 1:
+                    # Unsure of whether this is desirable. It would enable
+                    # a profile per platform, or potentially other kinds
+                    # of special-purpose situations. If you see this,
+                    # and want this, submit an issue with your use case!
+                    self.warning(
+                        "Profiles with multiple variants are unsupported. "
+                        "Using first found: %s" % variant
+                    )
+
                 app_request = "%s==%s" % (app_package.name,
                                           app_package.version)
 
-                request = [qualified_profile_name, app_request]
+                request = [variant.qualified_package_name, app_request]
                 self.debug("Resolving request: %s" % " ".join(request))
 
-                try:
-                    context = self.env(request)
-                except rez.PackageFamilyNotFoundError as err:
-                    self.error("Resolve failed: %s" % str(err))
-                    context = model.BrokenContext(app_package.name,
-                                                  request)
+                context = self.env(request)
 
                 if context.success and patch:
-                    self.debug("Patching request: %s" % " ".join(patch))
+                    self.debug("Patching request: %s" % " ".join(request))
                     request = context.get_patched_request(patch)
-
-                    try:
-                        context = self.env(
-                            request,
-                            use_filter=self._state.retrieve(
-                                "patchWithFilter", False
-                            )
+                    context = self.env(
+                        request,
+                        use_filter=self._state.retrieve(
+                            "patchWithFilter", False
                         )
-                    except rez.PackageFamilyNotFoundError as err:
-                        self.error("Patch failed: %s" % str(err))
-                        context = model.BrokenContext(app_package.name,
-                                                      request)
+                    )
 
                 contexts[app_request] = context
 
@@ -1146,6 +1163,32 @@ class Controller(QtCore.QObject):
 
         return pixmap
 
+    def shell_code(self):
+        app_request = self._state["appRequest"]
+        context = self._state["rezContexts"][app_request]
+        parent_env = self.parent_environ()
+        return context.get_shell_code(parent_environ=parent_env)
+
+    def test_environment(self):
+        app_request = self._state["appRequest"]
+
+        command = (
+            '%s -c "'
+            'import os,sys,json;'
+            'sys.stdout.write(json.dumps(os.environ.copy(),ensure_ascii=0))"'
+        ) % sys.executable
+
+        def load(message):
+            try:
+                env = json.loads(message)
+            except json.JSONDecodeError:
+                self.info(message)  # regular messages during resolve
+            else:
+                self._state["testedEnvirons"][app_request] = env
+                self._models["diagnose"].load(env)
+
+        self.launch(command=command, stdout=load)
+
 
 class Command(QtCore.QObject):
     stdout = QtCore.Signal(str)
@@ -1213,21 +1256,19 @@ class Command(QtCore.QObject):
             "command": self.cmd,
             "stdout": subprocess.PIPE,
             "stderr": subprocess.PIPE,
-            "parent_environ": None,
-            "startupinfo": startupinfo,
-            "universal_newlines": True,
+            "parent_environ": self.environ or None,
+            "startupinfo": startupinfo
         }
+        if rez.project == "rez":
+            # bleeding-rez adds `universal_newlines=True` when spawning shell,
+            # nerdvegas/rez doesn't.
+            kwargs["universal_newlines"] = True
+
+        if sys.version_info[:2] >= (3, 6):
+            kwargs["encoding"] = allzparkconfig.subprocess_encoding()
+            kwargs["errors"] = allzparkconfig.unicode_decode_error_handler()
 
         context = self.context
-
-        if self.environ:
-            # Inject user environment
-            #
-            # NOTE: Rez takes precedence on environment, so a user
-            # cannot edit the environment in such a way that packages break.
-            # However it also means it cannot edit variables also edited
-            # by a package. Win some lose some
-            kwargs["parent_environ"] = dict(os.environ, **self.environ)
 
         try:
             self.popen = context.execute_shell(**kwargs)
@@ -1251,17 +1292,10 @@ class Command(QtCore.QObject):
     def listen_on_stdout(self):
         self._running = True
         for line in iter(self.popen.stdout.readline, ""):
-            if not line:
-                continue
-
             self.stdout.emit(line.rstrip())
-
         self._running = False
         self.killed.emit()
 
     def listen_on_stderr(self):
         for line in iter(self.popen.stderr.readline, ""):
-            if not line:
-                continue
-
             self.stderr.emit(line.rstrip())

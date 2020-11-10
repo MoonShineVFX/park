@@ -10,6 +10,7 @@ from .vendor.Qt import QtWidgets, QtCore, QtGui, QtCompat
 from .vendor import qargparse, QtImageViewer
 
 from . import resources as res, model, delegates, util
+from . import _rezapi as rez
 from . import allzparkconfig
 
 try:
@@ -44,7 +45,7 @@ class AbstractDockWidget(QtWidgets.QDockWidget):
         central = QtWidgets.QWidget()
 
         layout = QtWidgets.QVBoxLayout(central)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(px(5))
         layout.addWidget(panels["help"])
         layout.addWidget(panels["body"])
@@ -68,7 +69,7 @@ class AbstractDockWidget(QtWidgets.QDockWidget):
 
 
 class App(AbstractDockWidget):
-    """Aggregated information about the currently selected profile"""
+    """Aggregated information about the currently selected application"""
 
     icon = "Alert_Info_32"
 
@@ -76,6 +77,8 @@ class App(AbstractDockWidget):
         super(App, self).__init__("App", parent)
         self.setAttribute(QtCore.Qt.WA_StyledBackground)
         self.setObjectName("App")
+
+        default_app_icon = res.pixmap("Alert_Info_32")
 
         panels = {
             "central": QtWidgets.QWidget(),
@@ -142,7 +145,7 @@ class App(AbstractDockWidget):
         layout.setRowStretch(15, 1)
         layout.addWidget(panels["footer"], 40, 0, 1, 2)
 
-        widgets["icon"].setPixmap(res.pixmap("Alert_Info_32"))
+        widgets["icon"].setPixmap(default_app_icon)
         widgets["environment"].setIcon(res.icon(Environment.icon))
         widgets["packages"].setIcon(res.icon(Packages.icon))
         widgets["terminal"].setIcon(res.icon(Console.icon))
@@ -159,6 +162,7 @@ class App(AbstractDockWidget):
         self._panels = panels
         self._widgets = widgets
         self._proxy = proxy_model
+        self._default_app_icon = default_app_icon
 
         self.setWidget(panels["central"])
 
@@ -186,6 +190,8 @@ class App(AbstractDockWidget):
         if icon:
             icon = icon.pixmap(QtCore.QSize(px(32), px(32)))
             self._widgets["icon"].setPixmap(icon)
+        else:
+            self._widgets["icon"].setPixmap(self._default_app_icon)
 
         self._widgets["label"].setText(name)
 
@@ -239,12 +245,7 @@ class Console(AbstractDockWidget):
         self._widgets = widgets
 
     def append(self, line, level=logging.INFO):
-        color = {
-            logging.DEBUG: "<font color=\"lightgrey\">",
-            logging.WARNING: "<font color=\"darkorange\">",
-            logging.ERROR: "<font color=\"red\">",
-            logging.CRITICAL: "<font color=\"red\">",
-        }.get(level, "<font color=\"grey\">")
+        color = "<font color=\"%s\">" % res.log_level_color(level)
 
         line = line.replace(" ", "&nbsp;")
         line = line.replace("\n", "<br>")
@@ -528,6 +529,7 @@ class Context(AbstractDockWidget):
         pages = {
             "context": QtWidgets.QWidget(),
             "graph": QtWidgets.QWidget(),
+            "code": QtWidgets.QWidget(),
         }
 
         widgets = {
@@ -536,6 +538,8 @@ class Context(AbstractDockWidget):
             "generateGraph": QtWidgets.QPushButton("Update"),
             "graphHotkeys": QtWidgets.QLabel(),
             "overlay": QtWidgets.QWidget(),
+            "code": QtWidgets.QTextEdit(),
+            "printCode": QtWidgets.QPushButton("Get Shell Code"),
         }
 
         # Expose to CSS
@@ -558,13 +562,25 @@ class Context(AbstractDockWidget):
         layout.addWidget(widgets["generateGraph"])
         layout.addWidget(QtWidgets.QWidget(), 1)
 
+        layout = QtWidgets.QVBoxLayout(pages["code"])
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(widgets["code"])
+        layout.addWidget(widgets["printCode"])
+
         panels["central"].addTab(pages["context"], "Context")
         panels["central"].addTab(pages["graph"], "Graph")
+        panels["central"].addTab(pages["code"], "Code")
 
         ctrl.application_changed.connect(self.on_application_changed)
 
+        widgets["view"].setSortingEnabled(True)
+        widgets["view"].sortByColumn(0, QtCore.Qt.AscendingOrder)
+
         widgets["overlay"].setParent(pages["graph"])
         widgets["overlay"].show()
+
+        widgets["code"].setObjectName("shellcode")
+        widgets["code"].setReadOnly(True)
 
         widgets["generateGraph"].clicked.connect(self.on_generate_clicked)
         widgets["graphHotkeys"].setText("""\
@@ -575,6 +591,7 @@ class Context(AbstractDockWidget):
             - <b>Zoom</b>: Right mouse + drag <br>
             - <b>Reset</b>: Double-click right mouse <br>
         """)
+        widgets["printCode"].clicked.connect(self.on_print_code_clicked)
 
         self._ctrl = ctrl
         self._panels = panels
@@ -608,7 +625,20 @@ class Context(AbstractDockWidget):
         self._widgets["graph"].setImage(pixmap)
         self._widgets["graph"]._pixmapHandle.setGraphicsEffect(None)
 
+    def on_print_code_clicked(self):
+        code = self._ctrl.shell_code()
+        comment = "REM " if rez.system.shell == "cmd" else "# "
+
+        pretty = []
+        for ln in code.split("\n"):
+            level = logging.DEBUG if ln.startswith(comment) else logging.INFO
+            color = "<font color=\"%s\">" % res.log_level_color(level)
+            pretty.append("%s%s</font>" % (color, ln.replace(" ", "&nbsp;")))
+
+        self._widgets["code"].setText("<br>".join(pretty))
+
     def on_application_changed(self):
+        self._widgets["code"].setPlainText("")
         if not self._widgets["graph"]._pixmapHandle:
             return
 
@@ -635,26 +665,45 @@ class Environment(AbstractDockWidget):
         pages = {
             "environment": QtWidgets.QWidget(),
             "editor": EnvironmentEditor(),
+            "penv": QtWidgets.QWidget(),
+            "diagnose": QtWidgets.QWidget(),
         }
 
         widgets = {
             "view": JsonView(),
+            "penv": JsonView(),
+            "test": JsonView(),
+            "compute": QtWidgets.QPushButton("Compute Environment"),
         }
 
         layout = QtWidgets.QVBoxLayout(pages["environment"])
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(widgets["view"])
 
-        widgets["view"].setSortingEnabled(True)
+        layout = QtWidgets.QVBoxLayout(pages["penv"])
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(widgets["penv"])
+
+        layout = QtWidgets.QVBoxLayout(pages["diagnose"])
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(widgets["test"])
+        layout.addWidget(widgets["compute"])
+
+        for view in ["view", "penv", "test"]:
+            widgets[view].setSortingEnabled(True)
+            widgets[view].sortByColumn(0, QtCore.Qt.AscendingOrder)
 
         pages["editor"].applied.connect(self.on_env_applied)
 
         panels["central"].addTab(pages["environment"], "Context")
+        panels["central"].addTab(pages["penv"], "Parent")
         panels["central"].addTab(pages["editor"], "User")
+        panels["central"].addTab(pages["diagnose"], "Diagnose")
 
         user_env = ctrl.state.retrieve("userEnv", {})
         pages["editor"].from_environment(user_env)
         pages["editor"].warning.connect(self.on_env_warning)
+        widgets["compute"].clicked.connect(ctrl.test_environment)
 
         self.setWidget(panels["central"])
 
@@ -663,10 +712,18 @@ class Environment(AbstractDockWidget):
         self._pages = pages
         self._widgets = widgets
 
-    def set_model(self, model_):
+    def set_model(self, environ, parent, diagnose):
         proxy_model = QtCore.QSortFilterProxyModel()
-        proxy_model.setSourceModel(model_)
+        proxy_model.setSourceModel(environ)
         self._widgets["view"].setModel(proxy_model)
+
+        proxy_model = QtCore.QSortFilterProxyModel()
+        proxy_model.setSourceModel(parent)
+        self._widgets["penv"].setModel(proxy_model)
+
+        proxy_model = QtCore.QSortFilterProxyModel()
+        proxy_model.setSourceModel(diagnose)
+        self._widgets["test"].setModel(proxy_model)
 
     def on_env_applied(self, env):
         self._ctrl.state.store("userEnv", env)
@@ -709,7 +766,11 @@ class JsonView(QtWidgets.QTreeView):
             else:
                 data = model_.json()
 
-            text = str(data)
+            text = json.dumps(data,
+                              indent=4,
+                              sort_keys=True,
+                              ensure_ascii=False)
+
             app = QtWidgets.QApplication.instance()
             app.clipboard().setText(text)
 
@@ -957,13 +1018,10 @@ class Preferences(AbstractDockWidget):
             "Load this application on startup"
         )),
 
-        qargparse.Separator("Theme"),
+        qargparse.Separator("Appearance"),
 
-        qargparse.Info("primaryColor", default="white", help=(
-            "Main color of the GUI"
-        )),
-        qargparse.Info("secondaryColor", default="steelblue", help=(
-            "Secondary color of the GUI"
+        qargparse.Enum("theme", items=res.theme_names(), help=(
+            "GUI skin. May need to restart Allzpark after changed."
         )),
 
         qargparse.Button("resetLayout", help=(
@@ -1083,7 +1141,7 @@ class Preferences(AbstractDockWidget):
     def on_css_applied(self, css):
         self._ctrl.state.store("userCss", css)
         self._window.setStyleSheet("\n".join([
-            self._window._originalcss, css]))
+            self._window._originalcss, res.format_stylesheet(css)]))
         self._window.tell("Applying css..")
 
 
@@ -1376,3 +1434,270 @@ class CssHighlighter(QtGui.QSyntaxHighlighter):
             )
             startIndex = self.comment_start_exp.indexIn(
                 text, startIndex + commentLength)
+
+
+class ProfileView(QtWidgets.QTreeView):
+
+    activated = QtCore.Signal(str)
+
+    def __init__(self, parent=None):
+        super(ProfileView, self).__init__(parent)
+
+        self.setHeaderHidden(True)
+        self.setSortingEnabled(True)
+        self.sortByColumn(0, QtCore.Qt.AscendingOrder)
+        self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+
+        self.customContextMenuRequested.connect(self.on_context_menu)
+
+    def on_context_menu(self, position):
+        index = self.indexAt(position)
+
+        if not index.isValid():
+            # Clicked outside any item
+            return
+
+        model_ = index.model()
+        menu = QtWidgets.QMenu(self)
+
+        name = str(model_.data(index, model.NameRole))
+
+        activate = QtWidgets.QAction("Activate", menu)
+        activate.triggered.connect(lambda: self.on_activate(name))
+        menu.addAction(activate)
+
+        menu.move(QtGui.QCursor.pos())
+        menu.show()
+
+    def on_activate(self, profile):
+        self.activated.emit(profile)
+
+    def selected_index(self):
+        return self.selectionModel().currentIndex()
+
+    def selected_profile(self):
+        index = self.selected_index()
+        if index.isValid():
+            return index.data(model.NameRole)
+
+
+class Profiles(AbstractDockWidget):
+    """Listing and changing profiles"""
+
+    icon = "Default_Profile"
+
+    profile_changed = QtCore.Signal(str)
+    version_changed = QtCore.Signal(str)
+    reset = QtCore.Signal()
+
+    def __init__(self, ctrl, parent=None):
+        super(Profiles, self).__init__("Profiles", parent)
+        self.setAttribute(QtCore.Qt.WA_StyledBackground)
+        self.setObjectName("Profiles")
+
+        panels = {
+            "central": QtWidgets.QWidget(),
+            "head": QtWidgets.QWidget(),
+            "body": QtWidgets.QWidget(),
+        }
+
+        widgets = {
+            # head: current profile
+            "icon": QtWidgets.QLabel(),
+            "name": QtWidgets.QLabel(),
+            "version": LineEditWithCompleter(),
+
+            # body: profiles view and toolset
+            "refresh": QtWidgets.QPushButton(""),
+            "search": QtWidgets.QLineEdit(),
+            "view": ProfileView(),
+
+            "tools": QtWidgets.QWidget(),
+            "favorite": QtWidgets.QPushButton(""),
+            "filtering": QtWidgets.QPushButton(""),
+            "expand": QtWidgets.QPushButton(""),
+            "collapse": QtWidgets.QPushButton(""),
+            "sep1": QtWidgets.QFrame(),
+            "versioning": QtWidgets.QPushButton(""),
+        }
+
+        models = {
+            "source": None,
+            "proxy": model.ProfileProxyModel(),
+        }
+
+        layout = QtWidgets.QGridLayout(panels["head"])
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(widgets["icon"], 0, 0, 2, 1)
+        layout.addWidget(widgets["name"], 0, 1)
+        layout.addWidget(widgets["version"], 1, 1)
+
+        layout = QtWidgets.QVBoxLayout(widgets["tools"])
+        layout.setContentsMargins(0, 2, 0, 0)
+        layout.addWidget(widgets["favorite"])
+        layout.addWidget(widgets["filtering"])
+        layout.addWidget(widgets["expand"])
+        layout.addWidget(widgets["collapse"])
+        layout.addWidget(widgets["sep1"])
+        layout.addWidget(widgets["versioning"])
+        # (epic) quick make profile
+        # (epic) quick edit profile
+        # (epic) remove or hide local profile
+        layout.addStretch()
+
+        layout = QtWidgets.QGridLayout(panels["body"])
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(widgets["refresh"], 0, 0)
+        layout.addWidget(widgets["tools"], 1, 0)
+        layout.addWidget(widgets["search"], 0, 1)
+        layout.addWidget(widgets["view"], 1, 1)
+
+        layout = QtWidgets.QVBoxLayout(panels["central"])
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.addWidget(panels["head"])
+        layout.addWidget(panels["body"], stretch=True)
+
+        version = widgets["version"]
+        search = widgets["search"]
+        view = widgets["view"]
+        proxy = models["proxy"]
+
+        view.setModel(proxy)
+        selection = view.selectionModel()
+
+        proxy.setFilterCaseSensitivity(QtCore.Qt.CaseInsensitive)
+        search.setPlaceholderText("Filter profiles..")
+
+        version.setToolTip("Click to change profile version")
+        version.setEnabled(False)
+
+        widgets["sep1"].setFrameStyle(QtWidgets.QFrame.HLine
+                                      | QtWidgets.QFrame.Plain)
+
+        # icons
+        icon_size = QtCore.QSize(14, 14)
+
+        icon = res.icon("refresh")
+        widgets["refresh"].setIcon(icon)
+        widgets["refresh"].setIconSize(icon_size)
+
+        icon = res.icon("star_bright")
+        icon.addPixmap(res.pixmap("star_dim"), icon.Disabled)
+        widgets["favorite"].setIcon(icon)
+        widgets["favorite"].setIconSize(icon_size)
+
+        icon = QtGui.QIcon()
+        icon.addPixmap(res.pixmap("filter_on"), icon.Normal, icon.On)
+        icon.addPixmap(res.pixmap("filter_off"), icon.Normal, icon.Off)
+        widgets["filtering"].setIcon(icon)
+        widgets["filtering"].setIconSize(icon_size)
+        widgets["filtering"].setCheckable(True)
+        widgets["filtering"].setAutoRepeat(True)
+
+        icon = QtGui.QIcon()
+        icon.addPixmap(res.pixmap("version_on"), icon.Normal, icon.On)
+        icon.addPixmap(res.pixmap("version_off"), icon.Normal, icon.Off)
+        widgets["versioning"].setIcon(icon)
+        widgets["versioning"].setIconSize(icon_size)
+        widgets["versioning"].setCheckable(True)
+        widgets["versioning"].setAutoRepeat(True)
+
+        icon = res.icon("expand")
+        widgets["expand"].setIcon(icon)
+        widgets["expand"].setIconSize(icon_size)
+
+        icon = res.icon("collapse")
+        widgets["collapse"].setIcon(icon)
+        widgets["collapse"].setIconSize(icon_size)
+
+        icon = res.icon("Default_Profile")
+        icon = icon.pixmap(QtCore.QSize(px(32), px(32)))
+        widgets["icon"].setPixmap(icon)
+
+        # signals
+        view.activated.connect(self.profile_changed.emit)
+        selection.currentChanged.connect(self.on_selected_profile_changed)
+        version.changed.connect(self.version_changed.emit)
+        search.textChanged.connect(view.expandAll)
+        search.textChanged.connect(proxy.setFilterFixedString)
+        widgets["refresh"].clicked.connect(self.reset.emit)
+        widgets["favorite"].clicked.connect(self.on_favorite)
+        widgets["filtering"].clicked.connect(self.on_filtering)
+        widgets["versioning"].clicked.connect(
+            lambda *args: version.setEnabled(not version.isEnabled()))
+        widgets["expand"].clicked.connect(view.expandAll)
+        widgets["collapse"].clicked.connect(view.collapseAll)
+        ctrl.resetted.connect(view.expandAll)
+
+        self._widgets = widgets
+        self._models = models
+        self._ctrl = ctrl
+
+        self.setWidget(panels["central"])
+
+        self.update_favorite_btn(None)  # nothing selected on startup
+
+    def set_model(self, profile_model, version_model):
+        # profile
+        proxy = self._models["proxy"]
+        proxy.setSourceModel(profile_model)
+        self._models["source"] = profile_model
+        self._widgets["filtering"].setChecked(profile_model.is_filtering)
+        # version
+        self._widgets["version"].setModel(version_model)
+
+    def on_context_menu(self, window):
+        def _on_context_menu(*args):
+            name = self._models["source"].current
+
+            menu = MenuWithTooltip(window)
+            separator = QtWidgets.QWidgetAction(menu)
+            separator.setDefaultWidget(QtWidgets.QLabel(name))
+            menu.addAction(separator)
+
+            def on_reset():
+                window.reset()
+
+            reset = QtWidgets.QAction("Reset", menu)
+            reset.triggered.connect(on_reset)
+            reset.setToolTip("Re-scan repository for new Rez packages")
+            menu.addAction(reset)
+
+            menu.addSeparator()
+
+            menu.move(QtGui.QCursor.pos())
+            menu.show()
+
+        return _on_context_menu
+
+    def on_favorite(self):
+        model_ = self._models["source"]
+        proxy = self._models["proxy"]
+        view = self._widgets["view"]
+        index = proxy.mapToSource(view.selected_index())
+
+        model_.update_favorite(self._ctrl, index)
+        model_.update_profile_icon(index)
+
+    def on_filtering(self):
+        proxy = self._models["proxy"]
+        model_ = self._models["source"]
+        model_.is_filtering = not model_.is_filtering
+
+        proxy.invalidateFilter()
+
+    def on_selected_profile_changed(self):
+        view = self._widgets["view"]
+        self.update_favorite_btn(view.selected_profile())
+
+    def update_favorite_btn(self, profile):
+        btn = self._widgets["favorite"]
+        btn.setEnabled(bool(profile))
+
+    def update_current(self, profile, version, icon):
+        self._widgets["name"].setText(profile)
+        self._widgets["version"].setText(version)
+
+        icon = res.icon(icon)
+        icon = icon.pixmap(QtCore.QSize(px(32), px(32)))
+        self._widgets["icon"].setPixmap(icon)

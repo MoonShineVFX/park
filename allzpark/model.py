@@ -636,6 +636,7 @@ class ProxyModel(TriStateSortFilterProxyModel):
         self.includes = includes or dict()
 
         self.setFilterCaseSensitivity(QtCore.Qt.CaseInsensitive)
+        self.setSortCaseSensitivity(QtCore.Qt.CaseInsensitive)
 
     def data(self, index, role):
         """Handle our custom model management"""

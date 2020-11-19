@@ -1,7 +1,22 @@
 from .vendor.Qt import QtWidgets, QtCore
 
 
-class Package(QtWidgets.QStyledItemDelegate):
+class TableViewRowHover(QtWidgets.QStyledItemDelegate):
+
+    def __init__(self, parent=None):
+        super(TableViewRowHover, self).__init__(parent)
+        self._hovered_row = -1
+
+    def on_hover_updated(self, row):
+        self._hovered_row = row
+
+    def paint(self, painter, option, index):
+        if index.row() == self._hovered_row:
+            option.state |= QtWidgets.QStyle.State_MouseOver
+        super(TableViewRowHover, self).paint(painter, option, index)
+
+
+class Package(TableViewRowHover):
 
     editor_created = QtCore.Signal()
     editor_closed = QtCore.Signal(bool)

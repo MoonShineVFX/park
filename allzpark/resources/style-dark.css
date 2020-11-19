@@ -354,9 +354,16 @@ QHeaderView::section {
     border-right: 1px solid %(dim)s;
 }
 
-QHeaderView::section::last
-{
+QHeaderView::section::last {
     border-right: none;
+}
+
+QHeaderView::down-arrow {
+    image: url(%(res)s/down_arrow.png);
+}
+
+QHeaderView::up-arrow {
+    image: url(%(res)s/up_arrow.png);
 }
 
 Profiles QTreeView::item {

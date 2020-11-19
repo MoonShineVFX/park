@@ -387,6 +387,8 @@ class Controller(QtCore.QObject):
             packages[pkg.name] = {
                 "package": pkg,
                 "versions": versions,
+                # 0: dependency, 1: app, 2: profile
+                "type": is_profile * 2 or is_app * 1,
             }
 
         return packages

@@ -224,6 +224,7 @@ class PackageItem(AbstractPackageItem):
             "state": state,
             "relocatable": relocatable,
             "localizing": False,  # in progress
+            "type": data["type"],  # 0: dependency, 1: app, 2: profile
         })
 
 
@@ -458,6 +459,12 @@ class PackagesModel(AbstractTableModel):
                 font = QtGui.QFont()
                 font.setBold(True)
                 return font
+
+        if data["type"]:
+            if role == QtCore.Qt.BackgroundRole:
+                color = QtGui.QColor("black")
+                color.setAlpha(40)
+                return color
 
         try:
             return data[role]

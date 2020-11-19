@@ -331,14 +331,6 @@ QAbstractItemView::item::hover {
     background: %(hover)s;
 }
 
-/* SlimTableView highlight entire row on select, but hover only highlight
-   on item, so instead of re-implement the paint(), increase the padding
-   as an alternative indication. */
-SlimTableView::item:!selected:hover {
-    padding: 3px;
-    background: transparent;
-}
-
 QHeaderView {
     border: none;
     font-weight: bold;
@@ -358,9 +350,16 @@ QHeaderView::section {
     border-right: 1px solid %(dim)s;
 }
 
-QHeaderView::section::last
-{
+QHeaderView::section::last {
     border-right: none;
+}
+
+QHeaderView::down-arrow {
+    image: url(%(res)s/down_arrow_dim.png);
+}
+
+QHeaderView::up-arrow {
+    image: url(%(res)s/up_arrow_dim.png);
 }
 
 Profiles QTreeView::item {

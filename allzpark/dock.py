@@ -157,6 +157,7 @@ class App(AbstractDockWidget):
 
         proxy_model = model.ProxyModel(ctrl.models["commands"])
         widgets["commands"].setModel(proxy_model)
+        widgets["commands"].setItemDelegate(delegates.TableViewRowHover())
 
         self._ctrl = ctrl
         self._panels = panels
@@ -891,6 +892,7 @@ class Commands(AbstractDockWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         widgets["view"].setSortingEnabled(True)
+        widgets["view"].setItemDelegate(delegates.TableViewRowHover())
         widgets["view"].customContextMenuRequested.connect(self.on_right_click)
 
         self._panels = panels
@@ -1232,6 +1234,7 @@ class Preferences(AbstractDockWidget):
 
 class SlimTableView(QtWidgets.QTableView):
     doSort = QtCore.Signal(int, QtCore.Qt.SortOrder)
+    hoverUpdated = QtCore.Signal(int)
 
     def __init__(self, parent=None):
         super(SlimTableView, self).__init__(parent)
@@ -1243,6 +1246,12 @@ class SlimTableView(QtWidgets.QTableView):
         self.setHorizontalScrollMode(self.ScrollPerPixel)
         self._stretch = 0
         self._previous_sort = 0
+
+    def setItemDelegate(self, delegate):
+        super(SlimTableView, self).setItemDelegate(delegate)
+        if isinstance(delegate, delegates.TableViewRowHover):
+            self.setMouseTracking(True)
+            self.hoverUpdated.connect(delegate.on_hover_updated)
 
     def setStretch(self, column):
         self._stretch = column
@@ -1297,6 +1306,18 @@ class SlimTableView(QtWidgets.QTableView):
         finally:
             if event.button() == QtCore.Qt.RightButton:
                 self.customContextMenuRequested.emit(event.pos())
+
+    def mouseMoveEvent(self, event):
+        index = self.indexAt(event.pos())
+        if index.isValid():
+            self.hoverUpdated.emit(index.row())
+        else:
+            self.hoverUpdated.emit(-1)
+        return super(SlimTableView, self).mouseMoveEvent(event)
+
+    def leaveEvent(self, event):
+        self.hoverUpdated.emit(-1)
+        return super(SlimTableView, self).leaveEvent(event)
 
 
 class PushButtonWithMenu(QtWidgets.QPushButton):

@@ -391,6 +391,14 @@ class Packages(AbstractDockWidget):
     def on_state_appok(self):
         self._widgets["view"].setEnabled(True)
 
+    def on_state_apppackage(self):
+        # TODO: enable "patch", "useDevelopmentPackages"
+        pass
+
+    def on_state_appsuite(self):
+        # TODO: disable "patch", "useDevelopmentPackages"
+        pass
+
     def on_right_click(self, position):
         view = self._widgets["view"]
         index = view.indexAt(position)

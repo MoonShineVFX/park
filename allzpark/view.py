@@ -718,6 +718,12 @@ class Window(QtWidgets.QMainWindow):
                 self._docks[k].on_state_appok()
             self._widgets["apps"].on_state_appok()
 
+        if state == "apppackage":
+            self._docks["packages"].on_state_apppackage()
+
+        if state == "appsuite":
+            self._docks["packages"].on_state_appsuite()
+
         self._widgets["stateIndicator"].set_status(str(state))
         self.update_advanced_controls()
 

@@ -341,6 +341,7 @@ class BrokenPackage(object):
         self.qualified_name = "%s-%s" % (self.name, str(self.version))
         self.uri = ""
         self.root = ""
+        self.context = None
         self.relocatable = False
         self.requires = []
         self.resource = type(

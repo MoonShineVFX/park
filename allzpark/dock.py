@@ -196,6 +196,7 @@ class App(AbstractDockWidget):
     def refresh(self, index):
         name = index.data(QtCore.Qt.DisplayRole)
         icon = index.data(QtCore.Qt.DecorationRole)
+        context_name = index.data(model.ApplicationModel.SuiteContextRole)
 
         if icon:
             icon = icon.pixmap(QtCore.QSize(px(32), px(32)))
@@ -203,7 +204,10 @@ class App(AbstractDockWidget):
         else:
             self._widgets["icon"].setPixmap(self._default_app_icon)
 
-        self._widgets["label"].setText(name)
+        if context_name:
+            self._widgets["label"].setText(name + "   (%s)" % context_name)
+        else:
+            self._widgets["label"].setText(name)
 
         last_used = self._ctrl.state.retrieve("app/%s/lastUsed" % name)
         last_used = time.strftime(
@@ -213,9 +217,9 @@ class App(AbstractDockWidget):
 
         self._widgets["lastUsed"].setText("%s" % last_used)
 
-        model = index.model()
-        tools = model.data(index, "tools")
-        default_tool = model.data(index, "tool") or tools[0]
+        model_ = index.model()
+        tools = model_.data(index, "tools")
+        default_tool = model_.data(index, "tool") or tools[0]
         arg = self._widgets["args"].find("tool")
         arg.reset(tools[:], default_tool)
 

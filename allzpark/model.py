@@ -199,6 +199,7 @@ class ApplicationItem(AbstractPackageItem):
             "tool": None,  # Current tool
             "tools": tools,  # All available tools
             "detached": False,  # Open in separate console or not
+            "suite_context_name": rez_app.suite_context_name()
         })
 
 
@@ -238,6 +239,7 @@ class ApplicationModel(AbstractTableModel):
             QtCore.Qt.DisplayRole: "version",
         }
     }
+    SuiteContextRole = QtCore.Qt.UserRole + 10
 
     Headers = [
         "application",
@@ -268,6 +270,9 @@ class ApplicationModel(AbstractTableModel):
             data = self.items[row]
         except IndexError:
             return None
+
+        if role == self.SuiteContextRole:
+            return data["suite_context_name"]
 
         if data["hidden"]:
             if role == QtCore.Qt.ForegroundRole:

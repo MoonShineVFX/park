@@ -12,7 +12,7 @@ import threading
 import traceback
 import subprocess
 
-from collections import OrderedDict as odict
+from collections import OrderedDict as odict, defaultdict as ddict
 
 from .vendor.Qt import QtCore, QtGui
 from .vendor import transitions
@@ -1171,7 +1171,8 @@ class Controller(QtCore.QObject):
         _missing = (rez.PackageFamilyNotFoundError, rez.PackageNotFoundError)
 
         contexts = odict()
-        suites = dict()
+        suite_ctxs = dict()
+        suite_tools = ddict(list)
 
         with util.timing() as t:
 
@@ -1221,14 +1222,17 @@ class Controller(QtCore.QObject):
             for suite in visible_suites:
                 for tool_alias, tool_entry in suite.get_tools().items():
                     tool_name = tool_entry["tool_name"]
-                    # get package(s) that provide this tool
-                    tool_context = suite.context(tool_entry["context_name"])
-                    variants = tool_context.get_tool_variants(tool_name)
-                    app_package = next(iter(variants))  # `set` type object
-                    app_request = rez.uni_request_key(app_package, tool_entry)
+                    context_name = tool_entry["context_name"]
 
+                    # get package(s) that providing this tool
+                    tool_context = suite.context(context_name)
+                    variants = tool_context.get_tool_variants(tool_name)
+                    app_pkg = next(iter(variants))  # `set` type object
+
+                    app_request = rez.uni_request_key(app_pkg, context_name)
                     contexts[app_request] = tool_context
-                    suites[app_request] = tool_entry
+                    suite_ctxs[app_request] = context_name
+                    suite_tools[app_request].append(tool_alias)
 
         # Associate a Rez package with an app (and suite tool)
         for app_request, rez_context in contexts.items():
@@ -1236,7 +1240,7 @@ class Controller(QtCore.QObject):
                 rez_pkg = next(
                     pkg
                     for pkg in rez_context.resolved_packages
-                    if (rez.uni_request_key(pkg, suites.get(app_request))
+                    if (rez.uni_request_key(pkg, suite_ctxs.get(app_request))
                         == app_request)
                 )
 
@@ -1274,7 +1278,12 @@ class Controller(QtCore.QObject):
                         (app_request, rez_context.failure_description)
                     )
 
-            rez_app = rez.RezApp(rez_pkg, app_request)
+            if rez.is_from_suite(rez_pkg):
+                tools = suite_tools[app_request]
+            else:
+                tools = getattr(rez_pkg, "tools", None) or [rez_pkg.name]
+
+            rez_app = rez.RezApp(rez_pkg, app_request, list(tools))
             self._state["rezApps"][app_request] = rez_app
 
         self._state["rezContexts"] = contexts
@@ -1303,7 +1312,7 @@ class Controller(QtCore.QObject):
                 ]
 
             visible_apps[request] = {
-                "package": app_pkg,
+                "package": rez_app,
                 "versions": app_versions,
             }
 

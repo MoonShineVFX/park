@@ -183,10 +183,11 @@ class AbstractPackageItem(dict):
 class ApplicationItem(AbstractPackageItem):
 
     def __init__(self, app_request, data):
-        app_pkg = data["package"]
+        rez_app = data["package"]
         versions = data["versions"]
+        app_pkg = rez_app.package()
         metadata = allzparkconfig.metadata_from_package(app_pkg)
-        tools = getattr(app_pkg, "tools", None) or [app_pkg.name]
+        tools = rez_app.tools()
 
         super(ApplicationItem, self).__init__(name=app_request,
                                               package=app_pkg,

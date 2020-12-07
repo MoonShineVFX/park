@@ -183,10 +183,11 @@ class AbstractPackageItem(dict):
 class ApplicationItem(AbstractPackageItem):
 
     def __init__(self, app_request, data):
-        app_pkg = data["package"]
+        rez_app = data["package"]
         versions = data["versions"]
+        app_pkg = rez_app.package()
         metadata = allzparkconfig.metadata_from_package(app_pkg)
-        tools = getattr(app_pkg, "tools", None) or [app_pkg.name]
+        tools = rez_app.tools()
 
         super(ApplicationItem, self).__init__(name=app_request,
                                               package=app_pkg,
@@ -198,6 +199,7 @@ class ApplicationItem(AbstractPackageItem):
             "tool": None,  # Current tool
             "tools": tools,  # All available tools
             "detached": False,  # Open in separate console or not
+            "suite_context_name": rez_app.suite_context_name()
         })
 
 
@@ -238,6 +240,7 @@ class ApplicationModel(AbstractTableModel):
             QtCore.Qt.DisplayRole: "version",
         }
     }
+    SuiteContextRole = QtCore.Qt.UserRole + 10
 
     Headers = [
         "application",
@@ -268,6 +271,9 @@ class ApplicationModel(AbstractTableModel):
             data = self.items[row]
         except IndexError:
             return None
+
+        if role == self.SuiteContextRole:
+            return data["suite_context_name"]
 
         if data["hidden"]:
             if role == QtCore.Qt.ForegroundRole:

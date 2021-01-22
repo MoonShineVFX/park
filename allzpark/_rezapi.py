@@ -25,6 +25,13 @@ from rez.exceptions import (
 )
 from rez.utils.graph_utils import save_graph
 
+try:
+    from sweet._rezapi import SweetSuite
+except ImportError:
+    SweetSuite = None
+else:
+    Suite = SweetSuite
+
 
 def clear_caches():
     for path in config.packages_path:

@@ -7,7 +7,7 @@ deployed, this number is embedded into the Python package.
 
 """
 
-version = "1.3"
+version = "2.0"
 
 try:
     # Look for serialised version
@@ -32,7 +32,7 @@ except ImportError:
         ).rstrip())
 
         # Builds since previous minor version
-        _patch -= 323
+        _patch -= 452
 
     except Exception:
         # Otherwise, no big deal

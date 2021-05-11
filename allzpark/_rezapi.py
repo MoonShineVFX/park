@@ -6,6 +6,7 @@ from rez.package_copy import copy_package
 from rez.package_filter import Rule, PackageFilterList
 from rez.package_repository import package_repository_manager
 from rez.packages_ import Package
+from rez.suite import Suite
 from rez.utils.formatting import PackageRequest
 from rez.system import system
 from rez.config import config
@@ -20,8 +21,16 @@ from rez.exceptions import (
     PackageRequestError,
     PackageNotFoundError,
     RezError,
+    SuiteError,
 )
 from rez.utils.graph_utils import save_graph
+
+try:
+    from sweet._rezapi import SweetSuite
+except ImportError:
+    SweetSuite = None
+else:
+    Suite = SweetSuite
 
 
 def clear_caches():
@@ -79,6 +88,55 @@ def find_latest(name, range_=None, paths=None, package_filter=None):
         )
 
 
+def is_from_suite(package):
+    return bool(package.context and package.context.suite_context_name)
+
+
+def uni_request_key(package, suite_context=None):
+    app_request = "%s==%s" % (package.name, package.version)
+    if suite_context:
+        prefix = "%s::" % suite_context
+        app_request = prefix + app_request
+
+    return app_request
+
+
+class RezApp(object):
+    """Abstracted Allzpark application class
+    """
+    def __init__(self, package, app_request, tools):
+        in_suite = is_from_suite(package)
+        if in_suite:
+            context_name = app_request.split("::", 1)[0]
+        else:
+            context_name = ""
+
+        self.name = package.name
+        self._package = package
+        self._tools = tools
+        self._in_suite = in_suite
+        self._uni_request_key = app_request
+        self._context_name = context_name
+
+    def __repr__(self):
+        return "RezApp(%s)" % self._uni_request_key
+
+    def package(self):
+        return self._package
+
+    def tools(self):
+        return list(self._tools)
+
+    def is_suite_tool(self):
+        return self._in_suite
+
+    def suite_context_name(self):
+        return self._context_name
+
+    def app_request(self):
+        return self._uni_request_key
+
+
 try:
     from rez import __project__ as project
 except ImportError:
@@ -91,6 +149,7 @@ __all__ = [
     "find",
     "find_one",
     "find_latest",
+    "uni_request_key",
     "config",
     "version",
     "project",
@@ -101,6 +160,8 @@ __all__ = [
     # Classes
     "Package",
     "PackageRequest",
+    "Suite",
+    "RezApp",
 
     # Exceptions
     "PackageFamilyNotFoundError",
@@ -111,6 +172,7 @@ __all__ = [
     "PackageNotFoundError",
     "PackageRequestError",
     "RezError",
+    "SuiteError",
 
     # Filters
     "Rule",

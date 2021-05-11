@@ -183,10 +183,11 @@ class AbstractPackageItem(dict):
 class ApplicationItem(AbstractPackageItem):
 
     def __init__(self, app_request, data):
-        app_pkg = data["package"]
+        rez_app = data["package"]
         versions = data["versions"]
+        app_pkg = rez_app.package()
         metadata = allzparkconfig.metadata_from_package(app_pkg)
-        tools = getattr(app_pkg, "tools", None) or [app_pkg.name]
+        tools = rez_app.tools()
 
         super(ApplicationItem, self).__init__(name=app_request,
                                               package=app_pkg,
@@ -198,6 +199,7 @@ class ApplicationItem(AbstractPackageItem):
             "tool": None,  # Current tool
             "tools": tools,  # All available tools
             "detached": False,  # Open in separate console or not
+            "suite_context_name": rez_app.suite_context_name()
         })
 
 
@@ -224,6 +226,7 @@ class PackageItem(AbstractPackageItem):
             "state": state,
             "relocatable": relocatable,
             "localizing": False,  # in progress
+            "type": data["type"],  # 0: dependency, 1: app, 2: profile
         })
 
 
@@ -237,6 +240,7 @@ class ApplicationModel(AbstractTableModel):
             QtCore.Qt.DisplayRole: "version",
         }
     }
+    SuiteContextRole = QtCore.Qt.UserRole + 10
 
     Headers = [
         "application",
@@ -267,6 +271,9 @@ class ApplicationModel(AbstractTableModel):
             data = self.items[row]
         except IndexError:
             return None
+
+        if role == self.SuiteContextRole:
+            return data["suite_context_name"]
 
         if data["hidden"]:
             if role == QtCore.Qt.ForegroundRole:
@@ -341,6 +348,7 @@ class BrokenPackage(object):
         self.qualified_name = "%s-%s" % (self.name, str(self.version))
         self.uri = ""
         self.root = ""
+        self.context = None
         self.relocatable = False
         self.requires = []
         self.resource = type(
@@ -458,6 +466,12 @@ class PackagesModel(AbstractTableModel):
                 font = QtGui.QFont()
                 font.setBold(True)
                 return font
+
+        if data["type"]:
+            if role == QtCore.Qt.BackgroundRole:
+                color = QtGui.QColor("black")
+                color.setAlpha(40)
+                return color
 
         try:
             return data[role]
@@ -636,6 +650,7 @@ class ProxyModel(TriStateSortFilterProxyModel):
         self.includes = includes or dict()
 
         self.setFilterCaseSensitivity(QtCore.Qt.CaseInsensitive)
+        self.setSortCaseSensitivity(QtCore.Qt.CaseInsensitive)
 
     def data(self, index, role):
         """Handle our custom model management"""

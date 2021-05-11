@@ -12,7 +12,7 @@ import threading
 import traceback
 import subprocess
 
-from collections import OrderedDict as odict
+from collections import OrderedDict as odict, defaultdict as ddict
 
 from .vendor.Qt import QtCore, QtGui
 from .vendor import transitions
@@ -49,6 +49,7 @@ class State(dict):
         super(State, self).__init__({
             "profileName": storage.value("startupProfile"),
             "appRequest": storage.value("startupApplication"),
+            "appSuiteTool": False,
 
             # list or callable, returning list of profile names
             "root": None,
@@ -73,6 +74,8 @@ class State(dict):
 
             # Cache environment testing result
             "testedEnvirons": {},
+
+            "pluginEnvironValidator": lambda *args: None,
 
             "rezApps": odict(),
             "fullCommand": "rez env",
@@ -214,6 +217,8 @@ class Controller(QtCore.QObject):
         _State("pkgnotfound", help="One or more packages was not found"),
         _State("appfailed", help="Selected application is broken"),
         _State("appok", help="Selected application is available"),
+        _State("apppackage", help="Selected application is package based"),
+        _State("appsuite", help="Selected application is suite based"),
     ]
 
     def __init__(self,
@@ -237,6 +242,7 @@ class Controller(QtCore.QObject):
             "context": model.ContextModel(),
             "environment": model.EnvironmentModel(),
             "parentenv": model.EnvironmentModel(),
+            "plugin": model.EnvironmentModel(),
             "diagnose": model.EnvironmentModel(),
             "commands": model.CommandsModel(),
         }
@@ -309,6 +315,8 @@ class Controller(QtCore.QObject):
 
     def parent_environ(self):
         environ = self._state["parentEnviron"].copy()
+        # Inject plugin environment
+        environ = dict(environ, **(self._models["plugin"].json() or {}))
         # Inject user environment
         #
         # NOTE: Rez takes precendence on environment, so a user
@@ -364,6 +372,7 @@ class Controller(QtCore.QObject):
 
         """
         all_vers = self._state.retrieve("showAllVersions", False)
+        all_vers = all_vers and not self._state["appSuiteTool"]
         app_vers = self._models["apps"].find(app_request)["versions"]
         app_names = {app.name for app in self._state["rezApps"].values()}
         profile_name = self._state["profileName"]
@@ -387,6 +396,8 @@ class Controller(QtCore.QObject):
             packages[pkg.name] = {
                 "package": pkg,
                 "versions": versions,
+                # 0: dependency, 1: app, 2: profile
+                "type": is_profile * 2 or is_app * 1,
             }
 
         return packages
@@ -510,6 +521,9 @@ class Controller(QtCore.QObject):
     # ----------------
     # Methods
     # ----------------
+
+    def register_environment_validator(self, validator):
+        self._state["pluginEnvironValidator"] = validator
 
     def stdio(self, stream, level=logging.INFO):
         return _Stream(self, stream, level)
@@ -746,12 +760,14 @@ class Controller(QtCore.QObject):
     def launch(self, **kwargs):
         def do():
             app_request = self._state["appRequest"]
-            rez_context = self._state["rezContexts"][app_request]
             rez_app = self._state["rezApps"][app_request]
 
-            self.debug("Found app: %s=%s" % (
-                rez_app.name, rez_app.version
-            ))
+            if rez_app.is_suite_tool():
+                rez_context = self._state["rezContexts"]["_profile_"]
+            else:
+                rez_context = self._state["rezContexts"][app_request]
+
+            self.debug("Found app: %s" % rez_app.app_request())
 
             app_model = self._models["apps"]
             app_index = app_model.findIndex(app_request)
@@ -772,6 +788,13 @@ class Controller(QtCore.QObject):
             disabled = self._models["packages"]._disabled
             environ = self.parent_environ()
 
+            validator = self._state["pluginEnvironValidator"]
+            invalid = validator(environ, rez_app)
+            if invalid:
+                self.error("Plugin environment validation failed:\n"
+                           "%s" % invalid)
+                return
+
             self.debug(
                 "Launching %s%s.." % (
                     tool_name, " (detached)" if is_detached else "")
@@ -784,7 +807,7 @@ class Controller(QtCore.QObject):
             cmd = Command(
                 context=rez_context,
                 command=tool_name,
-                package=rez_app,
+                rez_app=rez_app,
                 overrides=overrides,
                 disabled=disabled,
                 detached=is_detached,
@@ -1000,6 +1023,10 @@ class Controller(QtCore.QObject):
     def select_application(self, app_request):
         self._state["appRequest"] = app_request
 
+        rez_app = self._state["rezApps"][app_request]
+        is_suite_tool = rez_app.is_suite_tool()
+        self._state["appSuiteTool"] = is_suite_tool
+
         try:
             context = self.context(app_request)
             environ = self.environ(app_request)
@@ -1015,7 +1042,7 @@ class Controller(QtCore.QObject):
 
         self._models["packages"].reset(packages)
         self._models["context"].load(context.to_dict())
-        self._models["environment"].load(environ)
+        self._models["environment"].load(environ.copy())
         self._models["diagnose"].load(diagnose)
 
         tools = self._models["apps"].find(app_request)["tools"]
@@ -1030,6 +1057,11 @@ class Controller(QtCore.QObject):
             self._state.to_appok()
         else:
             self._state.to_appfailed()
+
+        if is_suite_tool:
+            self._state.to_appsuite()
+        else:
+            self._state.to_apppackage()
 
         self._state.to_ready()
 
@@ -1084,7 +1116,7 @@ class Controller(QtCore.QObject):
 
             # Before resolving apps, need to know whether this profile can
             # be resolved or not.
-            self.env(profile_request)
+            profile_context = self.env(profile_request)
 
         self.debug("Resolved profile context in %.2f seconds" % t.duration)
 
@@ -1156,6 +1188,9 @@ class Controller(QtCore.QObject):
         _missing = (rez.PackageFamilyNotFoundError, rez.PackageNotFoundError)
 
         contexts = odict()
+        suite_ctxs = dict()
+        suite_tools = ddict(list)
+
         with util.timing() as t:
 
             current_app = self._state["appRequest"] or ""
@@ -1196,13 +1231,34 @@ class Controller(QtCore.QObject):
 
                 contexts[app_request] = context
 
-        # Associate a Rez package with an app
+            # Lookup suites in profile
+            profile_env = profile_context.get_environ()
+            visible_suites = rez.Suite.load_visible_suites(
+                paths=profile_env.get("PATH", "").split(os.pathsep)
+            )
+            for suite in visible_suites:
+                for tool_alias, tool_entry in suite.get_tools().items():
+                    tool_name = tool_entry["tool_name"]
+                    context_name = tool_entry["context_name"]
+
+                    # get package(s) that providing this tool
+                    tool_context = suite.context(context_name)
+                    variants = tool_context.get_tool_variants(tool_name)
+                    app_pkg = next(iter(variants))  # `set` type object
+
+                    app_request = rez.uni_request_key(app_pkg, context_name)
+                    contexts[app_request] = tool_context
+                    suite_ctxs[app_request] = context_name
+                    suite_tools[app_request].append(tool_alias)
+
+        # Associate a Rez package with an app (and suite tool)
         for app_request, rez_context in contexts.items():
             try:
                 rez_pkg = next(
                     pkg
                     for pkg in rez_context.resolved_packages
-                    if "%s==%s" % (pkg.name, pkg.version) == app_request
+                    if (rez.uni_request_key(pkg, suite_ctxs.get(app_request))
+                        == app_request)
                 )
 
             except StopIteration:
@@ -1239,27 +1295,41 @@ class Controller(QtCore.QObject):
                         (app_request, rez_context.failure_description)
                     )
 
-            self._state["rezApps"][app_request] = rez_pkg
+            if rez.is_from_suite(rez_pkg):
+                tools = suite_tools[app_request]
+            else:
+                tools = getattr(rez_pkg, "tools", None) or [rez_pkg.name]
+
+            rez_app = rez.RezApp(rez_pkg, app_request, list(tools))
+            self._state["rezApps"][app_request] = rez_app
 
         self._state["rezContexts"] = contexts
 
         self.debug("Resolved all contexts in %.2f seconds" % t.duration)
 
+        contexts["_profile_"] = profile_context
         visible_apps = dict()
 
         # * Opt-out hidden application
         # * Find application versions
         show_hidden = self._state.retrieve("showHiddenApps")
-        for request, app_pkg in self._state["rezApps"].items():
+        for request, rez_app in self._state["rezApps"].items():
+            app_pkg = rez_app.package()
             data = allzparkconfig.metadata_from_package(app_pkg)
             hidden = data.get("hidden", False)
 
             if hidden and not show_hidden:
                 continue
 
-            app_versions = [str(v.version) for v in app_ranges[app_pkg.name]]
+            if rez_app.is_suite_tool():
+                app_versions = [str(app_pkg.version)]
+            else:
+                app_versions = [
+                    str(v.version) for v in app_ranges[app_pkg.name]
+                ]
+
             visible_apps[request] = {
-                "package": app_pkg,
+                "package": rez_app,
                 "versions": app_versions,
             }
 
@@ -1269,7 +1339,6 @@ class Controller(QtCore.QObject):
         context = self._state["rezContexts"][self._state["appRequest"]]
         if isinstance(context, model.BrokenContext):
             self._state.to_console()
-            self._state.to_ready()
             self.error("Can not graph a broken context.")
             return
 
@@ -1300,12 +1369,14 @@ class Controller(QtCore.QObject):
 
     def test_environment(self):
         app_request = self._state["appRequest"]
+        environ = self.environ(app_request)
+        has_python = bool(rez.which("python", env=environ))
 
         command = (
             '%s -c "'
             'import os,sys,json;'
             'sys.stdout.write(json.dumps(os.environ.copy(),ensure_ascii=0))"'
-        ) % sys.executable
+        ) % ("python" if has_python else sys.executable)
 
         def load(message):
             try:
@@ -1316,6 +1387,7 @@ class Controller(QtCore.QObject):
                 self._state["testedEnvirons"][app_request] = env
                 self._models["diagnose"].load(env)
 
+        self._models["diagnose"].clear()
         self.launch(command=command, stdout=load)
 
 
@@ -1332,7 +1404,7 @@ class Command(QtCore.QObject):
     def __init__(self,
                  context,
                  command,
-                 package,
+                 rez_app,
                  overrides=None,
                  disabled=None,
                  detached=True,
@@ -1345,7 +1417,7 @@ class Command(QtCore.QObject):
         self.environ = environ or {}
 
         self.context = context
-        self.app = package
+        self.app = rez_app.package()
         self.popen = None
         self.detached = detached
 

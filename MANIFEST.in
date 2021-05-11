@@ -1,0 +1,5 @@
+
+global-include *LICENCE* *LICENSE* *.txt *.md *.rst
+recursive-include allzpark/resources *.svg *.png *.css
+recursive-include allzpark/resources/fonts *.ttf
+include pyproject.toml

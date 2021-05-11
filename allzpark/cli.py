@@ -5,7 +5,6 @@ import sys
 import time
 import signal
 import logging
-import argparse
 import contextlib
 
 from .version import version
@@ -243,10 +242,10 @@ def initialize(config_file=None,
                              "start anew")
 
         if clean:
-            tell("(clean) ")
+            tell("(clean) ", newlines=0)
             storage.clear()
         else:
-            tell("(%s)" % storage.fileName())
+            tell("(%s) " % storage.fileName(), newlines=0)
 
         defaults = {
             "memcachedURI": os.getenv("REZ_MEMCACHED_URI", "None"),
@@ -293,7 +292,7 @@ def initialize(config_file=None,
 
 
 def launch(ctrl):
-    from . import view, resources, util
+    from . import view, dock, resources, util
 
     # Handle stdio from within the application if necessary
     if hasattr(allzparkconfig, "__noconsole__"):
@@ -318,7 +317,16 @@ def launch(ctrl):
     with timings("- Loading themes.. "):
         resources.load_themes()
 
-    window = view.Window(ctrl)
+    with timings("- Loading environment plugin.. ") as msg:
+        plugin_cls = allzparkconfig.environment_plugin()
+        if plugin_cls is None:
+            plugin = None
+            msg["success"] = "no plugin - ok\n"
+        else:
+            plugin = dock.EnvironmentPlugin(ctrl, plugin_cls)
+            msg["success"] = "%s loaded - ok {:.2f}\n" % plugin.name
+
+    window = view.Window(ctrl, plugin)
     user_css = ctrl.state.retrieve("userCss", "")
     originalcss = resources.load_theme(ctrl.state.retrieve("theme"))
     # Store for CSS Editor
@@ -348,86 +356,3 @@ def reset(ctrl, profiles=None):
 
     # Give the window a moment to appear before occupying it
     QtCore.QTimer.singleShot(50, init)
-
-
-def main():
-    parser = argparse.ArgumentParser("allzpark", description=(
-        "An application launcher built on Rez, "
-        "pass --help for details"
-    ))
-
-    parser.add_argument("-v", "--verbose", action="count", default=0, help=(
-        "Print additional information about Allzpark during operation. "
-        "Pass -v for info, -vv for info and -vvv for debug messages"))
-    parser.add_argument("--version", action="store_true", help=(
-        "Print version and exit"))
-    parser.add_argument("--clean", action="store_true", help=(
-        "Start fresh with user preferences"))
-    parser.add_argument("--config-file", type=str, help=(
-        "Absolute path to allzparkconfig.py, takes precedence "
-        "over ALLZPARK_CONFIG_FILE"))
-    parser.add_argument("--no-config", action="store_true", help=(
-        "Do not load custom allzparkconfig.py"))
-    parser.add_argument("--demo", action="store_true", help=(
-        "Run demo material"))
-    parser.add_argument("--root", help=(
-        "(DEPRECATED) Path to where profiles live on disk, "
-        "defaults to allzparkconfig.profiles"))
-
-    opts = parser.parse_args()
-
-    if not sys.stdout:
-        import tempfile
-
-        # Capture early messages from a console-less session
-        # Primarily intended for Windows's pythonw.exe
-        # (Handles close automatically on exit)
-        temproot = tempfile.gettempdir()
-        sys.stdout = open(os.path.join(temproot, "allzpark-stdout.txt"), "a")
-        sys.stderr = open(os.path.join(temproot, "allzpark-stderr.txt"), "a")
-
-        # We don't need it, but Rez uses this internally
-        sys.stdin = open(os.path.join(temproot, "allzpark-stdin.txt"), "w")
-
-        # Rez references these originals too
-        sys.__stdout__ = sys.stdout
-        sys.__stderr__ = sys.stderr
-        sys.__stdin__ = sys.stdin
-
-        opts.verbose = 3
-        allzparkconfig.__noconsole__ = True
-
-    if opts.version:
-        tell(version)
-        exit(0)
-
-    app, ctrl = initialize(
-        config_file=opts.config_file,
-        verbose=opts.verbose,
-        clean=opts.clean,
-        demo=opts.demo,
-        no_config=opts.no_config,
-    )
-
-    if opts.root:
-        warn("The flag --root has been deprecated, "
-             "use allzparkconfig.py:profiles.\n")
-
-        def profiles_from_dir(path):
-            try:
-                _profiles = os.listdir(path)
-            except IOError:
-                warn("ERROR: Could not list directory %s" % opts.root)
-                _profiles = []
-            # Support directory names that use dash in place of underscore
-            _profiles = [p.replace("-", "_") for p in _profiles]
-            return _profiles
-
-        profiles = profiles_from_dir(opts.root)
-    else:
-        profiles = []
-
-    launch(ctrl)
-    reset(ctrl, profiles)
-
-    app.exec_()

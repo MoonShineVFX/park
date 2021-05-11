@@ -19,5 +19,5 @@ if os.getenv("ALLZPARK_STARTTIME"):
 
 
 import sys
-from . import cli
-sys.exit(cli.main())
+from .rezplugins.command.park import standalone_cli
+sys.exit(standalone_cli())

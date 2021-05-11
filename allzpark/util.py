@@ -213,3 +213,50 @@ def natural_keys(text):
     """
 
     return [atoi(c) for c in re.split(r'(\d+)', text)]
+
+
+def expand_path(path):
+    import os
+    import functools
+    return functools.reduce(
+        lambda _p, f: f(_p),
+        [path,
+         os.path.expanduser,
+         os.path.expandvars]
+    )
+
+
+def suite_provider(show_name, suite_root):
+    """Create suite providing package"""
+    import os
+    from rez.package_maker import PackageMaker
+
+    category = os.path.basename(suite_root)
+    profile_prefix = "_%s_" % category
+
+    parts = show_name.split("_")
+    if parts[0].isdigit():  # remove date string, e.g. YYYYMM_SHOW_NAME
+        parts = parts[1:]
+    pretty_name = " ".join(parts)
+
+    profile_data = {
+        "icon": "%s/%s/icon.png" % (suite_root, show_name),
+        "label": pretty_name,
+        "category": category,
+    }
+
+    def commands():
+        env.PATH.prepend("{this.suite_root}/%s/bin" % this.show_name)
+
+    # add prefix so the profile name won't conflict with regular packages
+    name = profile_prefix + show_name
+    maker = PackageMaker(name, data={
+        "version": "1",
+        "commands": commands,
+        "suite_root": suite_root,
+        "show_name": show_name,
+        "_data": profile_data,  # package metadata
+    })
+    package = maker.get_package()
+
+    return package

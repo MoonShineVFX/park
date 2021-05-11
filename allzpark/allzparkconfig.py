@@ -33,11 +33,33 @@ def profiles():
     Can also be a variable of type tuple or list
 
     """
+    # Auto generate suite based profile packages
 
-    try:
-        return __os.listdir(__os.path.expanduser("~/profiles"))
-    except IOError:
-        return []
+    from rez.config import config
+    from rez.package_repository import package_repository_manager
+    from allzpark.util import expand_path, suite_provider
+
+    sweet_default = __os.pathsep.join(["~/rez/sweet/local",
+                                       "~/rez/sweet/release"])
+    suite_roots = __os.getenv("ALLZPARK_SUITE_ROOTS",
+                              sweet_default).split(__os.pathsep)
+
+    provider_memory = "memory@allzpark.profiles"
+    if provider_memory not in config.packages_path:
+        config.packages_path.insert(0, provider_memory)
+
+    memory_repo = package_repository_manager.get_repository(provider_memory)
+
+    for suite_root in suite_roots:
+        suite_root = expand_path(suite_root)
+        if not __os.path.isdir(suite_root):
+            continue
+
+        for show_name in __os.listdir(suite_root):
+            package = suite_provider(show_name, suite_root)
+            memory_repo.data.update({package.name: {"1": package.data}})
+
+    return sorted(memory_repo.data.keys())
 
 
 def applications():

@@ -1,7 +1,4 @@
 
 # CONFIG
-park = {
-    "dev_repository_roots": [
-        # you're developer package repository here.
-    ],
-}
+#   This currently not being used, use allzparkconfig instead, for now
+park = {}

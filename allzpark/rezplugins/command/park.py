@@ -15,7 +15,11 @@ command_behavior = {}
 
 def rez_cli():
     from rez.cli._main import run
-    return run("park")
+    try:
+        return run("park")
+    except KeyError:
+        # for rez version that doesn't have Command type plugin
+        return standalone_cli()
 
 
 def standalone_cli():
@@ -24,16 +28,9 @@ def standalone_cli():
         "An application launcher built on Rez, "
         "pass --help for details"
     ))
-
     parser.add_argument("-v", "--verbose", action="count", default=0, help=(
         "Print additional information about Allzpark during operation. "
         "Pass -v for info, -vv for info and -vvv for debug messages"))
-    parser.add_argument("--demo", action="store_true", help=(
-        "Run demo material"))
-    parser.add_argument("--root", help=(
-        "(DEPRECATED) Path to where profiles live on disk, "
-        "defaults to allzparkconfig.profiles"))
-
     setup_parser(parser)
     opts = parser.parse_args()
     return command(opts)
@@ -47,13 +44,17 @@ def setup_parser(parser, completions=False):
         "over ALLZPARK_CONFIG_FILE"))
     parser.add_argument("--no-config", action="store_true", help=(
         "Do not load custom allzparkconfig.py"))
+    parser.add_argument("--demo", action="store_true", help=(
+        "Run demo material"))
+    parser.add_argument("--root", help=(
+        "(DEPRECATED) Path to where profiles live on disk, "
+        "defaults to allzparkconfig.profiles"))
     parser.add_argument("--version", action="store_true",
                         help="Print out version of this plugin command.")
 
 
 def command(opts, parser=None, extra_arg_groups=None):
-    from rez.config import config
-    from allzpark import cli
+    from allzpark import cli, allzparkconfig
 
     if not sys.stdout:
         import tempfile

@@ -15,11 +15,14 @@ command_behavior = {}
 
 def rez_cli():
     from rez.cli._main import run
+    from rez.cli._entry_points import check_production_install
+    check_production_install()
     try:
         return run("park")
     except KeyError:
+        pass
         # for rez version that doesn't have Command type plugin
-        return standalone_cli()
+    return standalone_cli()
 
 
 def standalone_cli():

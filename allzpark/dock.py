@@ -715,7 +715,6 @@ class Environment(AbstractDockWidget):
             "environment": QtWidgets.QWidget(),
             "editor": EnvironmentEditor(),
             "penv": QtWidgets.QWidget(),
-            "plugin": QtWidgets.QWidget(),
             "diagnose": QtWidgets.QWidget(),
         }
 
@@ -723,7 +722,6 @@ class Environment(AbstractDockWidget):
             "view": JsonView(),
             "penv": JsonView(),
             "test": JsonView(),
-            "plugin": JsonView(),
             "compute": QtWidgets.QPushButton("Compute Environment"),
         }
 
@@ -735,16 +733,12 @@ class Environment(AbstractDockWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(widgets["penv"])
 
-        layout = QtWidgets.QVBoxLayout(pages["plugin"])
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(widgets["plugin"])
-
         layout = QtWidgets.QVBoxLayout(pages["diagnose"])
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(widgets["test"])
         layout.addWidget(widgets["compute"])
 
-        for view in ["view", "penv", "plugin", "test"]:
+        for view in ["view", "penv", "test"]:
             widgets[view].setSortingEnabled(True)
             widgets[view].sortByColumn(0, QtCore.Qt.AscendingOrder)
 
@@ -752,11 +746,8 @@ class Environment(AbstractDockWidget):
 
         panels["central"].addTab(pages["environment"], "Context")
         panels["central"].addTab(pages["penv"], "Parent")
-        panels["central"].addTab(pages["plugin"], "Plugin")
         panels["central"].addTab(pages["editor"], "User")
         panels["central"].addTab(pages["diagnose"], "Diagnose")
-
-        panels["central"].setTabVisible(2, False)
 
         user_env = ctrl.state.retrieve("userEnv", {})
         pages["editor"].from_environment(user_env)
@@ -772,14 +763,10 @@ class Environment(AbstractDockWidget):
         self._models = {
             "environ": None,
             "parent": None,
-            "plugin": None,
             "diagnose": None,
         }
 
-    def enable_plugin(self):
-        self._panels["central"].setTabVisible(2, True)
-
-    def set_model(self, environ, parent, plugin, diagnose):
+    def set_model(self, environ, parent, diagnose):
         proxy_model = QtCore.QSortFilterProxyModel()
         proxy_model.setSourceModel(environ)
         self._widgets["view"].setModel(proxy_model)
@@ -789,11 +776,6 @@ class Environment(AbstractDockWidget):
         proxy_model.setSourceModel(parent)
         self._widgets["penv"].setModel(proxy_model)
         self._models["parent"] = parent
-
-        proxy_model = QtCore.QSortFilterProxyModel()
-        proxy_model.setSourceModel(plugin)
-        self._widgets["plugin"].setModel(proxy_model)
-        self._models["plugin"] = plugin
 
         proxy_model = QtCore.QSortFilterProxyModel()
         proxy_model.setSourceModel(diagnose)
@@ -1819,67 +1801,3 @@ class Profiles(AbstractDockWidget):
         icon = res.icon(icon)
         icon = icon.pixmap(QtCore.QSize(px(32), px(32)))
         self._widgets["icon"].setPixmap(icon)
-
-
-class EnvironmentPlugin(AbstractDockWidget):
-    """Interface for adding extra environment variables"""
-    name = "Environment plugin"
-    icon = "File_Query_32"
-
-    revealed = QtCore.Signal()
-
-    def __init__(self, ctrl, plugin_cls, parent=None):
-        # update dock name and docstring from plugin class
-        self.name = getattr(plugin_cls, "name", self.name)
-        self.__doc__ = plugin_cls.__doc__ or self.__doc__
-        super(EnvironmentPlugin, self).__init__(self.name, parent)
-        self.setAttribute(QtCore.Qt.WA_StyledBackground)
-        self.setObjectName(self.name)
-
-        panels = {
-            "central": QtWidgets.QWidget(),
-        }
-
-        widgets = {
-            "plugin": plugin_cls(),
-        }
-
-        layout = QtWidgets.QVBoxLayout(panels["central"])
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(widgets["plugin"])
-
-        # update icon for plugin instance that ships it's own QIcon
-        self.icon = getattr(widgets["plugin"], "icon", self.icon)
-        self._ctrl = ctrl
-        self._widgets = widgets
-
-        self.setWidget(panels["central"])
-
-    def connect_plugin(self):
-        ctrl = self._ctrl
-        plugin_ = self._widgets["plugin"]
-
-        ctrl.register_environment_validator(plugin_.validate)
-
-        ctrl.profile_changed.connect(self.on_profile_changed)
-        ctrl.application_changed.connect(self.on_application_changed)
-
-        plugin_.envChanged.connect(ctrl.models["plugin"].load)
-        plugin_.envReset.connect(ctrl.models["plugin"].reset)
-        plugin_.revealed.connect(self.revealed.emit)
-        plugin_.consoleShown.connect(ctrl.state.to_console)
-        plugin_.logged.connect(ctrl.logged.emit)
-
-    def on_profile_changed(self, name, version, *args, **kwargs):
-        plugin_ = self._widgets["plugin"]
-
-        profile_versions = self._ctrl.state["rezProfiles"][name]
-        profile_package = profile_versions[version]
-        plugin_.on_profile_changed(profile_package)
-
-    def on_application_changed(self):
-        plugin_ = self._widgets["plugin"]
-
-        app_request = self._ctrl.state["appRequest"]
-        app_package = self._ctrl.state["rezApps"][app_request]
-        plugin_.on_application_changed(app_package)

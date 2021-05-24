@@ -290,7 +290,7 @@ def initialize(config_file=None,
 
 
 def launch(ctrl):
-    from . import view, dock, resources, util
+    from . import view, resources, util
 
     # Handle stdio from within the application if necessary
     if hasattr(allzparkconfig, "__noconsole__"):
@@ -315,16 +315,7 @@ def launch(ctrl):
     with timings("- Loading themes.. "):
         resources.load_themes()
 
-    with timings("- Loading environment plugin.. ") as msg:
-        plugin_cls = allzparkconfig.environment_plugin()
-        if plugin_cls is None:
-            plugin = None
-            msg["success"] = "no plugin - ok\n"
-        else:
-            plugin = dock.EnvironmentPlugin(ctrl, plugin_cls)
-            msg["success"] = "%s loaded - ok {:.2f}\n" % plugin.name
-
-    window = view.Window(ctrl, plugin)
+    window = view.Window(ctrl)
     user_css = ctrl.state.retrieve("userCss", "")
     originalcss = resources.load_theme(ctrl.state.retrieve("theme"))
     # Store for CSS Editor

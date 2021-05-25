@@ -312,6 +312,10 @@ class Controller(QtCore.QObject):
 
     def parent_environ(self):
         environ = self._state["parentEnviron"].copy()
+
+        #
+        environ["ALLZPARK_PROFILE_NAME"] = self._state["profileName"]
+
         # Inject user environment
         #
         # NOTE: Rez takes precendence on environment, so a user
@@ -754,7 +758,7 @@ class Controller(QtCore.QObject):
             app_request = self._state["appRequest"]
             rez_app = self._state["rezApps"][app_request]
 
-            if rez_app.is_suite_tool():
+            if rez_app.is_suite_tool() and kwargs.get("run_suite"):
                 rez_context = self._state["rezContexts"]["_profile_"]
             else:
                 rez_context = self._state["rezContexts"][app_request]
@@ -1454,6 +1458,9 @@ class Command(QtCore.QObject):
         if sys.version_info[:2] >= (3, 6):
             kwargs["encoding"] = allzparkconfig.subprocess_encoding()
             kwargs["errors"] = allzparkconfig.unicode_decode_error_handler()
+
+        if "cwd" not in kwargs and hasattr(self.app, "startup_dir"):
+            kwargs["cwd"] = self.app.startup_dir or None
 
         context = self.context
 

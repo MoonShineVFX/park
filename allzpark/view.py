@@ -453,13 +453,13 @@ class Window(QtWidgets.QMainWindow):
         separator.setDefaultWidget(QtWidgets.QLabel("Quick Launch"))
         menu.addAction(separator)
 
-        def handle(action):
+        def handle(action, run_suite=False):
             tool = action.text()
-            self._ctrl.launch(command=tool)
+            self._ctrl.launch(command=tool, run_suite=run_suite)
 
         for tool in tools:
             action = QtWidgets.QAction(tool, menu)
-            action.triggered.connect(lambda _=False, a=action: handle(a))
+            action.triggered.connect(lambda _=False, a=action: handle(a, True))
             menu.addAction(action)
 
         menu.addSeparator()

@@ -44,11 +44,7 @@ def profiles():
     suite_roots = __os.getenv("ALLZPARK_SUITE_ROOTS",
                               sweet_default).split(__os.pathsep)
 
-    provider_memory = "memory@allzpark.profiles"
-    if provider_memory not in config.packages_path:
-        config.packages_path.insert(0, provider_memory)
-
-    memory_repo = package_repository_manager.get_repository(provider_memory)
+    _profiles = set()
 
     for suite_root in suite_roots:
         suite_root = expand_path(suite_root)
@@ -56,10 +52,18 @@ def profiles():
             continue
 
         for show_name in __os.listdir(suite_root):
-            package = suite_provider(show_name, suite_root)
-            memory_repo.data.update({package.name: {"1": package.data}})
+            package, category = suite_provider(show_name, suite_root)
 
-    return sorted(memory_repo.data.keys())
+            memory_path = "memory@allzpark.profiles.%s" % category
+            if memory_path not in config.packages_path:
+                config.packages_path.insert(0, memory_path)
+
+            repo = package_repository_manager.get_repository(memory_path)
+            repo.data.update({package.name: {"1": package.data}})
+
+            _profiles.add(package.name)
+
+    return sorted(_profiles)
 
 
 def applications():

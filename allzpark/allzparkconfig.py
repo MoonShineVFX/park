@@ -66,17 +66,6 @@ def profiles():
     return sorted(_profiles)
 
 
-def applications():
-    """Return list of applications
-
-    Applications are typically provided by the profile,
-    this function is called when "Show all apps" is enabled.
-
-    """
-
-    return []
-
-
 def applications_from_package(variant):
     """Return applications relative `variant`
 
@@ -135,7 +124,6 @@ def protected_preferences():
     Prevent clueless one from touching danger settings.
 
     Following is a list of preference names that you may lock:
-    * showAllApps (bool)
     * showHiddenApps (bool)
     * showAllVersions (bool)
     * patchWithFilter (bool)

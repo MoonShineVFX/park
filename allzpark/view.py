@@ -498,8 +498,7 @@ class Window(QtWidgets.QMainWindow):
         if key == "showAdvancedControls":
             self.update_advanced_controls()
 
-        if key in ("showAllApps",
-                   "showHiddenApps",
+        if key in ("showHiddenApps",
                    "patchWithFilter"):
             self._ctrl.reset()
 

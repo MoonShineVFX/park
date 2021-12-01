@@ -1108,10 +1108,6 @@ class Preferences(AbstractDockWidget):
             qargparse.Boolean("showAdvancedControls", help=(
                 "Show developer-centric controls"
             )),
-            qargparse.Boolean("showAllApps", help=(
-                "List everything from allzparkconfig:applications\n"
-                "not just the ones specified for a given profile."
-            )),
             qargparse.Boolean("showHiddenApps", help=(
                 "Show apps with metadata['hidden'] = True"
             )),

@@ -1112,29 +1112,6 @@ class Controller(QtCore.QObject):
         # Resolve app with profile
 
         apps = []
-        _apps = allzparkconfig.applications
-
-        if self._state.retrieve("showAllApps") and not _apps:
-            self.warning("Requires allzparkconfig.applications")
-
-        elif self._state.retrieve("showAllApps"):
-            if isinstance(_apps, (tuple, list)):
-                apps = _apps
-
-            else:
-                try:
-                    if callable(_apps):
-                        apps = _apps()
-                    else:
-                        apps = os.listdir(_apps)
-                except OSError as e:
-                    if e.errno not in (errno.ENOENT,
-                                       errno.EEXIST,
-                                       errno.ENOTDIR):
-                        raise
-
-                    self.warning("Could not show all apps, "
-                                 "missing `allzparkconfig.applications`")
 
         if not apps:
             apps[:] = allzparkconfig.applications_from_package(profile)

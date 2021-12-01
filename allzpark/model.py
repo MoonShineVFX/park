@@ -44,12 +44,6 @@ from . import _rezapi as rez
 from .vendor.Qt import QtCore, QtGui, QtCompat
 from .vendor import qjsonmodel, six
 
-# Optional third-party dependencies
-try:
-    from localz import lib as localz
-except ImportError:
-    localz = None
-
 log = logging.getLogger(__name__)
 _basestring = six.string_types[0]  # For Python 2/3
 _usercount = itertools.count(1)
@@ -59,10 +53,9 @@ NoVersion = None
 
 DisplayRole = QtCore.Qt.DisplayRole
 IconRole = QtCore.Qt.DecorationRole
-LocalizingRole = QtCore.Qt.UserRole + 1
-BetaRole = QtCore.Qt.UserRole + 2
-LatestRole = QtCore.Qt.UserRole + 3
-NameRole = QtCore.Qt.UserRole + 4
+NameRole = QtCore.Qt.UserRole + 1
+LatestRole = QtCore.Qt.UserRole + 2
+BetaRole = QtCore.Qt.UserRole + 3
 
 
 class AbstractTableModel(QtCore.QAbstractTableModel):
@@ -209,10 +202,8 @@ class PackageItem(AbstractPackageItem):
         package = data["package"]
         versions = data["versions"]
         metadata = allzparkconfig.metadata_from_package(package)
-        relocatable = localz.is_relocatable(package) if localz else False
         state = (
-            "(dev)" if is_local(package) else
-            "(localised)" if is_localised(package) else
+            "(local)" if is_local(package) else
             ""
         )
 
@@ -224,8 +215,6 @@ class PackageItem(AbstractPackageItem):
             "override": data["override"],
             "disabled": data["disabled"],
             "state": state,
-            "relocatable": relocatable,
-            "localizing": False,  # in progress
             "type": data["type"],  # 0: dependency, 1: app, 2: profile
         })
 
@@ -349,7 +338,6 @@ class BrokenPackage(object):
         self.uri = ""
         self.root = ""
         self.context = None
-        self.relocatable = False
         self.requires = []
         self.resource = type(
             "BrokenResource", (object,), {"repository_type": None}
@@ -371,15 +359,6 @@ def is_local(pkg):
     pkg_path = util.normpath(pkg_path)
 
     return pkg_path.startswith(local_path)
-
-
-def is_localised(pkg):
-    if localz:
-        root = util.normpath(pkg.root)
-        path = util.normpath(localz.localized_packages_path())
-        return root.startswith(path)
-    else:
-        return False
 
 
 class PackagesModel(AbstractTableModel):
@@ -451,7 +430,7 @@ class PackagesModel(AbstractTableModel):
             if role == QtCore.Qt.ForegroundRole:
                 return QtGui.QColor("darkorange")
 
-        if data["disabled"] or data["localizing"]:
+        if data["disabled"]:
             if role == QtCore.Qt.FontRole:
                 font = QtGui.QFont()
                 font.setBold(True)

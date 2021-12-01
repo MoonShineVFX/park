@@ -21,12 +21,6 @@ from . import model, util, allzparkconfig
 # Third-party dependencies
 from . import _rezapi as rez
 
-# Optional third-party dependencies
-try:
-    from localz import lib as localz
-except ImportError:
-    localz = None
-
 log = logging.getLogger(__name__)
 
 Latest = model.Latest  # Enum
@@ -607,11 +601,7 @@ class Controller(QtCore.QObject):
         # machines at different times
         command += ["--time", str(context.timestamp)]
 
-        if localz and not self._state.retrieve("useLocalizedPackages", True):
-            paths = os.pathsep.join(self._package_paths())
-            command += ["--paths"] + ["\"%s\"" % paths]
-
-        elif not self._state.retrieve("useDevelopmentPackages"):
+        if not self._state.retrieve("useDevelopmentPackages"):
             command += ["--no-local"]
 
         command += ["--", tool]
@@ -819,62 +809,6 @@ class Controller(QtCore.QObject):
         self._state.to_loading()
         util.delay(do)
 
-    def localize(self, name):
-        tempdir = tempfile.mkdtemp()
-
-        def do():
-            self.debug("Resolving %s.." % name)
-            variant = localz.resolve(name)[0]  # Guaranteed to be one
-
-            try:
-                self.debug("Preparing %s.." % name)
-                copied = localz.prepare(variant, tempdir, verbose=2)[0]
-
-                self.debug("Computing size..")
-                size = localz.dirsize(tempdir) / (10.0 ** 6)  # mb
-
-                self.debug("Localising %.2f mb.." % size)
-                result = localz.localize(copied,
-                                         localz.localized_packages_path(),
-                                         verbose=2)
-
-                self.debug("Localised %s" % result)
-
-            finally:
-                self.debug("Cleaning up..")
-                shutil.rmtree(tempdir)
-
-        def on_success(result=None):
-            self.repository_changed.emit()
-
-        def on_failure(error, trace):
-            self.error(trace)
-
-        util.defer(do,
-                   on_success=on_success,
-                   on_failure=on_failure)
-
-    def delocalize(self, name):
-        def do():
-            item = self._models["packages"].find(name)
-            package = item["package"]
-            self.debug("Delocalizing %s" % package.root)
-            localz.delocalize(package)
-
-        def on_success(result=None):
-            self.repository_changed.emit()
-
-        def on_failure(error, trace):
-            self.error(trace)
-
-        util.defer(do,
-                   on_success=on_success,
-                   on_failure=on_failure)
-
-    def _localize_status(self, package):
-        """Return status of localisation"""
-        return None
-
     def debug(self, message):
         self.logged.emit(message, logging.DEBUG)
 
@@ -1066,16 +1000,6 @@ class Controller(QtCore.QObject):
         # Optional development packages
         if not self._state.retrieve("useDevelopmentPackages"):
             paths = rez.config.nonlocal_packages_path[:]
-
-        # Optional package localisation
-        if localz and not self._state.retrieve("useLocalizedPackages", True):
-            path = localz.localized_packages_path()
-
-            try:
-                paths.remove(util.normpath(path))
-            except ValueError:
-                # It may not be part of the path
-                pass
 
         return paths
 

@@ -275,12 +275,6 @@ def initialize(config_file=None,
             # a convenient location for installed packages
             storage.setValue("useDevelopmentPackages", True)
 
-    try:
-        __import__("localz")
-        allzparkconfig._localz_enabled = True
-    except ImportError:
-        allzparkconfig._localz_enabled = False
-
     tell("-" * 30)  # Add some space between boot messages, and upcoming log
 
     app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])

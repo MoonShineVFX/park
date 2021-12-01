@@ -13,11 +13,6 @@ from . import resources as res, model, delegates, util
 from . import _rezapi as rez
 from . import allzparkconfig
 
-try:
-    from localz import lib as localz
-except ImportError:
-    localz = None
-
 px = res.px
 
 
@@ -306,13 +301,6 @@ class Packages(AbstractDockWidget):
                 help="Add packages to context"),
         ]
 
-        if localz:
-            args.insert(0, qargparse.Boolean(
-                "useLocalizedPackages",
-                default=ctrl._state.retrieve("useLocalizedPackages", True),
-                help="Include localised packages in the resolve"),
-            )
-
         widgets = {
             "args": qargparse.QArgumentParser(args),
             "view": SlimTableView(),
@@ -421,10 +409,6 @@ class Packages(AbstractDockWidget):
         latest = QtWidgets.QAction("Set to latest", menu)
         openfile = QtWidgets.QAction("Open file location", menu)
         copyfile = QtWidgets.QAction("Copy file location", menu)
-        localize = QtWidgets.QAction("Localise selected...", menu)
-        localize_related = QtWidgets.QAction("Localise related...", menu)
-        localize_all = QtWidgets.QAction("Localise all...", menu)
-        delocalize = QtWidgets.QAction("Delocalise selected...", menu)
 
         disable.setCheckable(True)
         disable.setChecked(model_.data(index, "disabled"))
@@ -437,41 +421,6 @@ class Packages(AbstractDockWidget):
         menu.addSeparator()
         menu.addAction(openfile)
         menu.addAction(copyfile)
-
-        if localz:
-            enabled = True
-            tooltip = None
-
-            if index.data(model.LocalizingRole):
-                enabled = False
-                tooltip = "Localisation in progress..."
-
-            elif model_.data(index, "state") in ("(dev)", "(localised)"):
-                tooltip = "Package already local"
-                enabled = False
-
-            elif not model_.data(index, "relocatable"):
-                tooltip = "Package does not support localisation"
-                enabled = False
-
-            menu.addSeparator()
-            for action in (localize,
-                           localize_related,
-                           localize_all,
-                           ):
-                menu.addAction(action)
-                action.setToolTip(tooltip or "")
-                action.setEnabled(enabled)
-
-            menu.addSeparator()
-            menu.addAction(delocalize)
-            delocalize.setEnabled(
-                model_.data(index, "state") == "(localised)"
-            )
-
-            # Not yet implemented
-            localize_all.setEnabled(False)
-            localize_related.setEnabled(False)
 
         versions = model_.data(index, "versions")
         if len(versions) <= 1:
@@ -524,18 +473,6 @@ class Packages(AbstractDockWidget):
             model_.setData(index, disable.isChecked(), "disabled")
             self.message.emit("Package disabled")
 
-        def on_localize():
-            name = model_.data(index, "name")
-            self._ctrl.localize(name)
-            model_.setData(index, "(localising..)", "state")
-            model_.setData(index, True, model.LocalizingRole)
-
-        def on_delocalize():
-            name = model_.data(index, "name")
-            self._ctrl.delocalize(name)
-            model_.setData(index, "(delocalising..)", "state")
-            model_.setData(index, True, model.LocalizingRole)
-
         edit.triggered.connect(on_edit)
         disable.triggered.connect(on_disable)
         default.triggered.connect(on_default)
@@ -543,8 +480,6 @@ class Packages(AbstractDockWidget):
         latest.triggered.connect(on_latest)
         openfile.triggered.connect(on_openfile)
         copyfile.triggered.connect(on_copyfile)
-        localize.triggered.connect(on_localize)
-        delocalize.triggered.connect(on_delocalize)
 
         menu.move(QtGui.QCursor.pos())
         menu.show()

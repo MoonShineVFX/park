@@ -41,7 +41,7 @@ import itertools
 from . import allzparkconfig, util, resources as res
 from . import _rezapi as rez
 
-from .vendor.Qt import QtCore, QtGui, QtCompat
+from .vendor.Qt import QtCore, QtGui, QtCompat  # noqa
 from .vendor import qjsonmodel, six
 
 log = logging.getLogger(__name__)
@@ -257,7 +257,7 @@ class ApplicationModel(AbstractTableModel):
         col = index.column()
 
         try:
-            data = self.items[row]
+            data = self.items[row]  # type: ApplicationItem
         except IndexError:
             return None
 
@@ -414,7 +414,7 @@ class PackagesModel(AbstractTableModel):
         col = index.column()
 
         try:
-            data = self.items[row]
+            data = self.items[row]  # type: PackageItem
         except IndexError:
             return None
 

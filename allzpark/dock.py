@@ -6,7 +6,7 @@ import logging
 import collections
 from itertools import chain
 
-from .vendor.Qt import QtWidgets, QtCore, QtGui, QtCompat
+from .vendor.Qt import QtWidgets, QtCore, QtGui, QtCompat  # noqa
 from .vendor import qargparse, QtImageViewer
 
 from . import resources as res, model, delegates, util

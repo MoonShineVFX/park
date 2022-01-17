@@ -255,7 +255,8 @@ if __name__ == "__main__":
 
     avalon = AvalonMongo(uri=os.environ["AVALON_MONGO"])
     for project in avalon.iter_projects():
-        combo.addItem(project.name, project)
+        if project.is_active:
+            combo.addItem(project.name, project)
 
     # signal
 

@@ -21,7 +21,7 @@ def find_suite(name, branch):
     :param str name:
     :param str branch:
     :return:
-    :rtype: SweetDuck
+    :rtype: ReadOnlySuite
     """
     # todo: suite storage roots should be defined in config
 
@@ -42,20 +42,20 @@ class _Suite(Suite):
         return s
 
 
-class SweetDuck(_Suite):
-    """A Read-Only Suite"""
+class ReadOnlySuite(_Suite):
+    """A Read-Only SweetSuite"""
 
     def __init__(self):
-        super(SweetDuck, self).__init__()
+        super(ReadOnlySuite, self).__init__()
         self._is_live = True
 
     @classmethod
     def from_dict(cls, d):
         """Parse dict into suite
         :return:
-        :rtype: SweetDuck
+        :rtype: ReadOnlySuite
         """
-        s = super(SweetDuck, cls).from_dict(d)
+        s = super(ReadOnlySuite, cls).from_dict(d)
         s._is_live = d.get("live_resolve", False)
         return s
 

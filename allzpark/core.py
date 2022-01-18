@@ -3,11 +3,11 @@ import os
 import time
 import logging
 from itertools import groupby
+from dataclasses import dataclass
 from bson.objectid import ObjectId
 from pymongo import MongoClient
 from pymongo.database import Database as MongoDatabase
 from pymongo.collection import Collection as MongoCollection
-from dataclasses import dataclass
 
 
 log = logging.getLogger(__name__)

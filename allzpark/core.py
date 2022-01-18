@@ -2,6 +2,7 @@
 import os
 import time
 import logging
+import getpass
 from itertools import groupby
 from dataclasses import dataclass
 from bson.objectid import ObjectId
@@ -13,18 +14,17 @@ from pymongo.collection import Collection as MongoCollection
 log = logging.getLogger(__name__)
 
 
+class Constants:
+    PROJECT_MEMBER_ROLE = 1
+    PROJECT_MANAGER_ROLE = 2
+
+
 @dataclass
 class Project:
     name: str
     is_active: bool
     coll: MongoCollection
-    _doc: dict
-
-    def doc(self):
-        return self._doc
-
-    def iter_tools(self):
-        pass
+    role: int
 
     def iter_assets(self):
         """Iter assets in breadth first manner
@@ -36,9 +36,6 @@ class Project:
         """
         return iter_avalon_assets(self)
 
-    def user_role(self):
-        pass
-
 
 @dataclass
 class Asset:
@@ -48,13 +45,14 @@ class Asset:
     is_silo: bool
     is_hidden: bool
     coll: MongoCollection
-    _doc: dict or None
-
-    def iter_tools(self):
-        pass
 
     def iter_tasks(self):
-        pass
+        """Iter tasks in specific asset
+
+        :return: Task item iterator
+        :rtype: collections.Iterator[Task]
+        """
+        return iter_avalon_tasks(self)
 
 
 @dataclass
@@ -63,10 +61,6 @@ class Task:
     project: Project
     asset: Asset
     coll: MongoCollection
-    _doc: dict
-
-    def iter_tools(self):
-        pass
 
 
 class AvalonMongo(object):
@@ -137,6 +131,7 @@ def iter_avalon_projects(database):
     f = {"name": {"$regex": r"^(?!system\.)"}}  # non-system only
     db = database
 
+    _username = getpass.getuser()
     _projection = {
         "type": True,
         "name": True,
@@ -152,11 +147,19 @@ def iter_avalon_projects(database):
         if doc is not None:
             is_active = bool(doc["data"].get("active", True))
 
+            _role_book = doc["data"].get("role", {})
+            _is_member = _username in _role_book.get("member", [])
+            _is_admin = _username in _role_book.get("admin", [])
+            role = (
+                (Constants.PROJECT_MEMBER_ROLE if _is_member else 0)
+                | (Constants.PROJECT_MANAGER_ROLE if _is_admin else 0)
+            )
+
             yield Project(
                 name=name,
                 is_active=is_active,
                 coll=coll,
-                _doc=doc,
+                role=role,
             )
 
 
@@ -215,7 +218,6 @@ def iter_avalon_assets(avalon_project):
             is_silo=True,
             is_hidden=False,
             coll=this.coll,
-            _doc=None,
         )
         _silos[key] = silo
 
@@ -233,11 +235,32 @@ def iter_avalon_assets(avalon_project):
                 is_silo=False,
                 is_hidden=_hidden,
                 coll=this.coll,
-                _doc=doc,
             )
             _assets[doc["_id"]] = asset
 
             yield asset
+
+
+def iter_avalon_tasks(avalon_asset):
+    """Iter tasks in specific asset
+
+    :param avalon_asset: A Asset item that sourced from Avalon
+    :type avalon_asset: Asset
+    :return: Task item iterator
+    :rtype: collections.Iterator[Task]
+    """
+    this = avalon_asset
+
+    query_filter = {"type": "asset", "name": this.name}
+    doc = this.coll.find_one(query_filter, projection={"tasks": True})
+    if doc is not None:
+        for task in doc.get("tasks"):
+            yield Task(
+                name=task,
+                project=this.project,
+                asset=this,
+                coll=this.coll,
+            )
 
 
 if __name__ == "__main__":

@@ -8,11 +8,24 @@ from rez.resolved_context import ResolvedContext
 @dataclass
 class SuiteTool:
     name: str
-    icon: str
-    label: str
     alias: str
     ctx_name: str
     variant: Variant
+
+    @property
+    def context(self):
+        return self.variant.context
+
+    @property
+    def metadata(self):
+        data = getattr(self.variant, "_data", {})
+        return dict(data, **{
+            # Guaranteed keys, with default values
+            "label": data.get("label", self.variant.name),
+            "background": data.get("background"),
+            "icon": data.get("icon", ""),
+            "hidden": data.get("hidden", False),
+        })
 
 
 def find_suite(name, branch):
@@ -107,8 +120,6 @@ class ReadOnlySuite(_Suite):
         for alias, entry in self.get_tools().items():
             yield SuiteTool(
                 name=entry["tool_name"],
-                icon="",  # todo: get data from package
-                label="",
                 alias=entry["tool_alias"],
                 ctx_name=entry["context_name"],
                 variant=entry["variant"],

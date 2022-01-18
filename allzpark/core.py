@@ -28,15 +28,27 @@ class SuiteTool:
         })
 
 
-def find_suite(name, branch):
-    """Find one saved suite in specific branch
+class Workspace(object):
+    AvalonProvider = "avalon"
 
-    :param str name:
-    :param str branch:
-    :return:
-    :rtype: ReadOnlySuite
-    """
-    # todo: suite storage roots should be defined in config
+    def get_provider(self):
+        pass
+
+    def find_suite(self, name, branch):
+        """Find one saved suite in specific branch
+
+        :param str name:
+        :param str branch:
+        :return:
+        :rtype: ReadOnlySuite
+        """
+        # todo: suite storage roots should be defined in config
+
+    def iter_scopes(self, provider):
+        pass
+
+    def iter_tools(self, scope, suite):
+        pass
 
 
 class _Suite(Suite):

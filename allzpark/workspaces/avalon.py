@@ -5,13 +5,22 @@ import logging
 import getpass
 from itertools import groupby
 from dataclasses import dataclass
+from functools import singledispatch
+from typing import Iterator, overload, List, Union
+
 from bson.objectid import ObjectId
 from pymongo import MongoClient
 from pymongo.database import Database as MongoDatabase
 from pymongo.collection import Collection as MongoCollection
 
+from ..core import SuiteTool, ReadOnlySuite
+
 
 log = logging.getLogger(__name__)
+
+
+def setup_root(uri, timeout=1000):
+    return Root(uri=uri, timeout=timeout)
 
 
 class Constants:
@@ -20,79 +29,115 @@ class Constants:
     PROJECT_MANAGER_ROLE = 2
 
 
-class AvalonMongo(object):
-    """Avalon MongoDB connector
-    """
-    def __init__(self, uri, timeout=1000):
+class _Scope:
+
+    @overload
+    def iter_children(self: "Root") -> Iterator["Project"]:
+        ...
+
+    @overload
+    def iter_children(self: "Project") -> Iterator["Asset"]:
+        ...
+
+    @overload
+    def iter_children(self: "Asset") -> Iterator["Task"]:
+        ...
+
+    def iter_children(self):
+        """Iter child scopes
+
+        :type self: Root or Project or Asset
+        :return:
+        :rtype: Iterator[Project] or Iterator[Asset] or Iterator[Task]
         """
-        :param str uri: MongoDB URI string
-        :param int timeout: MongoDB connection timeout, default 1000
-        """
-        conn = MongoClient(uri, serverSelectionTimeoutMS=timeout)
+        return iter_avalon_scopes(self)
 
-        self.uri = uri
-        self.conn = conn
-        self.timeout = timeout
+    @overload
+    def list_tools(self: "Project", suite: ReadOnlySuite) -> List[SuiteTool]:
+        ...
 
-    def iter_projects(self):
-        """Iter projects
+    @overload
+    def list_tools(self: "Asset", suite: ReadOnlySuite) -> List[SuiteTool]:
+        ...
 
-        :return: Project item iterator
-        :rtype: collections.Iterator[Project]
-        """
-        return iter_avalon_projects(self)
-
-
-class AvalonScope:
+    @overload
+    def list_tools(self: "Task", suite: ReadOnlySuite) -> List[SuiteTool]:
+        ...
 
     def list_tools(self, suite):
         """
+
         :param suite:
-        :type suite:
+        :type suite: ReadOnlySuite
         :type self: Project or Asset or Task
         :return:
+        :rtype: List[SuiteTool]
         """
         return list_role_filtered_tools(self, suite)
 
+    @overload
+    def obtain_workspace(self: "Project", tool: SuiteTool) -> Union[str, None]:
+        ...
+
+    @overload
+    def obtain_workspace(self: "Asset", tool: SuiteTool) -> Union[str, None]:
+        ...
+
+    @overload
+    def obtain_workspace(self: "Task", tool: SuiteTool) -> Union[str, None]:
+        ...
+
     def obtain_workspace(self, tool):
         """
+
         :param tool:
-        :type tool:
+        :type tool: SuiteTool
         :type self: Project or Asset or Task
         :return:
+        :rtype: str or None
         """
         return obtain_avalon_workspace(self, tool)
 
+    @overload
+    def additional_env(self: "Project", tool: SuiteTool) -> dict:
+        ...
+
+    @overload
+    def additional_env(self: "Asset", tool: SuiteTool) -> dict:
+        ...
+
+    @overload
+    def additional_env(self: "Task", tool: SuiteTool) -> dict:
+        ...
+
     def additional_env(self, tool):
         """
+
         :param tool:
-        :type tool:
+        :type tool: SuiteTool
         :type self: Project or Asset or Task
         :return:
+        :rtype: dict
         """
         return avalon_pipeline_env(self, tool)
 
 
 @dataclass
-class Project(AvalonScope):
+class Root(_Scope):
+    uri: str
+    timeout: int
+
+
+@dataclass
+class Project(_Scope):
     name: str
     is_active: bool
     coll: MongoCollection
     role: int
 
-    def iter_assets(self):
-        """Iter assets in breadth first manner
-
-        If `silo` exists, silos will be iterated first as Asset.
-
-        :return: Asset item iterator
-        :rtype: collections.Iterator[Asset]
-        """
-        return iter_avalon_assets(self)
-
 
 @dataclass
-class Asset(AvalonScope):
+class Asset(_Scope):
     name: str
     project: Project
     parent: "Asset" or None
@@ -100,21 +145,147 @@ class Asset(AvalonScope):
     is_hidden: bool
     coll: MongoCollection
 
-    def iter_tasks(self):
-        """Iter tasks in specific asset
-
-        :return: Task item iterator
-        :rtype: collections.Iterator[Task]
-        """
-        return iter_avalon_tasks(self)
-
 
 @dataclass
-class Task(AvalonScope):
+class Task(_Scope):
     name: str
     project: Project
     asset: Asset
     coll: MongoCollection
+
+
+@singledispatch
+def iter_avalon_scopes(scope):
+    """Iter Avalon projects/assets/tasks
+
+    :param scope: The scope of workspace. Could be a project/asset/task.
+    :type scope: Root or Project or Asset
+    :rtype: Iterator[Project] or Iterator[Asset] or Iterator[Task] or None
+    """
+    raise NotImplementedError(f"Unknown scope type: {type(scope)}")
+
+
+@iter_avalon_scopes.register
+def _(scope: Root) -> Iterator[Project]:
+    database = AvalonMongo(scope.uri, scope.timeout)
+    return iter_avalon_projects(database)
+
+
+@iter_avalon_scopes.register
+def _(scope: Project) -> Iterator[Asset]:
+    return iter_avalon_assets(scope)
+
+
+@iter_avalon_scopes.register
+def _(scope: Asset) -> Iterator[Task]:
+    return iter_avalon_tasks(scope)
+
+
+@iter_avalon_scopes.register
+def _(scope: Task) -> None:
+    raise StopIteration(f"Endpoint reached: {scope}")
+
+
+@singledispatch
+def list_role_filtered_tools(scope, suite):
+    """
+
+    :param scope: The scope of workspace. Could be a project/asset/task.
+    :param suite: A loaded Rez suite.
+    :type scope: Project or Asset or Task
+    :type suite: ReadOnlySuite
+    :return: A list of available tools in given scope
+    :rtype: list[SuiteTool]
+    """
+    raise NotImplementedError(f"Unknown scope type: {type(scope)}")
+
+
+@list_role_filtered_tools.register
+def _(scope: Root, suite: ReadOnlySuite) -> None:
+    raise Exception(f"No tools are allowed in {type(scope)} scope.")
+
+
+@list_role_filtered_tools.register
+def _(scope: Project, suite: ReadOnlySuite) -> List[SuiteTool]:
+    pass
+
+
+@list_role_filtered_tools.register
+def _(scope: Asset, suite: ReadOnlySuite) -> List[SuiteTool]:
+    pass
+
+
+@list_role_filtered_tools.register
+def _(scope: Task, suite: ReadOnlySuite) -> List[SuiteTool]:
+    pass
+
+
+@singledispatch
+def obtain_avalon_workspace(scope, tool):
+    """
+
+    :param scope: The scope of workspace. Could be at project/asset/task.
+    :param tool: A tool provided by from Rez suite.
+    :type scope: Project or Asset or Task
+    :type tool:
+    :return: A filesystem path to workspace if available
+    :rtype: str or None
+    """
+    raise NotImplementedError(f"Unknown scope type: {type(scope)}")
+
+
+@obtain_avalon_workspace.register
+def _(scope: Root, tool: SuiteTool) -> None:
+    raise Exception(f"No workspace for {type(scope)} scope.")
+
+
+@obtain_avalon_workspace.register
+def _(scope: Project, tool: SuiteTool) -> Union[str, None]:
+    pass
+
+
+@obtain_avalon_workspace.register
+def _(scope: Asset, tool: SuiteTool) -> Union[str, None]:
+    pass
+
+
+@obtain_avalon_workspace.register
+def _(scope: Task, tool: SuiteTool) -> Union[str, None]:
+    pass
+
+
+@singledispatch
+def avalon_pipeline_env(scope, tool):
+    """
+
+    :param scope: The scope of workspace. Could be at project/asset/task.
+    :param tool: A tool provided by from Rez suite.
+    :type scope: Project or Asset or Task
+    :type tool:
+    :return:
+    :rtype: dict
+    """
+    raise NotImplementedError(f"Unknown scope type: {type(scope)}")
+
+
+@avalon_pipeline_env.register
+def _(scope: Root, tool: SuiteTool) -> None:
+    raise Exception(f"No environment for {type(scope)} scope.")
+
+
+@avalon_pipeline_env.register
+def _(scope: Project, tool: SuiteTool) -> dict:
+    pass
+
+
+@avalon_pipeline_env.register
+def _(scope: Asset, tool: SuiteTool) -> dict:
+    pass
+
+
+@avalon_pipeline_env.register
+def _(scope: Task, tool: SuiteTool) -> dict:
+    pass
 
 
 def iter_avalon_projects(database):
@@ -122,7 +293,7 @@ def iter_avalon_projects(database):
 
     :param AvalonMongo database: An AvalonMongo connection instance
     :return: Project item iterator
-    :rtype: collections.Iterator[Project]
+    :rtype: Iterator[Project]
     """
     db_avalon = os.getenv("AVALON_DB", "avalon")
     db = database.conn[db_avalon]  # type: MongoDatabase
@@ -168,7 +339,7 @@ def iter_avalon_assets(avalon_project):
     :param avalon_project: A Project item that sourced from Avalon
     :type avalon_project: Project
     :return: Asset item iterator
-    :rtype: collections.Iterator[Asset]
+    :rtype: Iterator[Asset]
     """
     this = avalon_project
 
@@ -244,7 +415,7 @@ def iter_avalon_tasks(avalon_asset):
     :param avalon_asset: A Asset item that sourced from Avalon
     :type avalon_asset: Asset
     :return: Task item iterator
-    :rtype: collections.Iterator[Task]
+    :rtype: Iterator[Task]
     """
     this = avalon_asset
 
@@ -260,39 +431,19 @@ def iter_avalon_tasks(avalon_asset):
             )
 
 
-def list_role_filtered_tools(scope, suite):
+class AvalonMongo(object):
+    """Avalon MongoDB connector
     """
+    def __init__(self, uri, timeout=1000):
+        """
+        :param str uri: MongoDB URI string
+        :param int timeout: MongoDB connection timeout, default 1000
+        """
+        conn = MongoClient(uri, serverSelectionTimeoutMS=timeout)
 
-    :param scope: The scope of workspace. Could be a project/asset/task.
-    :param suite: A loaded Rez suite.
-    :type scope: Project or Asset or Task
-    :return: A list of available tools in given scope
-    :rtype: list[]
-    """
-
-
-def obtain_avalon_workspace(scope, tool):
-    """
-
-    :param scope: The scope of workspace. Could be at project/asset/task.
-    :param tool: A tool provided by from Rez suite.
-    :type scope: Project or Asset or Task
-    :type tool:
-    :return: A filesystem path to workspace if available
-    :rtype: str or None
-    """
-
-
-def avalon_pipeline_env(scope, tool):
-    """
-
-    :param scope: The scope of workspace. Could be at project/asset/task.
-    :param tool: A tool provided by from Rez suite.
-    :type scope: Project or Asset or Task
-    :type tool:
-    :return:
-    :rtype: dict
-    """
+        self.uri = uri
+        self.conn = conn
+        self.timeout = timeout
 
 
 def ping(database, retry=3):
@@ -328,7 +479,10 @@ def ping(database, retry=3):
 
 
 if __name__ == "__main__":
+    from allzpark.core import get_avalon_root_scope
     from Qt5 import QtGui, QtWidgets
+
+    _root = get_avalon_root_scope(uri=os.environ["AVALON_MONGO"])
 
     app = QtWidgets.QApplication()  # must be inited before all other widgets
     dialog = QtWidgets.QDialog()
@@ -338,8 +492,7 @@ if __name__ == "__main__":
     view.setModel(model)
 
     # setup model
-    avalon = AvalonMongo(uri=os.environ["AVALON_MONGO"])
-    for project in avalon.iter_projects():
+    for project in _root.iter_children():
         if project.is_active:
             combo.addItem(project.name, project)
 
@@ -350,10 +503,10 @@ if __name__ == "__main__":
 
     # signal
     def update_assets(index):
-        project_item = combo.itemData(index)
+        project_item = combo.itemData(index)  # type: Project
         model.clear()
         _asset_items = dict()
-        for asset in project_item.iter_assets():
+        for asset in project_item.iter_children():
             if not asset.is_hidden:
                 item = QtGui.QStandardItem(asset.name)
                 _asset_items[asset.name] = item

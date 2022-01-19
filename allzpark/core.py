@@ -5,6 +5,38 @@ from rez.packages import Variant
 from rez.resolved_context import ResolvedContext
 
 
+def get_avalon_root_scope(uri, timeout=1000):
+    """
+
+    :param str uri:
+    :param int timeout:
+    :return:
+    :rtype: allzpark.workspaces.avalon.Root
+    """
+    from .workspaces.avalon import setup_root
+    return setup_root(uri, timeout)
+
+
+def find_suite(name, branch):
+    """Find one saved suite in specific branch
+
+    :param str name:
+    :param str branch:
+    :return:
+    :rtype: ReadOnlySuite
+    """
+    # todo: suite storage roots should be defined in config
+
+
+@dataclass
+class ToolMetadata:
+    label: str
+    icon: str
+    color: str
+    hidden: bool
+    required_roles: tuple
+
+
 @dataclass
 class SuiteTool:
     name: str
@@ -19,36 +51,13 @@ class SuiteTool:
     @property
     def metadata(self):
         data = getattr(self.variant, "_data", {})
-        return dict(data, **{
-            # Guaranteed keys, with default values
-            "label": data.get("label", self.variant.name),
-            "background": data.get("background"),
-            "icon": data.get("icon", ""),
-            "hidden": data.get("hidden", False),
-        })
-
-
-class Workspace(object):
-    AvalonProvider = "avalon"
-
-    def get_provider(self):
-        pass
-
-    def find_suite(self, name, branch):
-        """Find one saved suite in specific branch
-
-        :param str name:
-        :param str branch:
-        :return:
-        :rtype: ReadOnlySuite
-        """
-        # todo: suite storage roots should be defined in config
-
-    def iter_scopes(self, provider):
-        pass
-
-    def iter_tools(self, scope, suite):
-        pass
+        return ToolMetadata(
+            label=data.get("label", self.variant.name),
+            icon=data.get("icon", ""),
+            color=data.get("color"),
+            hidden=data.get("hidden", False),
+            required_roles=data.get("required_roles", tuple()),
+        )
 
 
 class _Suite(Suite):

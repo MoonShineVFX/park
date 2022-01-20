@@ -379,7 +379,7 @@ def iter_avalon_projects(database):
                 roles=roles,
                 root=project_root,
                 username=username,
-                _work_tempolate=None,  # lazy loaded
+                _work_template=None,  # lazy loaded
             )
 
 
@@ -435,7 +435,7 @@ def iter_avalon_assets(avalon_project):
             name=key,
             project=this,
             parent=None,
-            silo=None,
+            silo="",
             is_silo=True,
             is_hidden=False,
             coll=this.coll,
@@ -546,9 +546,9 @@ if __name__ == "__main__":
     view.setModel(model)
 
     # setup model
-    for project in _root.iter_children():
-        if project.is_active:
-            combo.addItem(project.name, project)
+    for project_ in _root.iter_children():
+        if project_.is_active:
+            combo.addItem(project_.name, project_)
 
     # layout
     layout = QtWidgets.QVBoxLayout(dialog)

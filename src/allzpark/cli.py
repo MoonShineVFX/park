@@ -7,7 +7,7 @@ import signal
 import logging
 import contextlib
 
-from .version import version
+from ._version import __version__
 from . import allzparkconfig
 
 timing = {}
@@ -127,7 +127,7 @@ def initialize(config_file=None,
                verbose=0):
 
     tell("=" * 30)
-    tell(" allzpark (%s)" % version)
+    tell(" allzpark (%s)" % __version__)
     tell("=" * 30)
 
     handler = logging.StreamHandler()
@@ -179,7 +179,7 @@ def initialize(config_file=None,
 
     with timings("- Loading Qt.. ") as msg:
         try:
-            from .vendor import Qt
+            from .gui.vendor import Qt
             msg["success"] = "(%s - %s) - ok {:.2f}\n"\
                              % (Qt.__binding__, Qt.__qt_version__)
         except ImportError:
@@ -188,14 +188,14 @@ def initialize(config_file=None,
                 "such as PySide, PySide2, PyQt4 or PyQt5.\n"
             )
 
-        from .vendor.Qt import QtWidgets, QtCore
+        from .gui.vendor.Qt import QtWidgets, QtCore
 
     # Provide for vendor dependencies
     sys.modules["Qt"] = Qt
 
     with timings("- Loading allzpark.. ") as msg:
-        from . import view, control, resources, util
-        msg["success"] = "(%s) - ok {:.2f}\n" % version
+        from .gui import view, control, resources, util
+        msg["success"] = "(%s) - ok {:.2f}\n" % __version__
 
     _patch_allzparkconfig()
 
@@ -284,7 +284,7 @@ def initialize(config_file=None,
 
 
 def launch(ctrl):
-    from . import view, resources, util
+    from .gui import view, resources, util
 
     # Handle stdio from within the application if necessary
     if hasattr(allzparkconfig, "__noconsole__"):
@@ -326,7 +326,7 @@ def launch(ctrl):
 
 
 def reset(ctrl, profiles=None):
-    from .vendor.Qt import QtCore
+    from .gui.vendor.Qt import QtCore
 
     def init():
         timing["beforeReset"] = time.time()

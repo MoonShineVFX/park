@@ -81,7 +81,7 @@ def command(opts, parser=None, extra_arg_groups=None):
         allzparkconfig.__noconsole__ = True
 
     if opts.version:
-        from allzpark.version import print_info
+        from allzpark._version import print_info
         sys.exit(print_info())
 
     app, ctrl = cli.initialize(

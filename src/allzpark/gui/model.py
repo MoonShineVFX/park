@@ -38,8 +38,8 @@ import os
 import logging
 import itertools
 
-from . import allzparkconfig, util, resources as res
-from . import _rezapi as rez
+from . import util, resources as res
+from .. import _rezapi as rez, allzparkconfig
 
 from .vendor.Qt import QtCore, QtGui, QtCompat  # noqa
 from .vendor import qjsonmodel, six

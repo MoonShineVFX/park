@@ -3,7 +3,7 @@ import types
 import logging
 
 from collections import OrderedDict as odict
-from Qt import QtCore, QtWidgets, QtGui
+from .Qt import QtCore, QtWidgets, QtGui
 
 __version__ = "0.5.6"
 _log = logging.getLogger(__name__)

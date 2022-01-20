@@ -10,8 +10,8 @@ from .vendor.Qt import QtWidgets, QtCore, QtGui, QtCompat  # noqa
 from .vendor import qargparse, QtImageViewer
 
 from . import resources as res, model, delegates, util
-from . import _rezapi as rez
-from . import allzparkconfig
+from .. import _rezapi as rez
+from .. import allzparkconfig
 
 px = res.px
 

@@ -16,10 +16,10 @@ from collections import OrderedDict as odict, defaultdict as ddict
 
 from .vendor.Qt import QtCore, QtGui
 from .vendor import transitions
-from . import model, util, allzparkconfig
+from . import model, util
 
 # Third-party dependencies
-from . import _rezapi as rez
+from .. import _rezapi as rez, allzparkconfig
 
 log = logging.getLogger(__name__)
 

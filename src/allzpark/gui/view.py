@@ -9,9 +9,9 @@ from collections import OrderedDict as odict
 
 from .vendor.Qt import QtWidgets, QtCore, QtGui
 from .vendor import qargparse
-from .version import version
-from . import resources as res, dock, model
-from . import allzparkconfig, delegates
+from . import resources as res, dock, model, delegates
+from .._version import __version__
+from .. import allzparkconfig
 
 px = res.px
 
@@ -61,7 +61,7 @@ class Applications(dock.SlimTableView):
 
 
 class Window(QtWidgets.QMainWindow):
-    title = "Allzpark %s" % version
+    title = "Allzpark %s" % __version__
 
     def __init__(self, ctrl, parent=None):
         super(Window, self).__init__(parent)
@@ -102,7 +102,7 @@ class Window(QtWidgets.QMainWindow):
 
             # Header
             "logo": QtWidgets.QToolButton(),
-            "appVersion": QtWidgets.QLabel(version),
+            "appVersion": QtWidgets.QLabel(__version__),
 
             "apps": Applications(ctrl),
             "fullCommand": FullCommand(ctrl),

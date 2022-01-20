@@ -1,7 +1,7 @@
 import os
 import logging
 from collections import OrderedDict as odict
-from . import allzparkconfig
+from .. import allzparkconfig
 from .vendor.Qt import QtGui
 
 dirname = os.path.dirname(__file__)

@@ -37,7 +37,7 @@ def profiles():
 
     from rez.config import config
     from rez.package_repository import package_repository_manager
-    from allzpark.util import expand_path, suite_provider
+    from allzpark.gui.util import expand_path, suite_provider
 
     sweet_default = __os.pathsep.join(["~/rez/sweet/local",
                                        "~/rez/sweet/release"])

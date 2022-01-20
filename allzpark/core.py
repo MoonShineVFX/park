@@ -1,4 +1,5 @@
 
+import os
 from typing import Set
 from dataclasses import dataclass
 from rez.suite import Suite
@@ -24,9 +25,16 @@ def find_suite(name, branch):
     :param str name:
     :param str branch:
     :return:
-    :rtype: ReadOnlySuite
+    :rtype: ReadOnlySuite or None
     """
-    # todo: suite storage roots should be defined in config
+    root = ""  # todo: suite storage roots should be defined in config
+    suite_path = os.path.join(root, name)
+    try:
+        suite = ReadOnlySuite.load(suite_path)
+    except Exception as e:
+        print(e)
+    else:
+        return suite
 
 
 @dataclass
@@ -109,7 +117,6 @@ class ReadOnlySuite(_Suite):
     alias_tool = _invalid_operation
     unalias_tool = _invalid_operation
     save = _invalid_operation
-    load = _invalid_operation
 
     def context(self, name):
         """Get a context.

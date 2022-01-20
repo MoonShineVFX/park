@@ -135,16 +135,16 @@ class Project(_Scope):
     roles: Set[str]
     root: str
     username: str
-    _work_tempolate: None
+    _work_template: None
 
     @property
     def work_template(self):
-        if self._work_tempolate is None:
+        if self._work_template is None:
             _doc = self.coll.find_one(
                 {"type": "project"}, projection={"config.template.work": True}
             )
-            self._work_tempolate = _doc["config"]["template"]["work"]
-        return self._work_tempolate
+            self._work_template = _doc["config"]["template"]["work"]
+        return self._work_template
 
 
 @dataclass

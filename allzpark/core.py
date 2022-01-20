@@ -1,4 +1,5 @@
 
+from typing import Set
 from dataclasses import dataclass
 from rez.suite import Suite
 from rez.packages import Variant
@@ -34,7 +35,7 @@ class ToolMetadata:
     icon: str
     color: str
     hidden: bool
-    required_roles: tuple
+    required_roles: Set[str]
 
 
 @dataclass
@@ -56,7 +57,7 @@ class SuiteTool:
             icon=data.get("icon", ""),
             color=data.get("color"),
             hidden=data.get("hidden", False),
-            required_roles=data.get("required_roles", tuple()),
+            required_roles=set(data.get("required_roles", [])),
         )
 
 

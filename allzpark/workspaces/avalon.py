@@ -6,7 +6,7 @@ import getpass
 from itertools import groupby
 from dataclasses import dataclass
 from functools import singledispatch
-from typing import Iterator, overload, List, Union
+from typing import Iterator, overload, List, Union, Set
 
 from bson.objectid import ObjectId
 from pymongo import MongoClient
@@ -23,10 +23,9 @@ def setup_root(uri, timeout=1000):
     return Root(uri=uri, timeout=timeout)
 
 
-class Constants:
-    SUITE_BRANCH = "avalon"
-    PROJECT_MEMBER_ROLE = 1
-    PROJECT_MANAGER_ROLE = 2
+SUITE_BRANCH = "avalon"
+MEMBER_ROLE = "member"
+MANAGER_ROLE = "admin"
 
 
 class _Scope:
@@ -133,7 +132,19 @@ class Project(_Scope):
     name: str
     is_active: bool
     coll: MongoCollection
-    role: int
+    roles: Set[str]
+    root: str
+    username: str
+    _work_tempolate: None
+
+    @property
+    def work_template(self):
+        if self._work_tempolate is None:
+            _doc = self.coll.find_one(
+                {"type": "project"}, projection={"config.template.work": True}
+            )
+            self._work_tempolate = _doc["config"]["template"]["work"]
+        return self._work_tempolate
 
 
 @dataclass
@@ -141,6 +152,7 @@ class Asset(_Scope):
     name: str
     project: Project
     parent: "Asset" or None
+    silo: str
     is_silo: bool
     is_hidden: bool
     coll: MongoCollection
@@ -197,27 +209,45 @@ def list_role_filtered_tools(scope, suite):
     :return: A list of available tools in given scope
     :rtype: list[SuiteTool]
     """
+    _ = suite  # consume unused arg
     raise NotImplementedError(f"Unknown scope type: {type(scope)}")
 
 
 @list_role_filtered_tools.register
 def _(scope: Root, suite: ReadOnlySuite) -> None:
+    _ = suite  # consume unused arg
     raise Exception(f"No tools are allowed in {type(scope)} scope.")
 
 
 @list_role_filtered_tools.register
 def _(scope: Project, suite: ReadOnlySuite) -> List[SuiteTool]:
-    pass
+    return [
+        tool for tool in suite.iter_tools()
+        if tool.ctx_name.startswith("project.")
+        and (not tool.metadata.required_roles
+             or scope.roles.intersection(tool.metadata.required_roles))
+    ]
 
 
 @list_role_filtered_tools.register
 def _(scope: Asset, suite: ReadOnlySuite) -> List[SuiteTool]:
-    pass
+    return [
+        tool for tool in suite.iter_tools()
+        if tool.ctx_name.startswith("asset.")
+        and (not tool.metadata.required_roles
+             or scope.project.roles.intersection(tool.metadata.required_roles))
+    ]
 
 
 @list_role_filtered_tools.register
 def _(scope: Task, suite: ReadOnlySuite) -> List[SuiteTool]:
-    pass
+    return [
+        tool for tool in suite.iter_tools()
+        if not tool.ctx_name.startswith("project.")
+        and not tool.ctx_name.startswith("asset.")
+        and (not tool.metadata.required_roles
+             or scope.project.roles.intersection(tool.metadata.required_roles))
+    ]
 
 
 @singledispatch
@@ -231,27 +261,31 @@ def obtain_avalon_workspace(scope, tool):
     :return: A filesystem path to workspace if available
     :rtype: str or None
     """
+    _ = tool  # consume unused arg
     raise NotImplementedError(f"Unknown scope type: {type(scope)}")
 
 
 @obtain_avalon_workspace.register
 def _(scope: Root, tool: SuiteTool) -> None:
+    log.error(f"No workspace for {tool.name} in scope {scope}.")
     raise Exception(f"No workspace for {type(scope)} scope.")
 
 
 @obtain_avalon_workspace.register
 def _(scope: Project, tool: SuiteTool) -> Union[str, None]:
-    pass
+    log.debug(f"No workspace for {tool.name} in scope {scope}.")
+    return None
 
 
 @obtain_avalon_workspace.register
 def _(scope: Asset, tool: SuiteTool) -> Union[str, None]:
-    pass
+    log.debug(f"No workspace for {tool.name} in scope {scope}.")
+    return None
 
 
 @obtain_avalon_workspace.register
 def _(scope: Task, tool: SuiteTool) -> Union[str, None]:
-    pass
+    return get_avalon_task_workspace(scope, tool)
 
 
 @singledispatch
@@ -265,11 +299,13 @@ def avalon_pipeline_env(scope, tool):
     :return:
     :rtype: dict
     """
+    _ = tool  # consume unused arg
     raise NotImplementedError(f"Unknown scope type: {type(scope)}")
 
 
 @avalon_pipeline_env.register
 def _(scope: Root, tool: SuiteTool) -> None:
+    _ = tool  # consume unused arg
     raise Exception(f"No environment for {type(scope)} scope.")
 
 
@@ -288,6 +324,19 @@ def _(scope: Task, tool: SuiteTool) -> dict:
     pass
 
 
+def get_avalon_task_workspace(task: Task, tool: SuiteTool):
+    template = task.project.work_template
+    return template.format(**{
+        "root": task.project.root,
+        "project": task.project.name,
+        "silo": task.asset.silo,
+        "asset": task.asset.name,
+        "task": task.name,
+        "app": tool.name,
+        "user": task.project.username,
+    })
+
+
 def iter_avalon_projects(database):
     """Iter projects from Avalon MongoDB
 
@@ -295,11 +344,11 @@ def iter_avalon_projects(database):
     :return: Project item iterator
     :rtype: Iterator[Project]
     """
+    username = getpass.getuser()
     db_avalon = os.getenv("AVALON_DB", "avalon")
     db = database.conn[db_avalon]  # type: MongoDatabase
     f = {"name": {"$regex": r"^(?!system\.)"}}  # non-system only
 
-    _username = getpass.getuser()
     _projection = {
         "type": True,
         "name": True,
@@ -314,20 +363,23 @@ def iter_avalon_projects(database):
 
         if doc is not None:
             is_active = bool(doc["data"].get("active", True))
+            project_root = doc["data"]["root"]
 
+            roles = set()
             _role_book = doc["data"].get("role", {})
-            _is_member = _username in _role_book.get("member", [])
-            _is_admin = _username in _role_book.get("admin", [])
-            role = (
-                (Constants.PROJECT_MEMBER_ROLE if _is_member else 0)
-                | (Constants.PROJECT_MANAGER_ROLE if _is_admin else 0)
-            )
+            if username in _role_book.get(MEMBER_ROLE, []):
+                roles.add(MEMBER_ROLE)
+            if username in _role_book.get(MANAGER_ROLE, []):
+                roles.add(MANAGER_ROLE)
 
             yield Project(
                 name=name,
                 is_active=is_active,
                 coll=coll,
-                role=role,
+                roles=roles,
+                root=project_root,
+                username=username,
+                _work_tempolate=None,  # lazy loaded
             )
 
 
@@ -383,6 +435,7 @@ def iter_avalon_assets(avalon_project):
             name=key,
             project=this,
             parent=None,
+            silo=None,
             is_silo=True,
             is_hidden=False,
             coll=this.coll,
@@ -400,6 +453,7 @@ def iter_avalon_assets(avalon_project):
                 name=doc["name"],
                 project=this,
                 parent=_parent,
+                silo=doc.get("silo"),
                 is_silo=False,
                 is_hidden=_hidden,
                 coll=this.coll,

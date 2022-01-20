@@ -311,17 +311,35 @@ def _(scope: Root, tool: SuiteTool) -> None:
 
 @avalon_pipeline_env.register
 def _(scope: Project, tool: SuiteTool) -> dict:
-    pass
+    project = scope
+    return {
+        "AVALON_PROJECTS": project.root,
+        "AVALON_PROJECT": project.name,
+        "AVALON_APP": tool.name,
+        "AVALON_APP_NAME": tool.name,  # application dir
+    }
 
 
 @avalon_pipeline_env.register
 def _(scope: Asset, tool: SuiteTool) -> dict:
-    pass
+    asset = scope
+    return {
+        "AVALON_SILO": asset.silo,
+        "AVALON_ASSET": asset.name,
+        "AVALON_APP": tool.name,
+        "AVALON_APP_NAME": tool.name,  # application dir
+    }
 
 
 @avalon_pipeline_env.register
 def _(scope: Task, tool: SuiteTool) -> dict:
-    pass
+    task = scope
+    return {
+        "AVALON_TASK": task.name,
+        "AVALON_WORKDIR": get_avalon_task_workspace(task, tool),
+        "AVALON_APP": tool.name,
+        "AVALON_APP_NAME": tool.name,  # application dir
+    }
 
 
 def get_avalon_task_workspace(task: Task, tool: SuiteTool):

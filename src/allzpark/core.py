@@ -5,6 +5,10 @@ from dataclasses import dataclass
 from rez.suite import Suite
 from rez.packages import Variant
 from rez.resolved_context import ResolvedContext
+from rez.config import config as rezconfig
+
+
+parkconfig = rezconfig.plugins.command.park
 
 
 def get_avalon_root_scope(uri, timeout=1000):
@@ -27,7 +31,7 @@ def find_suite(name, branch):
     :return:
     :rtype: ReadOnlySuite or None
     """
-    root = ""  # todo: suite storage roots should be defined in config
+    root = parkconfig.suite_root
     suite_path = os.path.join(root, name)
     try:
         suite = ReadOnlySuite.load(suite_path)

@@ -1,5 +1,5 @@
 """
-Rez package tool/application launcher
+Rez suite based package tool/application launcher for Avalon
 """
 import os
 import sys
@@ -54,6 +54,7 @@ def setup_parser(parser, completions=False):
         "defaults to allzparkconfig.profiles"))
     parser.add_argument("--version", action="store_true",
                         help="Print out version of this plugin command.")
+    parser.add_argument("--gui", action="store_true")
 
 
 def command(opts, parser=None, extra_arg_groups=None):
@@ -83,6 +84,10 @@ def command(opts, parser=None, extra_arg_groups=None):
     if opts.version:
         from allzpark._version import print_info
         sys.exit(print_info())
+
+    if opts.gui:
+        from allzpark.gui2 import app
+        sys.exit(app.launch())
 
     app, ctrl = cli.initialize(
         config_file=opts.config_file,

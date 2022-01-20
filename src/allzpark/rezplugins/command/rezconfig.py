@@ -1,4 +1,7 @@
 
-# CONFIG
-#   This currently not being used, use allzparkconfig instead, for now
-park = {}
+from allzpark import util
+
+
+park = {
+    "suite_root": util.normpath("~/rez/sweet/release"),
+}

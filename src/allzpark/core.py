@@ -27,7 +27,8 @@ def init_entrances(no_warning=False):
     available_entrances = []
 
     for name, entrance_getter in (
-            (avalon.Entrance.backend, try_avalon_entrance),
+        (avalon.Entrance.backend, try_avalon_entrance),
+        # could be ftrack, or shotgrid, could be...
     ):
         try:
             entrance = entrance_getter()

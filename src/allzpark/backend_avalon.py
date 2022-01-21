@@ -137,33 +137,25 @@ class _Scope:
         return avalon_pipeline_env(self, tool)
 
 
-@dataclass
+@dataclass(frozen=True)
 class Entrance(_Scope):
+    backend = "avalon"
     uri: str
     timeout: int
 
 
-@dataclass
+@dataclass(frozen=True)
 class Project(_Scope):
     name: str
     is_active: bool
-    coll: MongoCollection
     roles: Set[str]
     root: str
     username: str
-    _work_template: None
-
-    @property
-    def work_template(self):
-        if self._work_template is None:
-            _doc = self.coll.find_one(
-                {"type": "project"}, projection={"config.template.work": True}
-            )
-            self._work_template = _doc["config"]["template"]["work"]
-        return self._work_template
+    work_template: str
+    coll: MongoCollection
 
 
-@dataclass
+@dataclass(frozen=True)
 class Asset(_Scope):
     name: str
     project: Project
@@ -174,7 +166,7 @@ class Asset(_Scope):
     coll: MongoCollection
 
 
-@dataclass
+@dataclass(frozen=True)
 class Task(_Scope):
     name: str
     project: Project
@@ -394,6 +386,7 @@ def iter_avalon_projects(database):
         "type": True,
         "name": True,
         "data": True,
+        "config.template.work": True
     }
 
     for name in sorted(db.list_collection_names(filter=f)):
@@ -416,11 +409,11 @@ def iter_avalon_projects(database):
             yield Project(
                 name=name,
                 is_active=is_active,
-                coll=coll,
                 roles=roles,
                 root=project_root,
                 username=username,
-                _work_template=None,  # lazy loaded
+                work_template=doc["config"]["template"]["work"],
+                coll=coll,
             )
 
 

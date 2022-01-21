@@ -3,6 +3,8 @@ import os
 import sys
 import signal as py_signal
 from contextlib import contextmanager
+
+from .. import core, exceptions
 from ._vendor.Qt5 import QtCore, QtWidgets
 from . import control, window
 
@@ -47,7 +49,13 @@ class Session(object):
 
         state = State(storage=storage)
 
-        ctrl = control.Controller(state=state)
+        try:
+            entrances = core.init_entrances()
+        except exceptions.BackendError as e:
+            print(e)
+            sys.exit(1)
+
+        ctrl = control.Controller(entrances=entrances)
         view_ = window.MainWindow(state=state)
 
         # signals

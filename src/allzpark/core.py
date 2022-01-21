@@ -1,5 +1,6 @@
 
 import os
+import logging
 from typing import Set
 from dataclasses import dataclass
 from rez.suite import Suite
@@ -7,21 +8,42 @@ from rez.packages import Variant
 from rez.resolved_context import ResolvedContext
 from rez.config import config as rezconfig
 
-from . import backend_avalon
+from . import backend_avalon as avalon
+from .exceptions import BackendError
+
+log = logging.getLogger(__name__)
 
 
 parkconfig = rezconfig.plugins.command.park
 
 
-def get_avalon_entrance(uri=None, timeout=None):
-    """
+def init_entrances(no_warning=False):
 
-    :param str uri:
-    :param int timeout:
-    :return:
-    :rtype: backend_avalon.Entrance
-    """
-    return backend_avalon.get_entrance(uri, timeout)
+    def try_avalon_entrance():
+        scope = avalon.get_entrance()
+        avalon.ping(avalon.AvalonMongo(scope.uri, scope.timeout))
+        return scope
+
+    available_entrances = []
+
+    for name, entrance_getter in (
+            (avalon.Entrance.backend, try_avalon_entrance),
+    ):
+        try:
+            entrance = entrance_getter()
+        except Exception as e:
+            if no_warning:
+                continue
+            log.warning(
+                f"Cannot get entrance from backend {name!r}: {str(e)}"
+            )
+        else:
+            available_entrances.append(entrance)
+
+    if available_entrances:
+        return available_entrances
+
+    raise BackendError("No available backend.")
 
 
 def find_suite(name, branch):

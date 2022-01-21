@@ -19,8 +19,8 @@ from ..core import SuiteTool, ReadOnlySuite
 log = logging.getLogger(__name__)
 
 
-def setup_root(uri, timeout=1000):
-    return Root(uri=uri, timeout=timeout)
+def get_entrance(uri, timeout=1000):
+    return Entrance(uri=uri, timeout=timeout)
 
 
 SUITE_BRANCH = "avalon"
@@ -31,7 +31,7 @@ MANAGER_ROLE = "admin"
 class _Scope:
 
     @overload
-    def iter_children(self: "Root") -> Iterator["Project"]:
+    def iter_children(self: "Entrance") -> Iterator["Project"]:
         ...
 
     @overload
@@ -45,7 +45,7 @@ class _Scope:
     def iter_children(self):
         """Iter child scopes
 
-        :type self: Root or Project or Asset
+        :type self: Entrance or Project or Asset
         :return:
         :rtype: Iterator[Project] or Iterator[Asset] or Iterator[Task]
         """
@@ -122,7 +122,7 @@ class _Scope:
 
 
 @dataclass
-class Root(_Scope):
+class Entrance(_Scope):
     uri: str
     timeout: int
 
@@ -171,14 +171,14 @@ def iter_avalon_scopes(scope):
     """Iter Avalon projects/assets/tasks
 
     :param scope: The scope of workspace. Could be a project/asset/task.
-    :type scope: Root or Project or Asset
+    :type scope: Entrance or Project or Asset
     :rtype: Iterator[Project] or Iterator[Asset] or Iterator[Task] or None
     """
     raise NotImplementedError(f"Unknown scope type: {type(scope)}")
 
 
 @iter_avalon_scopes.register
-def _(scope: Root) -> Iterator[Project]:
+def _(scope: Entrance) -> Iterator[Project]:
     database = AvalonMongo(scope.uri, scope.timeout)
     return iter_avalon_projects(database)
 
@@ -214,7 +214,7 @@ def list_role_filtered_tools(scope, suite):
 
 
 @list_role_filtered_tools.register
-def _(scope: Root, suite: ReadOnlySuite) -> None:
+def _(scope: Entrance, suite: ReadOnlySuite) -> None:
     _ = suite  # consume unused arg
     raise Exception(f"No tools are allowed in {type(scope)} scope.")
 
@@ -266,7 +266,7 @@ def obtain_avalon_workspace(scope, tool):
 
 
 @obtain_avalon_workspace.register
-def _(scope: Root, tool: SuiteTool) -> None:
+def _(scope: Entrance, tool: SuiteTool) -> None:
     log.error(f"No workspace for {tool.name} in scope {scope}.")
     raise Exception(f"No workspace for {type(scope)} scope.")
 
@@ -304,7 +304,7 @@ def avalon_pipeline_env(scope, tool):
 
 
 @avalon_pipeline_env.register
-def _(scope: Root, tool: SuiteTool) -> None:
+def _(scope: Entrance, tool: SuiteTool) -> None:
     _ = tool  # consume unused arg
     raise Exception(f"No environment for {type(scope)} scope.")
 
@@ -551,10 +551,10 @@ def ping(database, retry=3):
 
 
 if __name__ == "__main__":
-    from allzpark.core import get_avalon_root_scope
+    from allzpark.core import get_avalon_entrance
     from Qt5 import QtGui, QtWidgets
 
-    _root = get_avalon_root_scope(uri=os.environ["AVALON_MONGO"])
+    _entrance = get_avalon_entrance(uri=os.environ["AVALON_MONGO"])
 
     app = QtWidgets.QApplication()  # must be inited before all other widgets
     dialog = QtWidgets.QDialog()
@@ -564,7 +564,7 @@ if __name__ == "__main__":
     view.setModel(model)
 
     # setup model
-    for project_ in _root.iter_children():
+    for project_ in _entrance.iter_children():
         if project_.is_active:
             combo.addItem(project_.name, project_)
 

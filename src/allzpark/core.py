@@ -11,16 +11,16 @@ from rez.config import config as rezconfig
 parkconfig = rezconfig.plugins.command.park
 
 
-def get_avalon_root_scope(uri, timeout=1000):
+def get_avalon_entrance(uri, timeout=1000):
     """
 
     :param str uri:
     :param int timeout:
     :return:
-    :rtype: allzpark.workspaces.avalon.Root
+    :rtype: allzpark.workspaces.avalon.Entrance
     """
-    from .workspaces.avalon import setup_root
-    return setup_root(uri, timeout)
+    from .backends.avalon import get_entrance
+    return get_entrance(uri, timeout)
 
 
 def find_suite(name, branch):

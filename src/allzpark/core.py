@@ -7,20 +7,21 @@ from rez.packages import Variant
 from rez.resolved_context import ResolvedContext
 from rez.config import config as rezconfig
 
+from . import backend_avalon
+
 
 parkconfig = rezconfig.plugins.command.park
 
 
-def get_avalon_entrance(uri, timeout=1000):
+def get_avalon_entrance(uri=None, timeout=None):
     """
 
     :param str uri:
     :param int timeout:
     :return:
-    :rtype: allzpark.workspaces.avalon.Entrance
+    :rtype: backend_avalon.Entrance
     """
-    from .backend_avalon import get_entrance
-    return get_entrance(uri, timeout)
+    return backend_avalon.get_entrance(uri, timeout)
 
 
 def find_suite(name, branch):

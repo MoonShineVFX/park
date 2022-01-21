@@ -6,20 +6,31 @@ import getpass
 from itertools import groupby
 from dataclasses import dataclass
 from functools import singledispatch
-from typing import Iterator, overload, Union, Set, Callable, Optional
-
+from typing import \
+    Iterator, overload, Union, Set, Callable, Optional, TYPE_CHECKING
 from bson.objectid import ObjectId
 from pymongo import MongoClient
 from pymongo.database import Database as MongoDatabase
 from pymongo.collection import Collection as MongoCollection
 
-from .core import SuiteTool, ReadOnlySuite
+from .exceptions import BackendError
+
+
+if TYPE_CHECKING:
+    # avoid cyclic import
+    from .core import SuiteTool
+else:
+    SuiteTool = "SuiteTool"
+    # related references:
+    #   https://stackoverflow.com/a/61544901
+    #   https://stackoverflow.com/a/39205612
+ToolFilterCallable = Callable[[SuiteTool], bool]
 
 
 log = logging.getLogger(__name__)
 
 
-def get_entrance(uri, timeout=1000):
+def get_entrance(uri=None, timeout=None):
     """
 
     :param str uri:
@@ -27,7 +38,11 @@ def get_entrance(uri, timeout=1000):
     :return:
     :rtype: Entrance
     """
-    return Entrance(uri=uri, timeout=timeout)
+    out = timeout or int(os.getenv("AVALON_TIMEOUT") or 1000)
+    uri = uri or os.getenv("AVALON_MONGO")
+    if uri:
+        return Entrance(uri=uri, timeout=out)
+    raise BackendError("Avalon database URI not given.")
 
 
 SUITE_BRANCH = "avalon"
@@ -58,47 +73,18 @@ class _Scope:
         """
         return iter_avalon_scopes(self)
 
-    @overload
-    def make_tool_filter(self: "Entrance") -> Callable[[SuiteTool], bool]:
-        ...
-
-    @overload
-    def make_tool_filter(self: "Project") -> Callable[[SuiteTool], bool]:
-        ...
-
-    @overload
-    def make_tool_filter(self: "Asset") -> Callable[[SuiteTool], bool]:
-        ...
-
-    @overload
-    def make_tool_filter(self: "Task") -> Callable[[SuiteTool], bool]:
-        ...
-
-    def make_tool_filter(self):
+    def make_tool_filter(
+            self: Union["Entrance", "Project", "Asset", "Task"]
+    ) -> ToolFilterCallable:
         """
-        :type self: Entrance or Project or Asset or Task
         :return:
-        :rtype: Callable[[SuiteTool], bool]
         """
         return tool_filter_factory(self)
 
-    @overload
-    def obtain_workspace(self: "Entrance", tool: SuiteTool) -> Optional[str]:
-        ...
-
-    @overload
-    def obtain_workspace(self: "Project", tool: SuiteTool) -> Optional[str]:
-        ...
-
-    @overload
-    def obtain_workspace(self: "Asset", tool: SuiteTool) -> Optional[str]:
-        ...
-
-    @overload
-    def obtain_workspace(self: "Task", tool: SuiteTool) -> Optional[str]:
-        ...
-
-    def obtain_workspace(self, tool):
+    def obtain_workspace(
+            self: Union["Entrance", "Project", "Asset", "Task"],
+            tool: SuiteTool
+    ) -> Optional[str]:
         """
 
         :param tool:
@@ -109,23 +95,10 @@ class _Scope:
         """
         return obtain_avalon_workspace(self, tool)
 
-    @overload
-    def additional_env(self: "Entrance", tool: SuiteTool) -> dict:
-        ...
-
-    @overload
-    def additional_env(self: "Project", tool: SuiteTool) -> dict:
-        ...
-
-    @overload
-    def additional_env(self: "Asset", tool: SuiteTool) -> dict:
-        ...
-
-    @overload
-    def additional_env(self: "Task", tool: SuiteTool) -> dict:
-        ...
-
-    def additional_env(self, tool):
+    def additional_env(
+            self: Union["Entrance", "Project", "Asset", "Task"],
+            tool: SuiteTool
+    ) -> dict:
         """
 
         :param tool:
@@ -207,19 +180,18 @@ def _(scope: Task) -> None:
 
 
 @singledispatch
-def tool_filter_factory(scope):
+def tool_filter_factory(scope) -> ToolFilterCallable:
     """
 
     :param scope: The scope of workspace. Could be a project/asset/task.
     :type scope: Entrance or Project or Asset or Task
     :return: A callable filter function
-    :rtype: Callable[[SuiteTool], bool]
     """
     raise NotImplementedError(f"Unknown scope type: {type(scope)}")
 
 
 @tool_filter_factory.register
-def _(scope: Entrance) -> Callable[[SuiteTool], bool]:
+def _(scope: Entrance) -> ToolFilterCallable:
     def _filter(tool: SuiteTool) -> bool:
         username = getpass.getuser()
         required_roles = tool.metadata.required_roles
@@ -229,7 +201,7 @@ def _(scope: Entrance) -> Callable[[SuiteTool], bool]:
 
 
 @tool_filter_factory.register
-def _(scope: Project) -> Callable[[SuiteTool], bool]:
+def _(scope: Project) -> ToolFilterCallable:
     def _filter(tool: SuiteTool) -> bool:
         required_roles = tool.metadata.required_roles
         return (
@@ -241,7 +213,7 @@ def _(scope: Project) -> Callable[[SuiteTool], bool]:
 
 
 @tool_filter_factory.register
-def _(scope: Asset) -> Callable[[SuiteTool], bool]:
+def _(scope: Asset) -> ToolFilterCallable:
     def _filter(tool: SuiteTool) -> bool:
         required_roles = tool.metadata.required_roles
         return (
@@ -253,7 +225,7 @@ def _(scope: Asset) -> Callable[[SuiteTool], bool]:
 
 
 @tool_filter_factory.register
-def _(scope: Task) -> Callable[[SuiteTool], bool]:
+def _(scope: Task) -> ToolFilterCallable:
     def _filter(tool: SuiteTool) -> bool:
         required_roles = tool.metadata.required_roles
         return (

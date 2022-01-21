@@ -19,7 +19,7 @@ def get_avalon_entrance(uri, timeout=1000):
     :return:
     :rtype: allzpark.workspaces.avalon.Entrance
     """
-    from .backends.avalon import get_entrance
+    from .backend_avalon import get_entrance
     return get_entrance(uri, timeout)
 
 

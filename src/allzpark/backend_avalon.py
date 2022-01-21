@@ -6,20 +6,27 @@ import getpass
 from itertools import groupby
 from dataclasses import dataclass
 from functools import singledispatch
-from typing import Iterator, overload, List, Union, Set
+from typing import Iterator, overload, Union, Set, Callable, Optional
 
 from bson.objectid import ObjectId
 from pymongo import MongoClient
 from pymongo.database import Database as MongoDatabase
 from pymongo.collection import Collection as MongoCollection
 
-from ..core import SuiteTool, ReadOnlySuite
+from .core import SuiteTool, ReadOnlySuite
 
 
 log = logging.getLogger(__name__)
 
 
 def get_entrance(uri, timeout=1000):
+    """
+
+    :param str uri:
+    :param int timeout:
+    :return:
+    :rtype: Entrance
+    """
     return Entrance(uri=uri, timeout=timeout)
 
 
@@ -52,38 +59,43 @@ class _Scope:
         return iter_avalon_scopes(self)
 
     @overload
-    def list_tools(self: "Project", suite: ReadOnlySuite) -> List[SuiteTool]:
+    def make_tool_filter(self: "Entrance") -> Callable[[SuiteTool], bool]:
         ...
 
     @overload
-    def list_tools(self: "Asset", suite: ReadOnlySuite) -> List[SuiteTool]:
+    def make_tool_filter(self: "Project") -> Callable[[SuiteTool], bool]:
         ...
 
     @overload
-    def list_tools(self: "Task", suite: ReadOnlySuite) -> List[SuiteTool]:
+    def make_tool_filter(self: "Asset") -> Callable[[SuiteTool], bool]:
         ...
 
-    def list_tools(self, suite):
+    @overload
+    def make_tool_filter(self: "Task") -> Callable[[SuiteTool], bool]:
+        ...
+
+    def make_tool_filter(self):
         """
-
-        :param suite:
-        :type suite: ReadOnlySuite
-        :type self: Project or Asset or Task
+        :type self: Entrance or Project or Asset or Task
         :return:
-        :rtype: List[SuiteTool]
+        :rtype: Callable[[SuiteTool], bool]
         """
-        return list_role_filtered_tools(self, suite)
+        return tool_filter_factory(self)
 
     @overload
-    def obtain_workspace(self: "Project", tool: SuiteTool) -> Union[str, None]:
+    def obtain_workspace(self: "Entrance", tool: SuiteTool) -> Optional[str]:
         ...
 
     @overload
-    def obtain_workspace(self: "Asset", tool: SuiteTool) -> Union[str, None]:
+    def obtain_workspace(self: "Project", tool: SuiteTool) -> Optional[str]:
         ...
 
     @overload
-    def obtain_workspace(self: "Task", tool: SuiteTool) -> Union[str, None]:
+    def obtain_workspace(self: "Asset", tool: SuiteTool) -> Optional[str]:
+        ...
+
+    @overload
+    def obtain_workspace(self: "Task", tool: SuiteTool) -> Optional[str]:
         ...
 
     def obtain_workspace(self, tool):
@@ -91,11 +103,15 @@ class _Scope:
 
         :param tool:
         :type tool: SuiteTool
-        :type self: Project or Asset or Task
+        :type self: Entrance or Project or Asset or Task
         :return:
         :rtype: str or None
         """
         return obtain_avalon_workspace(self, tool)
+
+    @overload
+    def additional_env(self: "Entrance", tool: SuiteTool) -> dict:
+        ...
 
     @overload
     def additional_env(self: "Project", tool: SuiteTool) -> dict:
@@ -114,7 +130,7 @@ class _Scope:
 
         :param tool:
         :type tool: SuiteTool
-        :type self: Project or Asset or Task
+        :type self: Entrance or Project or Asset or Task
         :return:
         :rtype: dict
         """
@@ -195,59 +211,66 @@ def _(scope: Asset) -> Iterator[Task]:
 
 @iter_avalon_scopes.register
 def _(scope: Task) -> None:
-    raise StopIteration(f"Endpoint reached: {scope}")
+    raise NotImplementedError(f"Endpoint reached: {scope}")
 
 
 @singledispatch
-def list_role_filtered_tools(scope, suite):
+def tool_filter_factory(scope):
     """
 
     :param scope: The scope of workspace. Could be a project/asset/task.
-    :param suite: A loaded Rez suite.
-    :type scope: Project or Asset or Task
-    :type suite: ReadOnlySuite
-    :return: A list of available tools in given scope
-    :rtype: list[SuiteTool]
+    :type scope: Entrance or Project or Asset or Task
+    :return: A callable filter function
+    :rtype: Callable[[SuiteTool], bool]
     """
-    _ = suite  # consume unused arg
     raise NotImplementedError(f"Unknown scope type: {type(scope)}")
 
 
-@list_role_filtered_tools.register
-def _(scope: Entrance, suite: ReadOnlySuite) -> None:
-    _ = suite  # consume unused arg
-    raise Exception(f"No tools are allowed in {type(scope)} scope.")
+@tool_filter_factory.register
+def _(scope: Entrance) -> Callable[[SuiteTool], bool]:
+    def _filter(tool: SuiteTool) -> bool:
+        username = getpass.getuser()
+        required_roles = tool.metadata.required_roles
+        return not required_roles or username in required_roles
+    _ = scope  # consume unused arg
+    return _filter
 
 
-@list_role_filtered_tools.register
-def _(scope: Project, suite: ReadOnlySuite) -> List[SuiteTool]:
-    return [
-        tool for tool in suite.iter_tools()
-        if tool.ctx_name.startswith("project.")
-        and (not tool.metadata.required_roles
-             or scope.roles.intersection(tool.metadata.required_roles))
-    ]
+@tool_filter_factory.register
+def _(scope: Project) -> Callable[[SuiteTool], bool]:
+    def _filter(tool: SuiteTool) -> bool:
+        required_roles = tool.metadata.required_roles
+        return (
+            tool.ctx_name.startswith("project.")
+            and (not required_roles
+                 or scope.roles.intersection(required_roles))
+        )
+    return _filter
 
 
-@list_role_filtered_tools.register
-def _(scope: Asset, suite: ReadOnlySuite) -> List[SuiteTool]:
-    return [
-        tool for tool in suite.iter_tools()
-        if tool.ctx_name.startswith("asset.")
-        and (not tool.metadata.required_roles
-             or scope.project.roles.intersection(tool.metadata.required_roles))
-    ]
+@tool_filter_factory.register
+def _(scope: Asset) -> Callable[[SuiteTool], bool]:
+    def _filter(tool: SuiteTool) -> bool:
+        required_roles = tool.metadata.required_roles
+        return (
+            tool.ctx_name.startswith("asset.")
+            and (not required_roles
+                 or scope.project.roles.intersection(required_roles))
+        )
+    return _filter
 
 
-@list_role_filtered_tools.register
-def _(scope: Task, suite: ReadOnlySuite) -> List[SuiteTool]:
-    return [
-        tool for tool in suite.iter_tools()
-        if not tool.ctx_name.startswith("project.")
-        and not tool.ctx_name.startswith("asset.")
-        and (not tool.metadata.required_roles
-             or scope.project.roles.intersection(tool.metadata.required_roles))
-    ]
+@tool_filter_factory.register
+def _(scope: Task) -> Callable[[SuiteTool], bool]:
+    def _filter(tool: SuiteTool) -> bool:
+        required_roles = tool.metadata.required_roles
+        return (
+            not tool.ctx_name.startswith("project.")
+            and not tool.ctx_name.startswith("asset.")
+            and (not required_roles
+                 or scope.project.roles.intersection(required_roles))
+        )
+    return _filter
 
 
 @singledispatch
@@ -255,9 +278,9 @@ def obtain_avalon_workspace(scope, tool):
     """
 
     :param scope: The scope of workspace. Could be at project/asset/task.
-    :param tool: A tool provided by from Rez suite.
-    :type scope: Project or Asset or Task
-    :type tool:
+    :param tool: A tool provided by Rez suite.
+    :type scope: Entrance or Project or Asset or Task
+    :type tool: SuiteTool
     :return: A filesystem path to workspace if available
     :rtype: str or None
     """
@@ -267,19 +290,19 @@ def obtain_avalon_workspace(scope, tool):
 
 @obtain_avalon_workspace.register
 def _(scope: Entrance, tool: SuiteTool) -> None:
-    log.error(f"No workspace for {tool.name} in scope {scope}.")
-    raise Exception(f"No workspace for {type(scope)} scope.")
+    log.debug(f"No workspace for {tool.name} in Avalon scope {scope}.")
+    return None
 
 
 @obtain_avalon_workspace.register
 def _(scope: Project, tool: SuiteTool) -> Union[str, None]:
-    log.debug(f"No workspace for {tool.name} in scope {scope}.")
+    log.debug(f"No workspace for {tool.name} in Avalon scope {scope}.")
     return None
 
 
 @obtain_avalon_workspace.register
 def _(scope: Asset, tool: SuiteTool) -> Union[str, None]:
-    log.debug(f"No workspace for {tool.name} in scope {scope}.")
+    log.debug(f"No workspace for {tool.name} in Avalon scope {scope}.")
     return None
 
 
@@ -294,8 +317,8 @@ def avalon_pipeline_env(scope, tool):
 
     :param scope: The scope of workspace. Could be at project/asset/task.
     :param tool: A tool provided by from Rez suite.
-    :type scope: Project or Asset or Task
-    :type tool:
+    :type scope: Entrance or Project or Asset or Task
+    :type tool: SuiteTool
     :return:
     :rtype: dict
     """
@@ -304,9 +327,9 @@ def avalon_pipeline_env(scope, tool):
 
 
 @avalon_pipeline_env.register
-def _(scope: Entrance, tool: SuiteTool) -> None:
-    _ = tool  # consume unused arg
-    raise Exception(f"No environment for {type(scope)} scope.")
+def _(scope: Entrance, tool: SuiteTool) -> dict:
+    _ = scope, tool  # consume unused arg
+    return {}
 
 
 @avalon_pipeline_env.register
@@ -551,10 +574,9 @@ def ping(database, retry=3):
 
 
 if __name__ == "__main__":
-    from allzpark.core import get_avalon_entrance
     from Qt5 import QtGui, QtWidgets
 
-    _entrance = get_avalon_entrance(uri=os.environ["AVALON_MONGO"])
+    _entrance = get_entrance(uri=os.environ["AVALON_MONGO"])
 
     app = QtWidgets.QApplication()  # must be inited before all other widgets
     dialog = QtWidgets.QDialog()

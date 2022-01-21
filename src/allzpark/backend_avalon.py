@@ -45,7 +45,6 @@ def get_entrance(uri=None, timeout=None):
     raise BackendError("Avalon database URI not given.")
 
 
-SUITE_BRANCH = "avalon"
 MEMBER_ROLE = "member"
 MANAGER_ROLE = "admin"
 

@@ -176,7 +176,7 @@ def _(scope: Asset) -> Iterator[Task]:
 
 @iter_avalon_scopes.register
 def _(scope: Task) -> None:
-    raise NotImplementedError(f"Endpoint reached: {scope}")
+    raise StopIteration(f"Endpoint reached: {scope}")
 
 
 @singledispatch

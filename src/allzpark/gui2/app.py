@@ -6,7 +6,7 @@ from contextlib import contextmanager
 
 from .. import core, exceptions
 from ._vendor.Qt5 import QtCore, QtWidgets
-from . import control, window
+from . import control, window, widgets
 
 
 if sys.platform == "darwin":
@@ -40,6 +40,14 @@ class Session(object):
 
             py_signal.signal(py_signal.SIGINT, sigint_handler)
 
+        # sharpen icons/images
+        # * the .svg file ext is needed in file path for Qt to auto scale it.
+        # * without file ext given for svg file, may need to hard-coding attr
+        #   like width/height/viewBox attr in that svg file.
+        # * without the Qt attr below, .svg may being rendered as they were
+        #   low-res.
+        app.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps)
+
         # init
 
         storage = QtCore.QSettings(QtCore.QSettings.IniFormat,
@@ -50,20 +58,33 @@ class Session(object):
         state = State(storage=storage)
 
         try:
-            entrances = core.init_entrances()
+            backend_entrances = core.init_backends()
         except exceptions.BackendError as e:
             print(e)
             sys.exit(1)
 
-        ctrl = control.Controller(entrances=entrances)
+        ctrl = control.Controller(backends=backend_entrances)
         view_ = window.MainWindow(state=state)
 
         # signals
+
+        workspace_view = view_.find(widgets.WorkspaceWidget)
+
+        # view -> control
+        workspace_view.backend_changed.connect(ctrl.on_backend_changed)
+
+        # control -> view
+        ctrl.workspace_entered.connect(workspace_view.on_workspace_entered)
 
         self._app = app
         self._ctrl = ctrl
         self._view = view_
         self._state = state
+
+        # kick start
+        workspace_view.register_backends(names=[
+            name for name, _ in backend_entrances]
+        )
 
     @property
     def app(self):

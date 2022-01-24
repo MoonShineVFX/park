@@ -17,19 +17,27 @@ log = logging.getLogger(__name__)
 parkconfig = rezconfig.plugins.command.park
 
 
-def init_entrances(no_warning=False):
+def init_backends(no_warning=False):
+    """
 
-    def try_avalon_entrance():
+    :param bool no_warning:
+    :return: A list of available backend name and entrance object pair
+    :rtype: list[tuple[str, Entrance]]
+    """
+
+    def try_avalon_backend() -> avalon.Entrance:
         scope = avalon.get_entrance()
         avalon.ping(avalon.AvalonMongo(scope.uri, scope.timeout))
         return scope
 
-    available_entrances = []
-
-    for name, entrance_getter in (
-        (avalon.Entrance.backend, try_avalon_entrance),
+    possible_backends = [
+        (avalon.Entrance.backend, try_avalon_backend),
         # could be ftrack, or shotgrid, could be...
-    ):
+    ]
+
+    available_backends = []
+
+    for name, entrance_getter in possible_backends:
         try:
             entrance = entrance_getter()
         except Exception as e:
@@ -39,10 +47,10 @@ def init_entrances(no_warning=False):
                 f"Cannot get entrance from backend {name!r}: {str(e)}"
             )
         else:
-            available_entrances.append(entrance)
+            available_backends.append((name, entrance))
 
-    if available_entrances:
-        return available_entrances
+    if available_backends:
+        return available_backends
 
     raise BackendError("No available backend.")
 

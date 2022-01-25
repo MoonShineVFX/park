@@ -11,7 +11,7 @@ log = logging.getLogger(__name__)
 
 
 entrance_widgets = {
-    avalon.Entrance.backend: AvalonWidget,
+    avalon.Entrance.name: AvalonWidget,
     # could be ftrack, or shotgrid, could be... (see core module)
 }
 

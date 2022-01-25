@@ -116,7 +116,8 @@ class _Scope:
 
 @dataclass(frozen=True)
 class Entrance(_Scope):
-    backend = "avalon"
+    name = "avalon"
+    upstream = None
     uri: str
     timeout: int
 
@@ -124,6 +125,7 @@ class Entrance(_Scope):
 @dataclass(frozen=True)
 class Project(_Scope):
     name: str
+    upstream: Entrance
     is_active: bool
     roles: Set[str]
     root: str
@@ -135,6 +137,7 @@ class Project(_Scope):
 @dataclass(frozen=True)
 class Asset(_Scope):
     name: str
+    upstream: Project or "Asset"
     project: Project
     parent: "Asset" or None
     silo: str
@@ -146,6 +149,7 @@ class Asset(_Scope):
 @dataclass(frozen=True)
 class Task(_Scope):
     name: str
+    upstream: Asset
     project: Project
     asset: Asset
     coll: MongoCollection
@@ -164,7 +168,7 @@ def iter_avalon_scopes(scope):
 
 @iter_avalon_scopes.register
 def _(scope: Entrance) -> Iterator[Project]:
-    database = AvalonMongo(scope.uri, scope.timeout)
+    database = AvalonMongo(scope.uri, scope.timeout, entrance=scope)
     return iter_avalon_projects(database)
 
 
@@ -384,6 +388,7 @@ def iter_avalon_projects(database):
 
             yield Project(
                 name=name,
+                upstream=database.entrance,
                 is_active=is_active,
                 roles=roles,
                 root=project_root,
@@ -444,6 +449,7 @@ def iter_avalon_assets(avalon_project):
 
         silo = Asset(
             name=key,
+            upstream=this,
             project=this,
             parent=None,
             silo="",
@@ -462,6 +468,7 @@ def iter_avalon_assets(avalon_project):
             _hidden = _parent.is_hidden or bool(doc["data"].get("trash"))
             asset = Asset(
                 name=doc["name"],
+                upstream=_parent or this,
                 project=this,
                 parent=_parent,
                 silo=doc.get("silo"),
@@ -490,6 +497,7 @@ def iter_avalon_tasks(avalon_asset):
         for task in doc.get("tasks") or []:
             yield Task(
                 name=task,
+                upstream=this,
                 project=this.project,
                 asset=this,
                 coll=this.coll,
@@ -499,16 +507,19 @@ def iter_avalon_tasks(avalon_asset):
 class AvalonMongo(object):
     """Avalon MongoDB connector
     """
-    def __init__(self, uri, timeout=1000):
+    def __init__(self, uri, timeout=1000, entrance=None):
         """
         :param str uri: MongoDB URI string
         :param int timeout: MongoDB connection timeout, default 1000
+        :param Entrance entrance: The entrance scope that used to open this
+            connection. Optional.
         """
         conn = MongoClient(uri, serverSelectionTimeoutMS=timeout)
 
         self.uri = uri
         self.conn = conn
         self.timeout = timeout
+        self.entrance = entrance
 
 
 def ping(database, retry=3):

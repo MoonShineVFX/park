@@ -27,11 +27,13 @@ def init_backends(no_warning=False):
 
     def try_avalon_backend() -> avalon.Entrance:
         scope = avalon.get_entrance()
-        avalon.ping(avalon.AvalonMongo(scope.uri, scope.timeout))
+        avalon.ping(
+            avalon.AvalonMongo(scope.uri, scope.timeout, entrance=scope)
+        )
         return scope
 
     possible_backends = [
-        (avalon.Entrance.backend, try_avalon_backend),
+        (avalon.Entrance.name, try_avalon_backend),
         # could be ftrack, or shotgrid, could be...
     ]
 

@@ -51,6 +51,11 @@ MANAGER_ROLE = "admin"
 
 class _Scope:
 
+    def exists(
+            self: Union["Entrance", "Project", "Asset", "Task"]
+    ) -> bool:
+        pass
+
     @overload
     def iter_children(self: "Entrance") -> Iterator["Project"]:
         ...
@@ -421,21 +426,22 @@ def iter_avalon_assets(avalon_project):
     def group_key(doc_):
         """Key for sort/group assets by visual hierarchy depth
         :param dict doc_: Asset document
-        :rtype: tuple[bool, ObjectId] or tuple[bool, str]
+        :rtype: tuple[int, ObjectId] or tuple[int, str] or tuple[int, None]
         """
         _depth = count_depth(doc_)
-        _vp = doc_["data"]["visualParent"] if _depth else doc_["silo"]
+        _vp = doc_["data"]["visualParent"] if _depth else doc_.get("silo")
         return _depth, _vp
 
-    grouped_assets = [(k, list(group)) for k, group in groupby(
-        sorted(all_asset_docs.values(), key=group_key),
-        key=group_key
-    )]
+    grouped_assets = [
+        ((depth, key), list(group)) for (depth, key), group in
+        groupby(sorted(all_asset_docs.values(), key=group_key), key=group_key)
+    ]
 
     _silos = dict()
-    for (is_child, key), assets in grouped_assets:
+    for (depth, key), assets in grouped_assets:
         if not isinstance(key, str):
-            continue
+            continue  #
+
         silo = Asset(
             name=key,
             project=this,
@@ -450,9 +456,9 @@ def iter_avalon_assets(avalon_project):
         yield silo
 
     _assets = dict()
-    for (is_child, key), assets in grouped_assets:
+    for (depth, key), assets in grouped_assets:
         for doc in assets:
-            _parent = _assets[key] if is_child else _silos[key]
+            _parent = _assets[key] if depth else _silos.get(key)
             _hidden = _parent.is_hidden or bool(doc["data"].get("trash"))
             asset = Asset(
                 name=doc["name"],
@@ -481,7 +487,7 @@ def iter_avalon_tasks(avalon_asset):
     query_filter = {"type": "asset", "name": this.name}
     doc = this.coll.find_one(query_filter, projection={"tasks": True})
     if doc is not None:
-        for task in doc.get("tasks"):
+        for task in doc.get("tasks") or []:
             yield Task(
                 name=task,
                 project=this.project,

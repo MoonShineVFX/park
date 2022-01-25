@@ -101,6 +101,7 @@ class Controller(QtCore.QObject):
         super(Controller, self).__init__(parent=None)
 
         self._backend_entrances = dict(backends)
+        self._current_scope = None
         self._timers = dict()
         self._sender = dict()
         self._thread = dict()  # type: dict[str, Thread]
@@ -111,10 +112,21 @@ class Controller(QtCore.QObject):
         scope = self._backend_entrances[entrance]
         self.enter_workspace(scope)
 
+    @QtCore.Slot()  # noqa
+    def on_workspace_changed(self, scope):
+        self.enter_workspace(scope)
+
+    @QtCore.Slot()  # noqa
+    def on_model_switched(self, model):
+        self.update_workspace(model)
+
     @_thread(name="workspace", blocks=("WorkspaceWidget",))
+    def update_workspace(self, model):
+        model.refresh(self._current_scope)
+
     def enter_workspace(self, scope):
+        self._current_scope = scope
         self.workspace_entered.emit(scope)
-        # todo: should be waiting for widget model reset complete
 
     def select_tool(self, tool):
         pass

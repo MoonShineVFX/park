@@ -1,6 +1,6 @@
 
 import logging
-from ._vendor.Qt5 import QtCore, QtWidgets
+from ._vendor.Qt5 import QtCore, QtGui, QtWidgets
 
 log = logging.getLogger(__name__)
 
@@ -162,3 +162,36 @@ class SlidePageWidget(QtWidgets.QStackedWidget):
 
         anim_group.finished.connect(slide_finished)
         anim_group.start()
+
+
+class WorkspaceBase(QtWidgets.QWidget):
+    icon_path = None
+    workspace_changed = QtCore.Signal(object)
+
+    def enter_workspace(self, scope):
+        raise NotImplementedError
+
+    def get_model(self, scope):
+        raise NotImplementedError
+
+
+class BaseItemModel(QtGui.QStandardItemModel):
+    Headers = []
+
+    def __init__(self, *args, **kwargs):
+        super(BaseItemModel, self).__init__(*args, **kwargs)
+        self.setColumnCount(len(self.Headers))
+
+    def headerData(self, section, orientation, role=QtCore.Qt.DisplayRole):
+        if role == QtCore.Qt.DisplayRole and section < len(self.Headers):
+            return self.Headers[section]
+        return super(BaseItemModel, self).headerData(
+            section, orientation, role)
+
+    def clear(self):
+        super(BaseItemModel, self).clear()  # also clears header items, hence..
+        self.setHorizontalHeaderLabels(self.Headers)
+
+
+class BaseScopeModel(BaseItemModel):
+    ScopeRole = QtCore.Qt.UserRole + 10

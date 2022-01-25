@@ -4,9 +4,10 @@ import sys
 import signal as py_signal
 from contextlib import contextmanager
 
-from .. import core, exceptions
+from .. import core
+from ..exceptions import BackendError
 from ._vendor.Qt5 import QtCore, QtWidgets
-from . import control, window, widgets
+from . import control, window, widgets, common
 
 
 if sys.platform == "darwin":
@@ -59,7 +60,7 @@ class Session(object):
 
         try:
             backend_entrances = core.init_backends()
-        except exceptions.BackendError as e:
+        except BackendError as e:
             print(e)
             sys.exit(1)
 
@@ -69,12 +70,18 @@ class Session(object):
         # signals
 
         workspace_view = view_.find(widgets.WorkspaceWidget)
+        busy_filter = common.BusyEventFilterSingleton()
 
         # view -> control
+        workspace_view.workspace_changed.connect(ctrl.on_workspace_changed)
         workspace_view.backend_changed.connect(ctrl.on_backend_changed)
+        workspace_view.model_switched.connect(ctrl.on_model_switched)
 
         # control -> view
         ctrl.workspace_entered.connect(workspace_view.on_workspace_entered)
+
+        # status bar messages
+        busy_filter.overwhelmed.connect(view_.spoken)
 
         self._app = app
         self._ctrl = ctrl

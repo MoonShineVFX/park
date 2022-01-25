@@ -4,9 +4,7 @@ from typing import List
 from ._vendor.Qt5 import QtCore, QtGui, QtWidgets
 from .widgets_avalon import AvalonWidget
 from .. import backend_avalon as avalon
-from .common import (
-    BusyWidget,
-)
+from .common import BusyWidget, WorkspaceBase
 
 
 log = logging.getLogger(__name__)
@@ -19,7 +17,9 @@ entrance_widgets = {
 
 
 class WorkspaceWidget(BusyWidget):
+    workspace_changed = QtCore.Signal(object)
     backend_changed = QtCore.Signal(str)
+    model_switched = QtCore.Signal(QtCore.QAbstractItemModel)
 
     def __init__(self, *args, **kwargs):
         super(WorkspaceWidget, self).__init__(*args, **kwargs)
@@ -55,6 +55,10 @@ class WorkspaceWidget(BusyWidget):
         widget = self._stack.currentWidget()
         widget.enter_workspace(scope)
 
+        model = widget.get_model(scope)
+        if model is not None:
+            self.model_switched.emit(model)
+
     def register_backends(self, names: List[str]):
         if self._stack.count() > 1:
             return
@@ -63,16 +67,27 @@ class WorkspaceWidget(BusyWidget):
 
         for name in names:
             widget_cls = entrance_widgets.get(name)
+
             if widget_cls is None:
                 log.error(f"No widget for backend {name!r}.")
                 continue
+            if not issubclass(widget_cls, WorkspaceBase):
+                log.error(f"Invalid widget type {widget_cls.__name__!r}, "
+                          f"must be a subclass of {WorkspaceBase.__name__!r}.")
+                continue
 
-            self._stack.addWidget(widget_cls())
+            widget = widget_cls()
+            widget.workspace_changed.connect(self.workspace_changed.emit)
+
+            self._stack.addWidget(widget)
             self._combo.addItem(
-                QtGui.QIcon(widget_cls.icon_path or ":/icons/project"),
+                QtGui.QIcon(widget_cls.icon_path or ":/icons/backend.svg"),
                 name,
             )
 
         self.blockSignals(False)
 
-        self._on_backend_changed(self._combo.currentText())
+        if self._combo.count():
+            self._on_backend_changed(self._combo.currentText())
+        else:
+            log.error("No valid backend registered.")

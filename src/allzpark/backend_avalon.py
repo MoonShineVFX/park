@@ -54,6 +54,8 @@ class _Scope:
     def exists(
             self: Union["Entrance", "Project", "Asset", "Task"]
     ) -> bool:
+        # todo: this should query database to see if the entity that
+        #  this scope represented still exists.
         pass
 
     @overload

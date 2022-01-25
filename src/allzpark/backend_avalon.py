@@ -494,9 +494,9 @@ def iter_avalon_tasks(avalon_asset):
     this = avalon_asset
 
     query_filter = {"type": "asset", "name": this.name}
-    doc = this.coll.find_one(query_filter, projection={"tasks": True})
+    doc = this.coll.find_one(query_filter, projection={"data.tasks": True})
     if doc is not None:
-        for task in doc.get("tasks") or []:
+        for task in doc["data"].get("tasks") or []:
             yield Task(
                 name=task,
                 upstream=this,

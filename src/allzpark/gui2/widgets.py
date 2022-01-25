@@ -27,6 +27,7 @@ class WorkspaceWidget(BusyWidget):
 
         void_page = QtWidgets.QWidget()
         void_text = QtWidgets.QLabel("there goes nothing")
+        breadcrumb = BreadcrumbWidget()
         entrances = QtWidgets.QStackedWidget()
         backend_sel = QtWidgets.QComboBox()
 
@@ -36,6 +37,7 @@ class WorkspaceWidget(BusyWidget):
         entrances.addWidget(void_page)  # index 0
 
         layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(breadcrumb)
         layout.addWidget(entrances)
         layout.addWidget(backend_sel)
 
@@ -43,15 +45,19 @@ class WorkspaceWidget(BusyWidget):
         backend_sel.currentIndexChanged.connect(
             lambda i: entrances.setCurrentIndex(i + 1)
         )
+        breadcrumb.workspace_changed.connect(self.workspace_changed.emit)
 
+        self._bread = breadcrumb
         self._stack = entrances
         self._combo = backend_sel
 
     def _on_backend_changed(self, name):
         # possibly need to do some cleanup before/after signal emitted ?
+        self._bread.reset()
         self.backend_changed.emit(name)
 
     def on_workspace_entered(self, scope):
+        self._bread.set_path(scope)
         widget = self._stack.currentWidget()
         widget.enter_workspace(scope)
 
@@ -91,3 +97,26 @@ class WorkspaceWidget(BusyWidget):
             self._on_backend_changed(self._combo.currentText())
         else:
             log.error("No valid backend registered.")
+
+
+class BreadcrumbWidget(QtWidgets.QTabBar):
+    workspace_changed = QtCore.Signal(object)
+
+    def __init__(self, *args, **kwargs):
+        super(BreadcrumbWidget, self).__init__(*args, **kwargs)
+        self.tabBarClicked.connect(self._on_tab_clicked)
+
+    def _on_tab_clicked(self, index):
+        scope = self.tabData(index)
+        self.workspace_changed.emit(scope)
+
+    def reset(self):
+        for _ in range(self.count()):
+            self.removeTab(0)
+
+    def set_path(self, scope):
+        self.reset()
+        while scope is not None:
+            self.insertTab(0, scope.name)
+            self.setTabData(0, scope)
+            scope = scope.upstream

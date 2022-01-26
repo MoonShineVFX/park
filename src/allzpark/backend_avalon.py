@@ -7,11 +7,12 @@ from itertools import groupby
 from dataclasses import dataclass
 from functools import singledispatch
 from typing import \
-    Iterator, overload, Union, Set, Callable, Optional, TYPE_CHECKING
+    Iterator, overload, Union, Set, Callable, TYPE_CHECKING
 from bson.objectid import ObjectId
 from pymongo import MongoClient
 from pymongo.database import Database as MongoDatabase
 from pymongo.collection import Collection as MongoCollection
+from rez.config import config as rezconfig
 
 from .exceptions import BackendError
 from .util import elide
@@ -29,6 +30,9 @@ ToolFilterCallable = Callable[[SuiteTool], bool]
 
 
 log = logging.getLogger(__name__)
+
+
+parkconfig = rezconfig.plugins.command.park
 
 
 def get_entrance(uri=None, timeout=None):
@@ -80,6 +84,27 @@ class _Scope:
         """
         return iter_avalon_scopes(self)
 
+    @overload
+    def suite_path(self: "Entrance") -> Union[str, None]:
+        ...
+
+    @overload
+    def suite_path(self: "Project") -> str:
+        ...
+
+    @overload
+    def suite_path(self: Union["Asset", "Task"]) -> None:
+        ...
+
+    def suite_path(self):
+        """Iter child scopes
+
+        :type self: Entrance or Project or Asset or Task
+        :return:
+        :rtype: Union[str, None]
+        """
+        return scope_suite_path(self)
+
     def make_tool_filter(
             self: Union["Entrance", "Project", "Asset", "Task"]
     ) -> ToolFilterCallable:
@@ -91,7 +116,7 @@ class _Scope:
     def obtain_workspace(
             self: Union["Entrance", "Project", "Asset", "Task"],
             tool: SuiteTool
-    ) -> Optional[str]:
+    ) -> Union[str, None]:
         """
 
         :param tool:
@@ -204,9 +229,12 @@ def tool_filter_factory(scope) -> ToolFilterCallable:
 @tool_filter_factory.register
 def _(scope: Entrance) -> ToolFilterCallable:
     def _filter(tool: SuiteTool) -> bool:
-        username = getpass.getuser()
         required_roles = tool.metadata.required_roles
-        return not required_roles or username in required_roles
+        return (
+            not tool.metadata.hidden
+            and (not required_roles
+                 or getpass.getuser() in required_roles)
+        )
     _ = scope  # consume unused arg
     return _filter
 
@@ -216,7 +244,8 @@ def _(scope: Project) -> ToolFilterCallable:
     def _filter(tool: SuiteTool) -> bool:
         required_roles = tool.metadata.required_roles
         return (
-            tool.ctx_name.startswith("project.")
+            not tool.metadata.hidden
+            and tool.ctx_name.startswith("project.")
             and (not required_roles
                  or scope.roles.intersection(required_roles))
         )
@@ -228,7 +257,8 @@ def _(scope: Asset) -> ToolFilterCallable:
     def _filter(tool: SuiteTool) -> bool:
         required_roles = tool.metadata.required_roles
         return (
-            tool.ctx_name.startswith("asset.")
+            not tool.metadata.hidden
+            and tool.ctx_name.startswith("asset.")
             and (not required_roles
                  or scope.project.roles.intersection(required_roles))
         )
@@ -240,7 +270,8 @@ def _(scope: Task) -> ToolFilterCallable:
     def _filter(tool: SuiteTool) -> bool:
         required_roles = tool.metadata.required_roles
         return (
-            not tool.ctx_name.startswith("project.")
+            not tool.metadata.hidden
+            and not tool.ctx_name.startswith("project.")
             and not tool.ctx_name.startswith("asset.")
             and (not required_roles
                  or scope.project.roles.intersection(required_roles))
@@ -338,6 +369,50 @@ def _(scope: Task, tool: SuiteTool) -> dict:
         "AVALON_APP": tool.name,
         "AVALON_APP_NAME": tool.name,  # application dir
     }
+
+
+@singledispatch
+def scope_suite_path(scope):
+    """
+
+    :param scope: The scope of workspace. Could be at project/asset/task.
+    :type scope: Entrance or Project or Asset or Task
+    :return: A filesystem path to workspace if available
+    :rtype: str or None
+    """
+    raise NotImplementedError(f"Unknown scope type: {type(scope)}")
+
+
+@scope_suite_path.register
+def _(scope: Entrance) -> Union[str, None]:
+    _ = scope
+    return os.getenv("AVALON_DEFAULT_SUITE")
+
+
+@scope_suite_path.register
+def _(scope: Project) -> str:
+    roots = parkconfig.suite_roots()
+    if not isinstance(roots, dict):
+        raise BackendError("Invalid configuration, 'suite_roots' should be "
+                           "dict type value.")
+
+    avalon_suite_root = roots.get("avalon")
+    if not avalon_suite_root:
+        raise BackendError("Invalid configuration, no suite root for Avalon")
+
+    return os.path.join(avalon_suite_root, scope.name)
+
+
+@scope_suite_path.register
+def _(scope: Asset) -> None:
+    _ = scope
+    return None
+
+
+@scope_suite_path.register
+def _(scope: Task) -> None:
+    _ = scope
+    return None
 
 
 def get_avalon_task_workspace(task: Task, tool: SuiteTool):
@@ -514,8 +589,9 @@ class AvalonMongo(object):
         """
         :param str uri: MongoDB URI string
         :param int timeout: MongoDB connection timeout, default 1000
-        :param Entrance entrance: The entrance scope that used to open this
+        :param entrance: The entrance scope that used to open this
             connection. Optional.
+        :type entrance: Entrance or None
         """
         conn = MongoClient(uri, serverSelectionTimeoutMS=timeout)
 

@@ -138,6 +138,7 @@ class AssetTreeWidget(QtWidgets.QWidget):
         layout.addWidget(search_bar)
         layout.addWidget(view)
 
+        model.modelAboutToBeReset.connect(proxy.invalidate)
         view.clicked.connect(self._on_item_clicked)
 
         self._view = view

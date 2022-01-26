@@ -2,6 +2,7 @@
 import functools
 from ._vendor.Qt5 import QtCore
 from .widgets import BusyWidget
+from .. import core
 
 
 def _defer(on_time=500):
@@ -101,7 +102,6 @@ class Controller(QtCore.QObject):
         super(Controller, self).__init__(parent=None)
 
         self._backend_entrances = dict(backends)
-        self._current_scope = None
         self._timers = dict()
         self._sender = dict()
         self._thread = dict()  # type: dict[str, Thread]
@@ -117,21 +117,37 @@ class Controller(QtCore.QObject):
         self.enter_workspace(scope)
 
     @QtCore.Slot()  # noqa
-    def on_model_switched(self, model):
-        self.update_workspace(model)
+    def on_scope_model_switched(self, scope, model):
+        self.update_workspace(scope, model)
 
-    @_thread(name="workspace", blocks=("WorkspaceWidget",))
-    def update_workspace(self, model):
-        model.refresh(self._current_scope)
+    @QtCore.Slot()  # noqa
+    def on_scope_tools_requested(self, scope, model):
+        self.update_tools(scope, model)
 
     def enter_workspace(self, scope):
-        self._current_scope = scope
         self.workspace_entered.emit(scope)
 
-    def select_tool(self, tool):
-        pass
+    @_thread(name="workspace", blocks=("WorkspaceWidget",))
+    def update_workspace(self, scope, model):
+        model.refresh(scope)
 
-    def iter_scopes(self, recursive=False):
+    # @_thread(name="suite", blocks=())
+    def update_tools(self, scope, model):
+        tools = None
+
+        suite_path = scope.suite_path()
+        if suite_path is not None:
+            suite = core.load_suite(suite_path)
+            if suite is not None:
+                tools = list(suite.iter_tools())
+
+        if tools is None:
+            tools = model.all_tools()
+
+        tool_filter = scope.make_tool_filter()
+        model.update_tools(tools, tool_filter)
+
+    def select_tool(self, tool):
         pass
 
 

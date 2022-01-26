@@ -15,9 +15,11 @@ class MainWindow(QtWidgets.QMainWindow):
         body = QtWidgets.QWidget()
 
         workspace_view = widgets.WorkspaceWidget()
+        tools_view = widgets.ToolsView()
 
-        layout = QtWidgets.QVBoxLayout(body)
+        layout = QtWidgets.QHBoxLayout(body)
         layout.addWidget(workspace_view)
+        layout.addWidget(tools_view)
 
         self._body = body
         self._state = state

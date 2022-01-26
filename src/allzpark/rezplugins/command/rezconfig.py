@@ -1,10 +1,18 @@
 
-from allzpark import util
+
+def suite_roots():
+    """Return a dict of suite saving root path
+    """
+    from collections import OrderedDict as odict
+    from allzpark import util
+    return odict([
+        ("local", util.normpath("~/rez/sweet/local")),
+        ("release", util.normpath("~/rez/sweet/release")),
+    ])
 
 
 park = {
-    "suite_root": util.normpath("~/rez/sweet/release"),
+    # saved suite root paths
+    "suite_roots": suite_roots,
 
-    # a suite for the scope where no project has been selected
-    "root_scope_suite": "",
 }

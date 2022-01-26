@@ -69,16 +69,19 @@ class Session(object):
 
         # signals
 
-        workspace_view = view_.find(widgets.WorkspaceWidget)
+        workspace = view_.find(widgets.WorkspaceWidget)
+        tools = view_.find(widgets.ToolsView)
         busy_filter = common.BusyEventFilterSingleton()
 
         # view -> control
-        workspace_view.workspace_changed.connect(ctrl.on_workspace_changed)
-        workspace_view.backend_changed.connect(ctrl.on_backend_changed)
-        workspace_view.model_switched.connect(ctrl.on_model_switched)
+        workspace.workspace_changed.connect(ctrl.on_workspace_changed)
+        workspace.backend_changed.connect(ctrl.on_backend_changed)
+        workspace.scope_model_switched.connect(ctrl.on_scope_model_switched)
+        tools.scope_tools_requested.connect(ctrl.on_scope_tools_requested)
 
         # control -> view
-        ctrl.workspace_entered.connect(workspace_view.on_workspace_entered)
+        ctrl.workspace_entered.connect(workspace.on_workspace_entered)
+        ctrl.workspace_entered.connect(tools.on_workspace_entered)
 
         # status bar messages
         busy_filter.overwhelmed.connect(view_.spoken)
@@ -89,7 +92,7 @@ class Session(object):
         self._state = state
 
         # kick start
-        workspace_view.register_backends(names=[
+        workspace.register_backends(names=[
             name for name, _ in backend_entrances]
         )
 

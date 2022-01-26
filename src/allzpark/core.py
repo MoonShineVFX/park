@@ -1,20 +1,15 @@
 
-import os
 import logging
 from typing import Set
 from dataclasses import dataclass
 from rez.suite import Suite
 from rez.packages import Variant
 from rez.resolved_context import ResolvedContext
-from rez.config import config as rezconfig
 
 from . import backend_avalon as avalon
 from .exceptions import BackendError
 
 log = logging.getLogger(__name__)
-
-
-parkconfig = rezconfig.plugins.command.park
 
 
 def init_backends(no_warning=False):
@@ -57,20 +52,17 @@ def init_backends(no_warning=False):
     raise BackendError("No available backend.")
 
 
-def find_suite(name, branch):
-    """Find one saved suite in specific branch
+def load_suite(path):
+    """Load one saved suite from path
 
-    :param str name:
-    :param str branch:
+    :param str path:
     :return:
     :rtype: ReadOnlySuite or None
     """
-    root = parkconfig.suite_root
-    suite_path = os.path.join(root, name)
     try:
-        suite = ReadOnlySuite.load(suite_path)
+        suite = ReadOnlySuite.load(path)
     except Exception as e:
-        print(e)
+        log.error(e)
     else:
         return suite
 
@@ -100,7 +92,7 @@ class SuiteTool:
         data = getattr(self.variant, "_data", {})
         return ToolMetadata(
             label=data.get("label", self.variant.name),
-            icon=data.get("icon", ""),
+            icon=data.get("icon", ":/icons/general-tool.svg"),
             color=data.get("color"),
             hidden=data.get("hidden", False),
             required_roles=set(data.get("required_roles", [])),

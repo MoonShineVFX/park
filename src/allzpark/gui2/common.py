@@ -192,6 +192,16 @@ class BaseItemModel(QtGui.QStandardItemModel):
         super(BaseItemModel, self).clear()  # also clears header items, hence..
         self.setHorizontalHeaderLabels(self.Headers)
 
+    def flags(self, index):
+        """
+
+        :param index:
+        :type index: QtCore.QModelIndex
+        :return:
+        :rtype: QtCore.Qt.ItemFlags
+        """
+        return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
+
 
 class BaseScopeModel(BaseItemModel):
     ScopeRole = QtCore.Qt.UserRole + 10

@@ -5,6 +5,7 @@ from ._vendor.Qt5 import QtCore, QtGui, QtWidgets
 from .widgets_avalon import AvalonWidget
 from .. import backend_avalon as avalon
 from .common import BusyWidget, WorkspaceBase
+from .models import ToolsModel
 
 
 log = logging.getLogger(__name__)
@@ -19,7 +20,7 @@ entrance_widgets = {
 class WorkspaceWidget(BusyWidget):
     workspace_changed = QtCore.Signal(object)
     backend_changed = QtCore.Signal(str)
-    model_switched = QtCore.Signal(QtCore.QAbstractItemModel)
+    scope_model_switched = QtCore.Signal(object, QtCore.QAbstractItemModel)
 
     def __init__(self, *args, **kwargs):
         super(WorkspaceWidget, self).__init__(*args, **kwargs)
@@ -63,7 +64,7 @@ class WorkspaceWidget(BusyWidget):
 
         model = widget.get_model(scope)
         if model is not None:
-            self.model_switched.emit(model)
+            self.scope_model_switched.emit(scope, model)
 
     def register_backends(self, names: List[str]):
         if self._stack.count() > 1:
@@ -120,3 +121,22 @@ class BreadcrumbWidget(QtWidgets.QTabBar):
             self.insertTab(0, scope.name)
             self.setTabData(0, scope)
             scope = scope.upstream
+
+
+class ToolsView(QtWidgets.QWidget):
+    scope_tools_requested = QtCore.Signal(object, QtCore.QAbstractItemModel)
+
+    def __init__(self, *args, **kwargs):
+        super(ToolsView, self).__init__(*args, **kwargs)
+
+        model = ToolsModel()
+        view = QtWidgets.QListView()
+        view.setModel(model)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(view)
+
+        self._model = model
+
+    def on_workspace_entered(self, scope):
+        self.scope_tools_requested.emit(scope, self._model)

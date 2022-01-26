@@ -130,8 +130,9 @@ class Controller(QtCore.QObject):
     @_thread(name="workspace", blocks=("WorkspaceWidget",))
     def update_workspace(self, scope, model):
         model.refresh(scope)
+        # todo: DO NOT UPDATE MODEL IN WORKER THREAD !!
 
-    # @_thread(name="suite", blocks=())
+    @_thread(name="suite", blocks=())
     def update_tools(self, scope, model):
         tools = None
 

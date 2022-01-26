@@ -156,6 +156,7 @@ class Project(_Scope):
     upstream: Entrance
     is_active: bool
     roles: Set[str]
+    tasks: Set[str]
     root: str
     username: str
     work_template: str
@@ -444,7 +445,8 @@ def iter_avalon_projects(database):
         "type": True,
         "name": True,
         "data": True,
-        "config.template.work": True
+        "config.tasks.name": True,
+        "config.template.work": True,
     }
 
     for name in sorted(db.list_collection_names(filter=f)):
@@ -464,11 +466,16 @@ def iter_avalon_projects(database):
             if username in _role_book.get(MANAGER_ROLE, []):
                 roles.add(MANAGER_ROLE)
 
+            tasks = set()
+            for task in doc["config"]["tasks"]:
+                tasks.add(task["name"])
+
             yield Project(
                 name=name,
                 upstream=database.entrance,
                 is_active=is_active,
                 roles=roles,
+                tasks=tasks,
                 root=project_root,
                 username=username,
                 work_template=doc["config"]["template"]["work"],

@@ -14,6 +14,12 @@ class AvalonWidget(WorkspaceBase):
         project_list = ProjectListWidget()
         asset_tree = AssetTreeWidget()
         task_list = TaskListWidget()
+        # todo:
+        #   the tasks should be shown as a combobox on top of asset view.
+        #   in that way, artist could just select the task he/she wants
+        #   to work on, and the asset view could change the asset's icon
+        #   to indicate the task assignment exists or just hidden from the
+        #   view if the asset doesn't have that task assigned.
 
         slider = SlidePageWidget()
         slider.addWidget(project_list)

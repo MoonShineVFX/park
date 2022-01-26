@@ -1,8 +1,8 @@
 
 from ._vendor.Qt5 import QtCore, QtGui, QtWidgets
 from .common import SlidePageWidget, WorkspaceBase, BaseScopeModel
-from ..backend_avalon import Entrance, Project, Asset
-from ..util import singledispatchmethod
+from ..backend_avalon import Entrance, Project, Asset, Task, MEMBER_ROLE
+from ..util import singledispatchmethod, elide
 
 
 class AvalonWidget(WorkspaceBase):
@@ -43,7 +43,7 @@ class AvalonWidget(WorkspaceBase):
 
     @singledispatchmethod
     def enter_workspace(self, scope):
-        raise NotImplementedError(f"Unknown scope {scope}")
+        raise NotImplementedError(f"Unknown scope {elide(scope)!r}")
 
     @enter_workspace.register
     def _(self, scope: Entrance):
@@ -60,9 +60,13 @@ class AvalonWidget(WorkspaceBase):
         _ = scope
         self.set_page(2)
 
+    @enter_workspace.register
+    def _(self, scope: Task):
+        pass
+
     @singledispatchmethod
     def get_model(self, scope):
-        raise NotImplementedError(f"Unknown scope {scope}")
+        raise NotImplementedError(f"Unknown scope {elide(scope)!r}")
 
     @get_model.register
     def _(self, scope: Entrance):
@@ -78,6 +82,10 @@ class AvalonWidget(WorkspaceBase):
     def _(self, scope: Asset):
         _ = scope
         return self._slider.widget(2).model()
+
+    @get_model.register
+    def _(self, scope: Task):
+        pass
 
 
 class ProjectListWidget(QtWidgets.QWidget):
@@ -180,7 +188,8 @@ class ProjectListModel(BaseScopeModel):
         self.clear()
 
         for project in scope.iter_children():
-            if project.is_active:  # todo: this should be toggleable
+            # todo: this should be toggleable
+            if project.is_active and MEMBER_ROLE in project.roles:
                 item = QtGui.QStandardItem()
                 item.setText(project.name)
                 item.setData(project, self.ScopeRole)

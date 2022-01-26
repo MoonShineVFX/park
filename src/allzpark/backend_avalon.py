@@ -14,6 +14,7 @@ from pymongo.database import Database as MongoDatabase
 from pymongo.collection import Collection as MongoCollection
 
 from .exceptions import BackendError
+from .util import elide
 
 
 if TYPE_CHECKING:
@@ -186,7 +187,7 @@ def _(scope: Asset) -> Iterator[Task]:
 
 @iter_avalon_scopes.register
 def _(scope: Task) -> None:
-    raise StopIteration(f"Endpoint reached: {scope}")
+    raise StopIteration(f"Endpoint reached: {elide(scope)}")
 
 
 @singledispatch
@@ -264,19 +265,19 @@ def obtain_avalon_workspace(scope, tool):
 
 @obtain_avalon_workspace.register
 def _(scope: Entrance, tool: SuiteTool) -> None:
-    log.debug(f"No workspace for {tool.name} in Avalon scope {scope}.")
+    log.debug(f"No workspace for {tool.name} in Avalon scope {elide(scope)}.")
     return None
 
 
 @obtain_avalon_workspace.register
 def _(scope: Project, tool: SuiteTool) -> Union[str, None]:
-    log.debug(f"No workspace for {tool.name} in Avalon scope {scope}.")
+    log.debug(f"No workspace for {tool.name} in Avalon scope {elide(scope)}.")
     return None
 
 
 @obtain_avalon_workspace.register
 def _(scope: Asset, tool: SuiteTool) -> Union[str, None]:
-    log.debug(f"No workspace for {tool.name} in Avalon scope {scope}.")
+    log.debug(f"No workspace for {tool.name} in Avalon scope {elide(scope)}.")
     return None
 
 

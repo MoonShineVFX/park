@@ -13,6 +13,18 @@ def normpaths(*paths):
     return list(map(normpath, paths))
 
 
+def elide(string, length=120):
+    string = str(string)
+    placeholder = "..."
+    length -= len(placeholder)
+
+    if len(string) <= length:
+        return string
+
+    half = int(length / 2)
+    return string[:half] + placeholder + string[-half:]
+
+
 def subprocess_encoding():
     """Codec that should be used to decode subprocess stdout/stderr
 

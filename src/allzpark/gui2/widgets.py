@@ -20,7 +20,6 @@ entrance_widgets = {
 class WorkspaceWidget(BusyWidget):
     workspace_changed = QtCore.Signal(object)
     backend_changed = QtCore.Signal(str)
-    scope_model_switched = QtCore.Signal(object, QtCore.QAbstractItemModel)
 
     def __init__(self, *args, **kwargs):
         super(WorkspaceWidget, self).__init__(*args, **kwargs)
@@ -51,6 +50,7 @@ class WorkspaceWidget(BusyWidget):
         self._bread = breadcrumb
         self._stack = entrances
         self._combo = backend_sel
+        self._current_scope = None
 
     def _on_backend_changed(self, name):
         # possibly need to do some cleanup before/after signal emitted ?
@@ -58,13 +58,14 @@ class WorkspaceWidget(BusyWidget):
         self.backend_changed.emit(name)
 
     def on_workspace_entered(self, scope):
+        self._current_scope = scope
         self._bread.set_path(scope)
         widget = self._stack.currentWidget()
         widget.enter_workspace(scope)
 
-        model = widget.get_model(scope)
-        if model is not None:
-            self.scope_model_switched.emit(scope, model)
+    def on_workspace_updated(self, scopes):
+        widget = self._stack.currentWidget()
+        widget.update_workspace(self._current_scope, scopes)
 
     def register_backends(self, names: List[str]):
         if self._stack.count() > 1:
@@ -124,10 +125,11 @@ class BreadcrumbWidget(QtWidgets.QTabBar):
 
 
 class ToolsView(QtWidgets.QWidget):
-    scope_tools_requested = QtCore.Signal(object, QtCore.QAbstractItemModel)
+    tools_requested = QtCore.Signal(object, list)
 
     def __init__(self, *args, **kwargs):
         super(ToolsView, self).__init__(*args, **kwargs)
+        self.setObjectName("ToolsView")
 
         model = ToolsModel()
         view = QtWidgets.QListView()
@@ -139,4 +141,7 @@ class ToolsView(QtWidgets.QWidget):
         self._model = model
 
     def on_workspace_entered(self, scope):
-        self.scope_tools_requested.emit(scope, self._model)
+        self.tools_requested.emit(scope, self._model.current_tools())
+
+    def on_tools_updated(self, tools):
+        self._model.update_tools(tools)

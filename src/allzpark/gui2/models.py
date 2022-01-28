@@ -25,23 +25,26 @@ class ToolsModel(BaseItemModel):
 
     def __init__(self, *args, **kwargs):
         super(ToolsModel, self).__init__(*args, **kwargs)
-        self._all_tools = []
+        self._current_tools = []
 
-    def all_tools(self):
-        return self._all_tools[:]
+    def current_tools(self):
+        return self._current_tools[:]
 
-    def update_tools(self, tools, tool_filter):
+    def update_tools(self, tools):
         """
 
         :param tools:
-        :param tool_filter:
-        :type tools: list[SuiteTool]
+        :type tools: list[tuple[SuiteTool, bool]]
         :return:
         """
         self.clear()
 
-        self._all_tools = tools
-        for tool in filter(tool_filter, tools):
+        _current_tools = []
+        for tool, accepted in tools:
+            _current_tools.append(tool)
+            if not accepted:
+                continue
+
             item = QtGui.QStandardItem()
             item.setText(tool.metadata.label)
             item.setIcon(parse_icon(tool.variant.root, tool.metadata.icon))
@@ -51,3 +54,5 @@ class ToolsModel(BaseItemModel):
                 )
 
             self.appendRow(item)
+
+        self._current_tools = _current_tools

@@ -71,26 +71,26 @@ class AvalonWidget(WorkspaceBase):
         pass
 
     @singledispatchmethod
-    def get_model(self, scope):
+    def update_workspace(self, scope, scopes):
         raise NotImplementedError(f"Unknown scope {elide(scope)!r}")
 
-    @get_model.register
-    def _(self, scope: Entrance):
+    @update_workspace.register
+    def _(self, scope: Entrance, scopes: list):
         _ = scope
-        return self._slider.widget(0).model()
+        return self._slider.widget(0).model().refresh(scopes)
 
-    @get_model.register
-    def _(self, scope: Project):
+    @update_workspace.register
+    def _(self, scope: Project, scopes: list):
         _ = scope
-        return self._slider.widget(1).model()
+        return self._slider.widget(1).model().refresh(scopes)
 
-    @get_model.register
-    def _(self, scope: Asset):
+    @update_workspace.register
+    def _(self, scope: Asset, scopes: list):
         _ = scope
-        return self._slider.widget(2).model()
+        return self._slider.widget(2).model().refresh(scopes)
 
-    @get_model.register
-    def _(self, scope: Task):
+    @update_workspace.register
+    def _(self, scope: Task, scopes: list):
         pass
 
 
@@ -190,11 +190,11 @@ class TaskListWidget(QtWidgets.QWidget):
 class ProjectListModel(BaseScopeModel):
     Headers = ["Name"]
 
-    def refresh(self, scope):
+    def refresh(self, scopes):
         self.beginResetModel()
         self.clear()
 
-        for project in scope.iter_children():
+        for project in scopes:
             # todo: this should be toggleable
             if project.is_active and MEMBER_ROLE in project.roles:
                 item = QtGui.QStandardItem()
@@ -209,12 +209,12 @@ class ProjectListModel(BaseScopeModel):
 class AssetTreeModel(BaseScopeModel):
     Headers = ["Name"]
 
-    def refresh(self, scope):
+    def refresh(self, scopes):
         self.beginResetModel()
         self.clear()
 
         _asset_items = dict()
-        for asset in scope.iter_children():
+        for asset in scopes:
             if not asset.is_hidden:
                 item = QtGui.QStandardItem()
                 item.setText(asset.name)
@@ -235,11 +235,11 @@ class AssetTreeModel(BaseScopeModel):
 class TaskListModel(BaseScopeModel):
     Headers = ["Name"]
 
-    def refresh(self, scope):
+    def refresh(self, scopes):
         self.beginResetModel()
         self.clear()
 
-        for task in scope.iter_children():
+        for task in scopes:
             item = QtGui.QStandardItem()
             item.setText(task.name)
             item.setData(task, self.ScopeRole)

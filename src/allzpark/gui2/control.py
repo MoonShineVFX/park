@@ -97,6 +97,8 @@ def _thread(name, blocks=None):
 
 class Controller(QtCore.QObject):
     workspace_entered = QtCore.Signal(object)
+    workspace_updated = QtCore.Signal(list)
+    tools_updated = QtCore.Signal(list)
 
     def __init__(self, backends):
         super(Controller, self).__init__(parent=None)
@@ -117,36 +119,33 @@ class Controller(QtCore.QObject):
         self.enter_workspace(scope)
 
     @QtCore.Slot()  # noqa
-    def on_scope_model_switched(self, scope, model):
-        self.update_workspace(scope, model)
-
-    @QtCore.Slot()  # noqa
-    def on_scope_tools_requested(self, scope, model):
-        self.update_tools(scope, model)
-
-    def enter_workspace(self, scope):
-        self.workspace_entered.emit(scope)
+    def on_scope_tools_requested(self, scope, current_tools):
+        self.update_tools(scope, current_tools)
 
     @_thread(name="workspace", blocks=("WorkspaceWidget",))
-    def update_workspace(self, scope, model):
-        model.refresh(scope)
-        # todo: DO NOT UPDATE MODEL IN WORKER THREAD !!
+    def enter_workspace(self, scope):
+        # inform widget to e.g. change page
+        self.workspace_entered.emit(scope)
+        # crawl sub-workspaces in worker thread and send to widget
+        self.workspace_updated.emit(list(scope.iter_children()))
 
-    @_thread(name="suite", blocks=())
-    def update_tools(self, scope, model):
-        tools = None
-
+    @_thread(name="suite", blocks=("ToolsView",))
+    def update_tools(self, scope, current_tools):
         suite_path = scope.suite_path()
         if suite_path is not None:
-            suite = core.load_suite(suite_path)
-            if suite is not None:
-                tools = list(suite.iter_tools())
+            try:
+                suite = core.load_suite(suite_path)
+            except Exception as e:
+                raise e  # todo: prompt error to view
 
-        if tools is None:
-            tools = model.all_tools()
+            tools = list(suite.iter_tools())
+        else:
+            tools = current_tools[:]
 
         tool_filter = scope.make_tool_filter()
-        model.update_tools(tools, tool_filter)
+        self.tools_updated.emit([
+            (tool, tool_filter(tool)) for tool in tools
+        ])
 
     def select_tool(self, tool):
         pass

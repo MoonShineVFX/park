@@ -59,12 +59,7 @@ def load_suite(path):
     :return:
     :rtype: ReadOnlySuite or None
     """
-    try:
-        suite = ReadOnlySuite.load(path)
-    except Exception as e:
-        log.error(e)
-    else:
-        return suite
+    return ReadOnlySuite.load(path)
 
 
 @dataclass

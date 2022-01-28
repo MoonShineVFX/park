@@ -171,7 +171,7 @@ class WorkspaceBase(QtWidgets.QWidget):
     def enter_workspace(self, scope):
         raise NotImplementedError
 
-    def get_model(self, scope):
+    def update_workspace(self, scope, scopes):
         raise NotImplementedError
 
 

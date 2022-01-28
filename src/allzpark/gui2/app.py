@@ -76,12 +76,13 @@ class Session(object):
         # view -> control
         workspace.workspace_changed.connect(ctrl.on_workspace_changed)
         workspace.backend_changed.connect(ctrl.on_backend_changed)
-        workspace.scope_model_switched.connect(ctrl.on_scope_model_switched)
-        tools.scope_tools_requested.connect(ctrl.on_scope_tools_requested)
+        tools.tools_requested.connect(ctrl.on_scope_tools_requested)
 
         # control -> view
         ctrl.workspace_entered.connect(workspace.on_workspace_entered)
         ctrl.workspace_entered.connect(tools.on_workspace_entered)
+        ctrl.workspace_updated.connect(workspace.on_workspace_updated)
+        ctrl.tools_updated.connect(tools.on_tools_updated)
 
         # status bar messages
         busy_filter.overwhelmed.connect(view_.spoken)

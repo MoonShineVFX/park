@@ -1,8 +1,13 @@
 
+import logging
 import functools
 from ._vendor.Qt5 import QtCore
 from .widgets import BusyWidget
+from ..exceptions import BackendError
 from .. import core
+
+
+log = logging.getLogger(__name__)
 
 
 def _defer(on_time=500):
@@ -131,7 +136,12 @@ class Controller(QtCore.QObject):
 
     @_thread(name="suite", blocks=("ToolsView",))
     def update_tools(self, scope, current_tools):
-        suite_path = scope.suite_path()
+        try:
+            suite_path = scope.suite_path()
+        except BackendError as e:
+            log.error(str(e))
+            suite_path = None
+
         if suite_path is not None:
             try:
                 suite = core.load_suite(suite_path)

@@ -13,18 +13,19 @@ class AvalonWidget(WorkspaceBase):
 
         project_list = ProjectListWidget()
         asset_tree = AssetTreeWidget()
-        task_list = TaskListWidget()
-        # todo:
-        #   the tasks should be shown as a combobox on top of asset view.
-        #   in that way, artist could just select the task he/she wants
-        #   to work on, and the asset view could change the asset's icon
-        #   to indicate the task assignment exists or just hidden from the
-        #   view if the asset doesn't have that task assigned.
+
+        asset_page = QtWidgets.QWidget()
+        tasks = QtWidgets.QComboBox()
+        only_tasked = QtWidgets.QCheckBox("Only Tasked Assets")
+
+        layout = QtWidgets.QVBoxLayout(asset_page)
+        layout.addWidget(tasks)
+        layout.addWidget(only_tasked)
+        layout.addWidget(asset_tree)
 
         slider = SlidePageWidget()
         slider.addWidget(project_list)
-        slider.addWidget(asset_tree)
-        slider.addWidget(task_list)
+        slider.addWidget(asset_page)
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -32,10 +33,13 @@ class AvalonWidget(WorkspaceBase):
 
         project_list.scope_selected.connect(self.workspace_changed.emit)
         asset_tree.scope_selected.connect(self.workspace_changed.emit)
-        task_list.scope_selected.connect(self.workspace_changed.emit)
+        tasks.currentTextChanged.connect(asset_tree.on_task_selected)
+        only_tasked.stateChanged.connect(asset_tree.on_asset_filtered)
 
+        self._projects = project_list
+        self._assets = asset_tree
+        self._tasks = tasks
         self._slider = slider
-        self._list = project_list
         self._page = 0
 
     def set_page(self, page):
@@ -60,11 +64,12 @@ class AvalonWidget(WorkspaceBase):
     def _(self, scope: Project):
         _ = scope
         self.set_page(1)
+        self._tasks.clear()
+        self._tasks.addItems(sorted(scope.tasks))
 
     @enter_workspace.register
     def _(self, scope: Asset):
-        _ = scope
-        self.set_page(2)
+        pass
 
     @enter_workspace.register
     def _(self, scope: Task):
@@ -77,17 +82,19 @@ class AvalonWidget(WorkspaceBase):
     @update_workspace.register
     def _(self, scope: Entrance, scopes: list):
         _ = scope
-        return self._slider.widget(0).model().refresh(scopes)
+        return self._projects.model().refresh(scopes)
 
     @update_workspace.register
     def _(self, scope: Project, scopes: list):
         _ = scope
-        return self._slider.widget(1).model().refresh(scopes)
+        return self._assets.model().refresh(scopes)
 
     @update_workspace.register
     def _(self, scope: Asset, scopes: list):
         _ = scope
-        return self._slider.widget(2).model().refresh(scopes)
+        current_task = self._tasks.currentText()
+        task = next(s for s in scopes if s.name == current_task)
+        self.workspace_changed.emit(task)
 
     @update_workspace.register
     def _(self, scope: Task, scopes: list):
@@ -154,35 +161,16 @@ class AssetTreeWidget(QtWidgets.QWidget):
     def model(self):
         return self._model
 
+    def on_task_selected(self, task_name):
+        self._model.set_task(task_name)
+        # todo: after asset filtered by the task, change current scope
+        #   if asset selection changed.
+
+    def on_asset_filtered(self, enabled):
+        pass
+
     def _on_item_clicked(self, index):
         index = self._proxy.mapToSource(index)
-        scope = index.data(BaseScopeModel.ScopeRole)
-        self.scope_selected.emit(scope)
-
-
-class TaskListWidget(QtWidgets.QWidget):
-    scope_selected = QtCore.Signal(object)
-
-    def __init__(self, *args, **kwargs):
-        super(TaskListWidget, self).__init__(*args, **kwargs)
-
-        model = TaskListModel()
-        view = QtWidgets.QListView()
-        view.setModel(model)
-
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(0, 4, 0, 4)
-        layout.addWidget(view)
-
-        view.clicked.connect(self._on_item_clicked)
-
-        self._view = view
-        self._model = model
-
-    def model(self):
-        return self._model
-
-    def _on_item_clicked(self, index):
         scope = index.data(BaseScopeModel.ScopeRole)
         self.scope_selected.emit(scope)
 
@@ -210,6 +198,13 @@ class ProjectListModel(BaseScopeModel):
 class AssetTreeModel(BaseScopeModel):
     Headers = ["Name"]
 
+    def __init__(self, *args, **kwargs):
+        super(AssetTreeModel, self).__init__(*args, **kwargs)
+        self._task = None
+
+    def set_task(self, name):
+        self._task = name
+
     def refresh(self, scopes):
         self.beginResetModel()
         self.clear()
@@ -229,22 +224,5 @@ class AssetTreeModel(BaseScopeModel):
                 else:
                     parent = _asset_items[asset.parent.name]
                     parent.appendRow(item)
-
-        self.endResetModel()
-
-
-class TaskListModel(BaseScopeModel):
-    Headers = ["Name"]
-
-    def refresh(self, scopes):
-        self.beginResetModel()
-        self.clear()
-
-        for task in scopes:
-            item = QtGui.QStandardItem()
-            item.setText(task.name)
-            item.setData(task, self.ScopeRole)
-
-            self.appendRow(item)
 
         self.endResetModel()

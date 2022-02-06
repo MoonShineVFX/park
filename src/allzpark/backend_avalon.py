@@ -212,8 +212,9 @@ def _(scope: Asset) -> Iterator[Task]:
 
 
 @iter_avalon_scopes.register
-def _(scope: Task) -> None:
-    raise StopIteration(f"Endpoint reached: {elide(scope)}")
+def _(scope: Task) -> tuple:
+    log.debug(f"Endpoint reached: {elide(scope)}")
+    return ()
 
 
 @singledispatch

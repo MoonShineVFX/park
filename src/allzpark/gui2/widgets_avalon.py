@@ -196,7 +196,8 @@ class ProjectListModel(BaseScopeModel):
 
         for project in scopes:
             # todo: this should be toggleable
-            if project.is_active and MEMBER_ROLE in project.roles:
+            if project.is_active \
+                    and (not project.roles or MEMBER_ROLE in project.roles):
                 item = QtGui.QStandardItem()
                 item.setText(project.name)
                 item.setData(project, self.ScopeRole)

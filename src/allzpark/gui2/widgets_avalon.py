@@ -166,6 +166,7 @@ class AssetTreeWidget(QtWidgets.QWidget):
 
     def on_task_selected(self, task_name):
         self._model.set_task(task_name)
+        self._proxy.invalidate()
         # todo: after asset filtered by the task, change current scope
         #   if asset selection changed.
 
@@ -229,3 +230,21 @@ class AssetTreeModel(BaseScopeModel):
                     parent.appendRow(item)
 
         self.endResetModel()
+
+    def data(self, index, role=QtCore.Qt.DisplayRole):
+        """
+        :param QtCore.QModelIndex index:
+        :param int role:
+        :return:
+        """
+        if not index.isValid():
+            return
+
+        if role == QtCore.Qt.FontRole:
+            scope = index.data(self.ScopeRole)  # type: Asset
+            if scope.tasks and self._task not in scope.tasks:
+                font = QtGui.QFont()
+                font.setItalic(True)
+                return font
+
+        return super(AssetTreeModel, self).data(index, role)

@@ -23,13 +23,6 @@ def parse_icon(root, template):
 class ToolsModel(BaseItemModel):
     Headers = ["Name"]
 
-    def __init__(self, *args, **kwargs):
-        super(ToolsModel, self).__init__(*args, **kwargs)
-        self._current_tools = []
-
-    def current_tools(self):
-        return self._current_tools[:]
-
     def update_tools(self, tools):
         """
 
@@ -37,11 +30,9 @@ class ToolsModel(BaseItemModel):
         :type tools: list[tuple[SuiteTool, bool]]
         :return:
         """
-        self.clear()
+        self.reset()
 
-        _current_tools = []
         for tool, accepted in tools:
-            _current_tools.append(tool)
             if not accepted:
                 continue
 
@@ -54,5 +45,3 @@ class ToolsModel(BaseItemModel):
                 )
 
             self.appendRow(item)
-
-        self._current_tools = _current_tools

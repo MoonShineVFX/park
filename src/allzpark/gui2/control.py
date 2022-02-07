@@ -3,7 +3,6 @@ import logging
 import functools
 from ._vendor.Qt5 import QtCore
 from .widgets import BusyWidget
-from ..exceptions import BackendError
 from .. import core
 
 
@@ -101,7 +100,7 @@ def _thread(name, blocks=None):
 
 
 class Controller(QtCore.QObject):
-    workspace_entered = QtCore.Signal(object)
+    workspace_entered = QtCore.Signal(core.AbstractScope)
     workspace_updated = QtCore.Signal(list)
     tools_updated = QtCore.Signal(list)
 
@@ -124,8 +123,8 @@ class Controller(QtCore.QObject):
         self.enter_workspace(scope)
 
     @QtCore.Slot()  # noqa
-    def on_scope_tools_requested(self, scope, current_tools):
-        self.update_tools(scope, current_tools)
+    def on_scope_tools_requested(self, scope):
+        self.update_tools(scope)
 
     @_thread(name="workspace", blocks=("WorkspaceWidget",))
     def enter_workspace(self, scope):
@@ -135,27 +134,9 @@ class Controller(QtCore.QObject):
         self.workspace_updated.emit(list(scope.iter_children()))
 
     @_thread(name="suite", blocks=("ToolsView",))
-    def update_tools(self, scope, current_tools):
-        try:
-            suite_path = scope.suite_path()
-        except BackendError as e:
-            log.error(str(e))
-            suite_path = None
-
-        if suite_path is not None:
-            try:
-                suite = core.load_suite(suite_path)
-            except Exception as e:
-                raise e  # todo: prompt error to view
-
-            tools = list(suite.iter_tools())
-        else:
-            tools = current_tools[:]
-
-        tool_filter = scope.make_tool_filter()
-        self.tools_updated.emit([
-            (tool, tool_filter(tool)) for tool in tools
-        ])
+    def update_tools(self, scope):
+        tools = list(core.iter_tools(scope))
+        self.tools_updated.emit(tools)
 
     def select_tool(self, tool):
         pass

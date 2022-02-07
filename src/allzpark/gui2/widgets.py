@@ -6,6 +6,7 @@ from .widgets_avalon import AvalonWidget
 from .. import backend_avalon as avalon
 from .common import BusyWidget, WorkspaceBase
 from .models import ToolsModel
+from ..core import AbstractScope
 
 
 log = logging.getLogger(__name__)
@@ -18,7 +19,7 @@ entrance_widgets = {
 
 
 class WorkspaceWidget(BusyWidget):
-    workspace_changed = QtCore.Signal(object)
+    workspace_changed = QtCore.Signal(AbstractScope)
     backend_changed = QtCore.Signal(str)
 
     def __init__(self, *args, **kwargs):
@@ -96,7 +97,7 @@ class WorkspaceWidget(BusyWidget):
 
 
 class ToolsView(QtWidgets.QWidget):
-    tools_requested = QtCore.Signal(object, list)
+    tools_requested = QtCore.Signal(AbstractScope)
 
     def __init__(self, *args, **kwargs):
         super(ToolsView, self).__init__(*args, **kwargs)
@@ -112,7 +113,7 @@ class ToolsView(QtWidgets.QWidget):
         self._model = model
 
     def on_workspace_entered(self, scope):
-        self.tools_requested.emit(scope, self._model.current_tools())
+        self.tools_requested.emit(scope)
 
     def on_tools_updated(self, tools):
         self._model.update_tools(tools)

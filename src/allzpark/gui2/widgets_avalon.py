@@ -1,8 +1,14 @@
 
+import logging
 from ._vendor.Qt5 import QtCore, QtGui, QtWidgets
 from .common import SlidePageWidget, WorkspaceBase, BaseScopeModel
 from ..backend_avalon import Entrance, Project, Asset, Task, MEMBER_ROLE
 from ..util import singledispatchmethod, elide
+
+log = logging.getLogger(__name__)
+
+
+ASSET_MUST_BE_TASKED = True
 
 
 class AvalonWidget(WorkspaceBase):
@@ -15,10 +21,12 @@ class AvalonWidget(WorkspaceBase):
         asset_tree = AssetTreeWidget()
 
         asset_page = QtWidgets.QWidget()
+        home = QtWidgets.QPushButton("Back")
         tasks = QtWidgets.QComboBox()
         only_tasked = QtWidgets.QCheckBox("Only Tasked Assets")
 
         layout = QtWidgets.QVBoxLayout(asset_page)
+        layout.addWidget(home)
         layout.addWidget(tasks)
         layout.addWidget(only_tasked)
         layout.addWidget(asset_tree)
@@ -31,16 +39,22 @@ class AvalonWidget(WorkspaceBase):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(slider)
 
+        home.clicked.connect(self._on_home_clicked)
         project_list.scope_selected.connect(self.workspace_changed.emit)
         asset_tree.scope_selected.connect(self.workspace_changed.emit)
         tasks.currentTextChanged.connect(asset_tree.on_task_selected)
         only_tasked.stateChanged.connect(asset_tree.on_asset_filtered)
 
+        self._entrance = None
         self._projects = project_list
         self._assets = asset_tree
         self._tasks = tasks
         self._slider = slider
         self._page = 0
+
+    def _on_home_clicked(self):
+        assert self._entrance is not None
+        self.workspace_changed.emit(self._entrance)
 
     def set_page(self, page):
         current = self._slider.currentIndex()
@@ -57,7 +71,7 @@ class AvalonWidget(WorkspaceBase):
 
     @enter_workspace.register
     def _(self, scope: Entrance):
-        _ = scope
+        self._entrance = scope
         self.set_page(0)
 
     @enter_workspace.register
@@ -91,13 +105,12 @@ class AvalonWidget(WorkspaceBase):
 
     @update_workspace.register
     def _(self, scope: Asset, scopes: list):
-        _ = scope
         current_task = self._tasks.currentText()
         matched = next((s for s in scopes if s.name == current_task), None)
         if matched:
             self.workspace_changed.emit(matched)
         else:
-            pass  # todo: should prompt warning
+            log.warning(f"No matched task for {scope.name!r}.")
 
     @update_workspace.register
     def _(self, scope: Task, scopes: list):
@@ -155,7 +168,7 @@ class AssetTreeWidget(QtWidgets.QWidget):
         layout.addWidget(view)
 
         model.modelAboutToBeReset.connect(proxy.invalidate)
-        view.clicked.connect(self._on_item_clicked)
+        view.clicked.connect(self._on_item_clicked)  # todo: should be selection change
         search_bar.textChanged.connect(self._on_asset_searched)
 
         self._view = view
@@ -285,4 +298,6 @@ class AssetTreeProxyModel(QtCore.QSortFilterProxyModel):
 
 
 def is_asset_tasked(scope: Asset, task_name: str) -> bool:
+    if ASSET_MUST_BE_TASKED:
+        return task_name in scope.tasks
     return not scope.tasks or task_name in scope.tasks

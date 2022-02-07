@@ -138,6 +138,27 @@ class SuiteTool:
         )
 
 
+def iter_tools(scope: AbstractScope):
+    try:
+        suite_path = scope.suite_path()
+    except BackendError as e:
+        log.error(str(e))
+        suite_path = None
+
+    if suite_path is None:
+        pass
+    else:
+        suite = load_suite(suite_path)
+        tool_filter = scope.make_tool_filter()
+
+        for tool in filter(tool_filter, suite.iter_tools()):
+            yield tool
+
+    if scope.upstream is not None:
+        for tool in iter_tools(scope.upstream):
+            yield tool
+
+
 class _Suite(Suite):
     @classmethod
     def from_dict(cls, d):

@@ -5,11 +5,25 @@ from dataclasses import dataclass
 from rez.suite import Suite
 from rez.packages import Variant
 from rez.resolved_context import ResolvedContext
-
-from . import backend_avalon as avalon
 from .exceptions import BackendError
 
 log = logging.getLogger(__name__)
+
+
+def _load_backends():
+    from . import backend_avalon as avalon
+
+    def try_avalon_backend() -> avalon.Entrance:
+        scope = avalon.get_entrance()
+        avalon.ping(
+            avalon.AvalonMongo(scope.uri, scope.timeout, entrance=scope)
+        )
+        return scope
+
+    return [
+        (avalon.Entrance.name, try_avalon_backend),
+        # could be ftrack, or shotgrid, could be...
+    ]
 
 
 def init_backends(no_warning=False):
@@ -19,19 +33,7 @@ def init_backends(no_warning=False):
     :return: A list of available backend name and entrance object pair
     :rtype: list[tuple[str, Entrance]]
     """
-
-    def try_avalon_backend() -> avalon.Entrance:
-        scope = avalon.get_entrance()
-        avalon.ping(
-            avalon.AvalonMongo(scope.uri, scope.timeout, entrance=scope)
-        )
-        return scope
-
-    possible_backends = [
-        (avalon.Entrance.name, try_avalon_backend),
-        # could be ftrack, or shotgrid, could be...
-    ]
-
+    possible_backends = _load_backends()
     available_backends = []
 
     for name, entrance_getter in possible_backends:

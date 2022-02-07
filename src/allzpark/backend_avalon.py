@@ -6,8 +6,7 @@ import getpass
 from itertools import groupby
 from dataclasses import dataclass
 from functools import singledispatch
-from typing import \
-    Iterator, overload, Union, Set, Callable, TYPE_CHECKING
+from typing import Iterator, overload, Union, Set, Callable
 from bson.objectid import ObjectId
 from pymongo import MongoClient
 from pymongo.database import Database as MongoDatabase
@@ -16,16 +15,14 @@ from rez.config import config as rezconfig
 
 from .exceptions import BackendError
 from .util import elide
+from .core import SuiteTool
+# Note:
+#   In case the cyclic import between this module and `.core` pops out
+#   again in future change, here's some related references:
+#   https://stackoverflow.com/a/61544901
+#   https://stackoverflow.com/a/39205612
 
-
-if TYPE_CHECKING:
-    # avoid cyclic import
-    from .core import SuiteTool
-else:
-    SuiteTool = "SuiteTool"
-    # related references:
-    #   https://stackoverflow.com/a/61544901
-    #   https://stackoverflow.com/a/39205612
+# typing
 ToolFilterCallable = Callable[[SuiteTool], bool]
 
 

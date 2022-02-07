@@ -93,8 +93,11 @@ class AvalonWidget(WorkspaceBase):
     def _(self, scope: Asset, scopes: list):
         _ = scope
         current_task = self._tasks.currentText()
-        task = next(s for s in scopes if s.name == current_task)
-        self.workspace_changed.emit(task)
+        matched = next((s for s in scopes if s.name == current_task), None)
+        if matched:
+            self.workspace_changed.emit(matched)
+        else:
+            pass  # todo: should prompt warning
 
     @update_workspace.register
     def _(self, scope: Task, scopes: list):

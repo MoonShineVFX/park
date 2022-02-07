@@ -170,6 +170,7 @@ class Asset(_Scope):
     project: Project
     parent: "Asset" or None
     silo: str
+    tasks: Set[str]
     is_silo: bool
     is_hidden: bool
     coll: MongoCollection
@@ -500,6 +501,7 @@ def iter_avalon_assets(avalon_project):
         "name": True,
         "silo": True,
         "data.trash": True,
+        "data.tasks": True,
         "data.visualParent": True,
     }
 
@@ -539,6 +541,7 @@ def iter_avalon_assets(avalon_project):
             project=this,
             parent=None,
             silo="",
+            tasks=set(),
             is_silo=True,
             is_hidden=False,
             coll=this.coll,
@@ -558,6 +561,7 @@ def iter_avalon_assets(avalon_project):
                 project=this,
                 parent=_parent,
                 silo=doc.get("silo"),
+                tasks=set(doc["data"].get("tasks") or []),
                 is_silo=False,
                 is_hidden=_hidden,
                 coll=this.coll,
@@ -579,18 +583,14 @@ def iter_avalon_tasks(avalon_asset):
     :rtype: Iterator[Task]
     """
     this = avalon_asset
-
-    query_filter = {"type": "asset", "name": this.name}
-    doc = this.coll.find_one(query_filter, projection={"data.tasks": True})
-    if doc is not None:
-        for task in doc["data"].get("tasks") or this.project.tasks:
-            yield Task(
-                name=task,
-                upstream=this,
-                project=this.project,
-                asset=this,
-                coll=this.coll,
-            )
+    for task in this.tasks or this.project.tasks:
+        yield Task(
+            name=task,
+            upstream=this,
+            project=this.project,
+            asset=this,
+            coll=this.coll,
+        )
 
 
 class AvalonMongo(object):

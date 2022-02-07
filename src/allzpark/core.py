@@ -1,6 +1,6 @@
 
 import logging
-from typing import Set
+from typing import Set, Union, Iterator, Callable
 from dataclasses import dataclass
 from rez.suite import Suite
 from rez.packages import Variant
@@ -62,6 +62,48 @@ def load_suite(path):
     :rtype: ReadOnlySuite or None
     """
     return ReadOnlySuite.load(path)
+
+
+class AbstractScope:
+    name: str
+    upstream: Union["AbstractScope", None]
+
+    def exists(self) -> bool:
+        """Query backend to check if this scope exists"""
+        raise NotImplementedError
+
+    def iter_children(self) -> Iterator["AbstractScope"]:
+        """Iter child scopes"""
+        raise NotImplementedError
+
+    def suite_path(self) -> Union[str, None]:
+        """Returns a load path of a suite that is for this scope, if any"""
+        raise NotImplementedError
+
+    def make_tool_filter(self) -> Callable[["SuiteTool"], bool]:
+        """Returns a callable for filtering tools
+
+        Example:
+
+        >>> @dataclass(frozen=True)
+        ... class ProjectScope(AbstractScope):
+        ...     def make_tool_filter(self):
+        ...         def _filter(tool: SuiteTool) -> bool:
+        ...             required_roles = tool.metadata.required_roles
+        ...             return (not tool.metadata.hidden
+        ...                     and self.roles.intersection(required_roles))
+        ...         return _filter
+
+        """
+        raise NotImplementedError
+
+    def obtain_workspace(self, tool: "SuiteTool") -> Union[str, None]:
+        """Returns a working directory for this scope, if allowed"""
+        raise NotImplementedError
+
+    def additional_env(self, tool: "SuiteTool") -> dict:
+        """Returns environ that will be applied to the tool context"""
+        raise NotImplementedError
 
 
 @dataclass

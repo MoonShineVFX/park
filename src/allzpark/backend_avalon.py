@@ -15,7 +15,7 @@ from rez.config import config as rezconfig
 
 from .exceptions import BackendError
 from .util import elide
-from .core import SuiteTool
+from .core import SuiteTool, AbstractScope
 # Note:
 #   In case the cyclic import between this module and `.core` pops out
 #   again in future change, here's some related references:
@@ -51,7 +51,7 @@ MEMBER_ROLE = "member"
 MANAGER_ROLE = "admin"
 
 
-class _Scope:
+class _Scope(AbstractScope):
 
     def exists(
             self: Union["Entrance", "Project", "Asset", "Task"]

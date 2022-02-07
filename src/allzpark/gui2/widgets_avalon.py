@@ -147,6 +147,9 @@ class AssetTreeWidget(QtWidgets.QWidget):
         model = AssetTreeModel()
         proxy = QtCore.QSortFilterProxyModel()
         proxy.setSourceModel(model)
+        proxy.setRecursiveFilteringEnabled(True)
+        proxy.setFilterCaseSensitivity(QtCore.Qt.CaseInsensitive)
+        proxy.setSortCaseSensitivity(QtCore.Qt.CaseInsensitive)
         view = QtWidgets.QTreeView()
         view.setModel(proxy)
 
@@ -156,6 +159,7 @@ class AssetTreeWidget(QtWidgets.QWidget):
 
         model.modelAboutToBeReset.connect(proxy.invalidate)
         view.clicked.connect(self._on_item_clicked)
+        search_bar.textChanged.connect(self._on_asset_searched)
 
         self._view = view
         self._model = model
@@ -172,6 +176,9 @@ class AssetTreeWidget(QtWidgets.QWidget):
 
     def on_asset_filtered(self, enabled):
         pass
+
+    def _on_asset_searched(self, text):
+        self._proxy.setFilterRegExp(text)
 
     def _on_item_clicked(self, index):
         index = self._proxy.mapToSource(index)

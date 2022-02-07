@@ -190,8 +190,7 @@ class ProjectListModel(BaseScopeModel):
     Headers = ["Name"]
 
     def refresh(self, scopes):
-        self.beginResetModel()
-        self.clear()
+        self.reset()
 
         for project in scopes:
             # todo: this should be toggleable
@@ -202,8 +201,6 @@ class ProjectListModel(BaseScopeModel):
                 item.setData(project, self.ScopeRole)
 
                 self.appendRow(item)
-
-        self.endResetModel()
 
 
 class AssetTreeModel(BaseScopeModel):
@@ -217,8 +214,7 @@ class AssetTreeModel(BaseScopeModel):
         self._task = name
 
     def refresh(self, scopes):
-        self.beginResetModel()
-        self.clear()
+        self.reset()
 
         _asset_items = dict()
         for asset in scopes:
@@ -235,8 +231,6 @@ class AssetTreeModel(BaseScopeModel):
                 else:
                     parent = _asset_items[asset.parent.name]
                     parent.appendRow(item)
-
-        self.endResetModel()
 
     def data(self, index, role=QtCore.Qt.DisplayRole):
         """

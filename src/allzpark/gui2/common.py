@@ -189,8 +189,26 @@ class BaseItemModel(QtGui.QStandardItemModel):
             section, orientation, role)
 
     def clear(self):
+        """Clear model and header
+
+        Removes all items (including header items) from the model and sets
+        the number of rows and columns to zero.
+
+        Note: Header view's section resize mode setting will be cleared
+            altogether. Consider this action as a full reset.
+
+        """
         super(BaseItemModel, self).clear()  # also clears header items, hence..
         self.setHorizontalHeaderLabels(self.Headers)
+
+    def reset(self):
+        """Remove all rows and set row count to zero
+
+        This doesn't touch header.
+
+        """
+        self.removeRows(0, self.rowCount())
+        self.setRowCount(0)
 
     def flags(self, index):
         """

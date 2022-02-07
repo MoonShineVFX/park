@@ -145,11 +145,8 @@ class AssetTreeWidget(QtWidgets.QWidget):
         search_bar.setPlaceholderText("search assets..")
 
         model = AssetTreeModel()
-        proxy = QtCore.QSortFilterProxyModel()
+        proxy = AssetTreeProxyModel()
         proxy.setSourceModel(model)
-        proxy.setRecursiveFilteringEnabled(True)
-        proxy.setFilterCaseSensitivity(QtCore.Qt.CaseInsensitive)
-        proxy.setSortCaseSensitivity(QtCore.Qt.CaseInsensitive)
         view = QtWidgets.QTreeView()
         view.setModel(proxy)
 
@@ -175,7 +172,8 @@ class AssetTreeWidget(QtWidgets.QWidget):
         #   if asset selection changed.
 
     def on_asset_filtered(self, enabled):
-        pass
+        self._proxy.set_filter_by_task(bool(enabled))
+        self._proxy.invalidate()
 
     def _on_asset_searched(self, text):
         self._proxy.setFilterRegExp(text)
@@ -210,6 +208,9 @@ class AssetTreeModel(BaseScopeModel):
         super(AssetTreeModel, self).__init__(*args, **kwargs)
         self._task = None
 
+    def task(self):
+        return self._task
+
     def set_task(self, name):
         self._task = name
 
@@ -243,9 +244,45 @@ class AssetTreeModel(BaseScopeModel):
 
         if role == QtCore.Qt.FontRole:
             scope = index.data(self.ScopeRole)  # type: Asset
-            if scope.tasks and self._task not in scope.tasks:
+            if not is_asset_tasked(scope, self._task):
                 font = QtGui.QFont()
                 font.setItalic(True)
                 return font
 
         return super(AssetTreeModel, self).data(index, role)
+
+
+class AssetTreeProxyModel(QtCore.QSortFilterProxyModel):
+
+    def __init__(self, *args, **kwargs):
+        super(AssetTreeProxyModel, self).__init__(*args, **kwargs)
+        self.setRecursiveFilteringEnabled(True)
+        self.setFilterCaseSensitivity(QtCore.Qt.CaseInsensitive)
+        self.setSortCaseSensitivity(QtCore.Qt.CaseInsensitive)
+        self._filter_by_task = False
+
+    def set_filter_by_task(self, enabled: bool):
+        self._filter_by_task = enabled
+
+    def filterAcceptsRow(self, source_row, source_parent):
+        """
+        :param int source_row:
+        :param QtCore.QModelIndex source_parent:
+        :rtype: bool
+        """
+        accepted = super(AssetTreeProxyModel, self).filterAcceptsRow(
+            source_row, source_parent
+        )
+        if accepted and self._filter_by_task:
+            model = self.sourceModel()  # type: AssetTreeModel
+            index = model.index(source_row, 0, source_parent)
+            scope = index.data(AssetTreeModel.ScopeRole)
+            return \
+                not scope.is_silo \
+                and is_asset_tasked(scope, model.task())
+
+        return accepted
+
+
+def is_asset_tasked(scope: Asset, task_name: str) -> bool:
+    return not scope.tasks or task_name in scope.tasks

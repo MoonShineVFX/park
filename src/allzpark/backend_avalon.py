@@ -570,6 +570,9 @@ def iter_avalon_assets(avalon_project):
 def iter_avalon_tasks(avalon_asset):
     """Iter tasks in specific asset
 
+    If asset doesn't have any task assigned, all tasks defined in project
+    will be given.
+
     :param avalon_asset: A Asset item that sourced from Avalon
     :type avalon_asset: Asset
     :return: Task item iterator
@@ -580,7 +583,7 @@ def iter_avalon_tasks(avalon_asset):
     query_filter = {"type": "asset", "name": this.name}
     doc = this.coll.find_one(query_filter, projection={"data.tasks": True})
     if doc is not None:
-        for task in doc["data"].get("tasks") or []:
+        for task in doc["data"].get("tasks") or this.project.tasks:
             yield Task(
                 name=task,
                 upstream=this,

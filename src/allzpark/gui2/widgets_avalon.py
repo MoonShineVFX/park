@@ -191,25 +191,6 @@ class ProjectListWidget(QtWidgets.QWidget):
         self.scope_selected.emit(scope)
 
 
-class AssetTreeView(QtWidgets.QTreeView):
-
-    def __init__(self, *args, **kwargs):
-        super(AssetTreeView, self).__init__(*args, **kwargs)
-        self.setSelectionMode(self.SingleSelection)
-
-    def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:
-        super(AssetTreeView, self).mouseReleaseEvent(event)
-
-        # disable silo selecting
-        #
-        proxy = self.model()  # type: AssetTreeProxyModel
-        index = self.indexAt(event.pos())
-        index = proxy.mapToSource(index)
-        scope = index.data(BaseScopeModel.ScopeRole)
-        if scope and scope.is_silo:
-            self.clearSelection()
-
-
 class AssetTreeWidget(QtWidgets.QWidget):
     scope_selected = QtCore.Signal(AbstractScope)
     deselected = QtCore.Signal()
@@ -223,7 +204,8 @@ class AssetTreeWidget(QtWidgets.QWidget):
         model = AssetTreeModel()
         proxy = AssetTreeProxyModel()
         proxy.setSourceModel(model)
-        view = AssetTreeView()
+        view = QtWidgets.QTreeView()
+        view.setSelectionMode(view.SingleSelection)
         view.setModel(proxy)
         selection = view.selectionModel()
 
@@ -342,6 +324,16 @@ class AssetTreeModel(BaseScopeModel):
                 return font
 
         return super(AssetTreeModel, self).data(index, role)
+
+    def flags(self, index):
+        if not index.isValid():
+            return
+
+        scope = index.data(self.ScopeRole)  # type: Asset
+        if is_asset_tasked(scope, self._task):
+            return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
+        else:
+            return QtCore.Qt.ItemIsEnabled  # not selectable
 
 
 class AssetTreeProxyModel(QtCore.QSortFilterProxyModel):

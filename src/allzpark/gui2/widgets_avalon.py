@@ -5,6 +5,7 @@ from ._vendor.Qt5 import QtCore, QtGui, QtWidgets
 from .common import SlidePageWidget, WorkspaceBase, BaseScopeModel
 from ..backend_avalon import Entrance, Project, Asset, Task, MEMBER_ROLE
 from ..util import singledispatchmethod, elide
+from ..core import AbstractScope
 
 log = logging.getLogger(__name__)
 
@@ -50,6 +51,7 @@ class AvalonWidget(WorkspaceBase):
         home.clicked.connect(self._on_home_clicked)
         project_list.scope_selected.connect(self.workspace_changed.emit)
         asset_tree.scope_selected.connect(self._on_asset_selected)
+        asset_tree.deselected.connect(self._on_asset_deselected)
         tasks.currentTextChanged.connect(asset_tree.on_task_selected)
         only_tasked.stateChanged.connect(asset_tree.on_asset_filtered)
 
@@ -68,6 +70,12 @@ class AvalonWidget(WorkspaceBase):
         assert self._entrance is not None
         self.workspace_changed.emit(self._entrance)
 
+    def _on_asset_deselected(self):
+        scope = self._current_scope = self._current_scope.project
+        self._current_asset.setText("")
+        self._current_task.setText("")
+        self.tools_requested.emit(scope)
+
     def _on_asset_selected(self, asset: Asset):
         current = self._tasks.currentText()
         tasks = asset.iter_children()
@@ -76,6 +84,7 @@ class AvalonWidget(WorkspaceBase):
             self.workspace_changed.emit(task)
         else:
             log.warning(f"No matched task for {asset.name!r}.")
+            self.workspace_changed.emit(asset)
 
     def set_page(self, page):
         current = self._slider.currentIndex()
@@ -202,7 +211,8 @@ class AssetTreeView(QtWidgets.QTreeView):
 
 
 class AssetTreeWidget(QtWidgets.QWidget):
-    scope_selected = QtCore.Signal(object)
+    scope_selected = QtCore.Signal(AbstractScope)
+    deselected = QtCore.Signal()
 
     def __init__(self, *args, **kwargs):
         super(AssetTreeWidget, self).__init__(*args, **kwargs)
@@ -215,6 +225,7 @@ class AssetTreeWidget(QtWidgets.QWidget):
         proxy.setSourceModel(model)
         view = AssetTreeView()
         view.setModel(proxy)
+        selection = view.selectionModel()
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -222,7 +233,8 @@ class AssetTreeWidget(QtWidgets.QWidget):
         layout.addWidget(view)
 
         model.modelAboutToBeReset.connect(proxy.invalidate)
-        view.clicked.connect(self._on_item_clicked)  # todo: should be selection change
+        selection.currentChanged.connect(self._on_current_changed)
+        selection.selectionChanged.connect(self._on_selection_changed)
         search_bar.textChanged.connect(self._on_asset_searched)
 
         self._view = view
@@ -235,20 +247,33 @@ class AssetTreeWidget(QtWidgets.QWidget):
     def on_task_selected(self, task_name):
         self._model.set_task(task_name)
         self._proxy.invalidate()
-        # todo: after asset filtered by the task, change current scope
-        #   if asset selection changed.
+
+        index = self._view.currentIndex()
+        if not index.isValid():
+            self.deselected.emit()
+        else:
+            scope = index.data(BaseScopeModel.ScopeRole)
+            self.scope_selected.emit(scope)  # for update task
 
     def on_asset_filtered(self, enabled):
         self._proxy.set_filter_by_task(bool(enabled))
         self._proxy.invalidate()
 
+        index = self._view.currentIndex()
+        if not index.isValid():
+            self.deselected.emit()
+
     def _on_asset_searched(self, text):
         self._proxy.setFilterRegExp(text)
 
-    def _on_item_clicked(self, index):
+    def _on_current_changed(self, index, _):
         index = self._proxy.mapToSource(index)
         scope = index.data(BaseScopeModel.ScopeRole)
         self.scope_selected.emit(scope)
+
+    def _on_selection_changed(self, selected, _):
+        if not selected.indexes():
+            self.deselected.emit()
 
 
 class ProjectListModel(BaseScopeModel):

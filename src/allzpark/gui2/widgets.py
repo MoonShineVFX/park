@@ -28,7 +28,7 @@ class WorkspaceWidget(BusyWidget):
         self.setObjectName("WorkspaceWidget")
 
         void_page = QtWidgets.QWidget()
-        void_text = QtWidgets.QLabel("there goes nothing")
+        void_text = QtWidgets.QLabel("No Available Backend")
         entrances = QtWidgets.QStackedWidget()
         backend_sel = QtWidgets.QComboBox()
 

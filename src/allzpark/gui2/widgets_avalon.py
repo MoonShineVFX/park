@@ -89,7 +89,7 @@ class AvalonWidget(WorkspaceBase):
         _ = scope
         self.set_page(1)
         self._tasks.clear()
-        self._tasks.addItems(sorted(scope.tasks))
+        self._tasks.addItems(scope.tasks)
 
     @enter_workspace.register
     def _(self, scope: Asset):

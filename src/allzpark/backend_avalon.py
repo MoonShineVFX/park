@@ -6,7 +6,7 @@ import getpass
 from itertools import groupby
 from dataclasses import dataclass
 from functools import singledispatch
-from typing import Iterator, overload, Union, Set, Callable
+from typing import Iterator, overload, Union, Set, List, Callable
 from bson.objectid import ObjectId
 from pymongo import MongoClient
 from pymongo.database import Database as MongoDatabase
@@ -153,7 +153,7 @@ class Project(_Scope):
     upstream: Entrance
     is_active: bool
     roles: Set[str]
-    tasks: Set[str]
+    tasks: List[str]
     root: str
     username: str
     work_template: str
@@ -167,7 +167,7 @@ class Asset(_Scope):
     project: Project
     parent: "Asset" or None
     silo: str
-    tasks: Set[str]
+    tasks: List[str]
     is_silo: bool
     is_hidden: bool
     coll: MongoCollection
@@ -464,9 +464,10 @@ def iter_avalon_projects(database):
             if username in _role_book.get(MANAGER_ROLE, []):
                 roles.add(MANAGER_ROLE)
 
-            tasks = set()
+            tasks = []
             for task in doc["config"]["tasks"]:
-                tasks.add(task["name"])
+                if task["name"] not in tasks:
+                    tasks.append(task["name"])
 
             yield Project(
                 name=name,
@@ -537,7 +538,7 @@ def iter_avalon_assets(avalon_project):
             project=this,
             parent=None,
             silo="",
-            tasks=set(),
+            tasks=[],
             is_silo=True,
             is_hidden=False,
             coll=this.coll,
@@ -557,7 +558,7 @@ def iter_avalon_assets(avalon_project):
                 project=this,
                 parent=_parent,
                 silo=doc.get("silo"),
-                tasks=set(doc["data"].get("tasks") or []),
+                tasks=doc["data"].get("tasks") or [],
                 is_silo=False,
                 is_hidden=_hidden,
                 coll=this.coll,

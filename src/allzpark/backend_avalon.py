@@ -258,7 +258,8 @@ def _(scope: Asset) -> ToolFilterCallable:
         required_roles = tool.metadata.required_roles
         return (
             not tool.metadata.hidden
-            and tool.ctx_name.startswith("asset.")
+            and (tool.ctx_name.startswith("asset.")
+                 or tool.ctx_name.startswith("project."))
             and (not required_roles
                  or scope.project.roles.intersection(required_roles))
         )
@@ -271,8 +272,6 @@ def _(scope: Task) -> ToolFilterCallable:
         required_roles = tool.metadata.required_roles
         return (
             not tool.metadata.hidden
-            and not tool.ctx_name.startswith("project.")
-            and not tool.ctx_name.startswith("asset.")
             and (not required_roles
                  or scope.project.roles.intersection(required_roles))
         )

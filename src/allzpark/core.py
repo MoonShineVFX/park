@@ -86,12 +86,14 @@ class AbstractScope:
         Example:
 
         >>> @dataclass(frozen=True)
-        ... class ProjectScope(AbstractScope):
+        ... class ProjectScope(AbstractScope):  # noqa
         ...     def make_tool_filter(self):
         ...         def _filter(tool: SuiteTool) -> bool:
         ...             required_roles = tool.metadata.required_roles
-        ...             return (not tool.metadata.hidden
-        ...                     and self.roles.intersection(required_roles))
+        ...             return (
+        ...                 not tool.metadata.hidden
+        ...                 and self.roles.intersection(required_roles)  # noqa
+        ...             )
         ...         return _filter
 
         """

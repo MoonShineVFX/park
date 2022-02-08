@@ -108,7 +108,7 @@ class AbstractScope:
         raise NotImplementedError
 
 
-@dataclass
+@dataclass(frozen=True)
 class ToolMetadata:
     label: str
     icon: str
@@ -117,7 +117,7 @@ class ToolMetadata:
     required_roles: Set[str]
 
 
-@dataclass
+@dataclass(frozen=True)
 class SuiteTool:
     name: str
     alias: str

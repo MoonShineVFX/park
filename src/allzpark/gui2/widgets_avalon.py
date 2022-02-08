@@ -301,9 +301,9 @@ class AssetTreeModel(BaseScopeModel):
 
         if role == QtCore.Qt.FontRole:
             scope = index.data(self.ScopeRole)  # type: Asset
-            if not is_asset_tasked(scope, self._task):
+            if not scope.is_silo and not is_asset_tasked(scope, self._task):
                 font = QtGui.QFont()
-                font.setItalic(True)
+                font.setStrikeOut(True)
                 return font
 
         return super(AssetTreeModel, self).data(index, role)

@@ -172,6 +172,25 @@ class ProjectListWidget(QtWidgets.QWidget):
         self.scope_selected.emit(scope)
 
 
+class AssetTreeView(QtWidgets.QTreeView):
+
+    def __init__(self, *args, **kwargs):
+        super(AssetTreeView, self).__init__(*args, **kwargs)
+        self.setSelectionMode(self.SingleSelection)
+
+    def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:
+        super(AssetTreeView, self).mouseReleaseEvent(event)
+
+        # disable silo selecting
+        #
+        proxy = self.model()  # type: AssetTreeProxyModel
+        index = self.indexAt(event.pos())
+        index = proxy.mapToSource(index)
+        scope = index.data(BaseScopeModel.ScopeRole)
+        if scope and scope.is_silo:
+            self.clearSelection()
+
+
 class AssetTreeWidget(QtWidgets.QWidget):
     scope_selected = QtCore.Signal(object)
 
@@ -184,7 +203,7 @@ class AssetTreeWidget(QtWidgets.QWidget):
         model = AssetTreeModel()
         proxy = AssetTreeProxyModel()
         proxy.setSourceModel(model)
-        view = QtWidgets.QTreeView()
+        view = AssetTreeView()
         view.setModel(proxy)
 
         layout = QtWidgets.QVBoxLayout(self)

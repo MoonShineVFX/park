@@ -22,15 +22,22 @@ class AvalonWidget(WorkspaceBase):
         asset_tree = AssetTreeWidget()
 
         asset_page = QtWidgets.QWidget()
-        home = QtWidgets.QPushButton("Back")
+        current_project = ScopeLineLabel("current project..")
+        current_asset = ScopeLineLabel("current asset..")
+        current_task = ScopeLineLabel("current task..")
+        home = QtWidgets.QPushButton()
         tasks = QtWidgets.QComboBox()
-        only_tasked = QtWidgets.QCheckBox("Only Tasked Assets")
+        only_tasked = QtWidgets.QCheckBox("Show Tasked Only")
 
-        layout = QtWidgets.QVBoxLayout(asset_page)
-        layout.addWidget(home)
-        layout.addWidget(tasks)
-        layout.addWidget(only_tasked)
-        layout.addWidget(asset_tree)
+        layout = QtWidgets.QGridLayout(asset_page)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(home, 0, 0, 1, 1)
+        layout.addWidget(current_project, 0, 1, 1, 6)
+        layout.addWidget(only_tasked, 1, 0, 1, 3)
+        layout.addWidget(tasks, 1, 3, 1, 4)
+        layout.addWidget(asset_tree, 2, 0, 1, 7)
+        layout.addWidget(current_asset, 3, 0, 1, 4)
+        layout.addWidget(current_task, 3, 4, 1, 3)
 
         slider = SlidePageWidget()
         slider.addWidget(project_list)
@@ -52,6 +59,10 @@ class AvalonWidget(WorkspaceBase):
         self._tasks = tasks
         self._slider = slider
         self._page = 0
+        self._current_project = current_project
+        self._current_asset = current_asset
+        self._current_task = current_task
+        self._current_scope = None
 
     def _on_home_clicked(self):
         assert self._entrance is not None
@@ -122,6 +133,14 @@ class AvalonWidget(WorkspaceBase):
         pass
 
 
+class ScopeLineLabel(QtWidgets.QLineEdit):
+
+    def __init__(self, placeholder="", *args, **kwargs):
+        super(ScopeLineLabel, self).__init__(*args, **kwargs)
+        self.setReadOnly(True)
+        self.setPlaceholderText(placeholder)
+
+
 class ProjectListWidget(QtWidgets.QWidget):
     scope_selected = QtCore.Signal(object)
 
@@ -169,6 +188,7 @@ class AssetTreeWidget(QtWidgets.QWidget):
         view.setModel(proxy)
 
         layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(search_bar)
         layout.addWidget(view)
 

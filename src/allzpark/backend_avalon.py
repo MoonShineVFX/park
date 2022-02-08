@@ -163,7 +163,7 @@ class Project(_Scope):
 @dataclass(frozen=True)
 class Asset(_Scope):
     name: str
-    upstream: Project or "Asset"
+    upstream: Project
     project: Project
     parent: "Asset" or None
     silo: str
@@ -554,7 +554,7 @@ def iter_avalon_assets(avalon_project):
             _hidden = _parent.is_hidden or bool(doc["data"].get("trash"))
             asset = Asset(
                 name=doc["name"],
-                upstream=_parent or this,
+                upstream=this,
                 project=this,
                 parent=_parent,
                 silo=doc.get("silo"),

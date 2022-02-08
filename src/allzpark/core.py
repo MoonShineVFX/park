@@ -138,25 +138,41 @@ class SuiteTool:
         )
 
 
-def iter_tools(scope: AbstractScope):
-    try:
-        suite_path = scope.suite_path()
-    except BackendError as e:
-        log.error(str(e))
-        suite_path = None
+def iter_tools(scope, filtering=None):
+    """Iterate tools within scope and upstream scopes
 
-    if suite_path is None:
-        pass
+    :param scope: where to iter tools from
+    :param filtering: If None, the default, tools will be filtered by
+        the scope. If False, no filtering. Or if a callable is given,
+        filtering tools with it instead.
+    :type scope: AbstractScope
+    :type filtering: bool or Callable or None
+    :rtype: Iterator[SuiteTool]
+    """
+
+    def _iter_tools(_scope):
+        try:
+            suite_path = _scope.suite_path()
+        except BackendError as e:
+            log.error(str(e))
+        else:
+            if suite_path:
+                suite = load_suite(suite_path)
+                for _tool in suite.iter_tools():
+                    yield _tool
+        if _scope.upstream is not None:
+            for _tool in _iter_tools(_scope.upstream):
+                yield _tool
+
+    if filtering is False:
+        func = None
+    elif callable(filtering):
+        func = filtering
     else:
-        suite = load_suite(suite_path)
-        tool_filter = scope.make_tool_filter()
+        func = scope.make_tool_filter()
 
-        for tool in filter(tool_filter, suite.iter_tools()):
-            yield tool
-
-    if scope.upstream is not None:
-        for tool in iter_tools(scope.upstream):
-            yield tool
+    for tool in filter(func, _iter_tools(scope)):
+        yield tool
 
 
 class _Suite(Suite):

@@ -19,6 +19,7 @@ entrance_widgets = {
 
 
 class WorkspaceWidget(BusyWidget):
+    tools_requested = QtCore.Signal(AbstractScope)
     workspace_changed = QtCore.Signal(AbstractScope)
     backend_changed = QtCore.Signal(str)
 
@@ -80,6 +81,7 @@ class WorkspaceWidget(BusyWidget):
                 continue
 
             widget = widget_cls()
+            widget.tools_requested.connect(self.tools_requested.emit)
             widget.workspace_changed.connect(self.workspace_changed.emit)
 
             self._stack.addWidget(widget)
@@ -97,7 +99,6 @@ class WorkspaceWidget(BusyWidget):
 
 
 class ToolsView(QtWidgets.QWidget):
-    tools_requested = QtCore.Signal(AbstractScope)
 
     def __init__(self, *args, **kwargs):
         super(ToolsView, self).__init__(*args, **kwargs)
@@ -111,9 +112,6 @@ class ToolsView(QtWidgets.QWidget):
         layout.addWidget(view)
 
         self._model = model
-
-    def on_workspace_entered(self, scope):
-        self.tools_requested.emit(scope)
 
     def on_tools_updated(self, tools):
         self._model.update_tools(tools)

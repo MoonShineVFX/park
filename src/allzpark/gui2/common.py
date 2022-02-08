@@ -1,6 +1,7 @@
 
 import logging
 from ._vendor.Qt5 import QtCore, QtGui, QtWidgets
+from ..core import AbstractScope
 
 log = logging.getLogger(__name__)
 
@@ -166,7 +167,8 @@ class SlidePageWidget(QtWidgets.QStackedWidget):
 
 class WorkspaceBase(QtWidgets.QWidget):
     icon_path = None
-    workspace_changed = QtCore.Signal(object)
+    tools_requested = QtCore.Signal(AbstractScope)
+    workspace_changed = QtCore.Signal(AbstractScope)
 
     def enter_workspace(self, scope):
         raise NotImplementedError

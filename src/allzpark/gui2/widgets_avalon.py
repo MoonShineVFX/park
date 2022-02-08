@@ -104,18 +104,21 @@ class AvalonWidget(WorkspaceBase):
         self.set_page(1)
         self._tasks.clear()
         self._tasks.addItems(scope.tasks)
+        self.tools_requested.emit(scope)
 
     @enter_workspace.register
     def _(self, scope: Asset):
         self._current_scope = scope
         self._current_asset.setText(scope.name)
         self._current_task.setText("")
+        self.tools_requested.emit(scope)
 
     @enter_workspace.register
     def _(self, scope: Task):
         self._current_scope = scope
         self._current_asset.setText(scope.upstream.name)
         self._current_task.setText(scope.name)
+        self.tools_requested.emit(scope)
 
     @singledispatchmethod
     def update_workspace(self, scope, scopes):

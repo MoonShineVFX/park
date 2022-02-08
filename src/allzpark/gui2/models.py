@@ -27,15 +27,12 @@ class ToolsModel(BaseItemModel):
         """
 
         :param tools:
-        :type tools: list[tuple[SuiteTool, bool]]
+        :type tools: list[SuiteTool]
         :return:
         """
         self.reset()
 
-        for tool, accepted in tools:
-            if not accepted:
-                continue
-
+        for tool in tools:
             item = QtGui.QStandardItem()
             item.setText(tool.metadata.label)
             item.setIcon(parse_icon(tool.variant.root, tool.metadata.icon))

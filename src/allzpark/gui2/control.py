@@ -123,17 +123,18 @@ class Controller(QtCore.QObject):
         self.enter_workspace(scope)
 
     @QtCore.Slot()  # noqa
+    @_defer(on_time=100)
     def on_scope_tools_requested(self, scope):
         self.update_tools(scope)
 
-    @_thread(name="workspace", blocks=("WorkspaceWidget",))
+    @_thread(name="workspace", blocks=("WorkspaceWidget", "ToolsView"))
     def enter_workspace(self, scope):
         # inform widget to e.g. change page
         self.workspace_entered.emit(scope)
         # crawl sub-workspaces in worker thread and send to widget
         self.workspace_updated.emit(list(scope.iter_children()))
 
-    @_thread(name="suite", blocks=("ToolsView",))
+    @_thread(name="suite", blocks=("WorkspaceWidget", "ToolsView"))
     def update_tools(self, scope):
         tools = list(core.iter_tools(scope))
         self.tools_updated.emit(tools)

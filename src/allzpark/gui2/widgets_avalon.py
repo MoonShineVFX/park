@@ -71,10 +71,11 @@ class AvalonWidget(WorkspaceBase):
         self.workspace_changed.emit(self._entrance)
 
     def _on_asset_deselected(self):
-        scope = self._current_scope = self._current_scope.project
-        self._current_asset.setText("")
-        self._current_task.setText("")
-        self.tools_requested.emit(scope)
+        if not isinstance(self._current_scope, Project):
+            self._current_scope = self._current_scope.project
+            self._current_asset.setText("")
+            self._current_task.setText("")
+            self.tools_requested.emit(self._current_scope)
 
     def _on_asset_selected(self, asset: Asset):
         current = self._tasks.currentText()
@@ -249,9 +250,13 @@ class AssetTreeWidget(QtWidgets.QWidget):
         self._proxy.setFilterRegExp(text)
 
     def _on_current_changed(self, index, _):
-        index = self._proxy.mapToSource(index)
-        scope = index.data(BaseScopeModel.ScopeRole)
-        self.scope_selected.emit(scope)
+        if index.isValid():
+            index = self._proxy.mapToSource(index)
+            scope = index.data(BaseScopeModel.ScopeRole)
+            if is_asset_tasked(scope, self._model.task()):
+                self.scope_selected.emit(scope)
+            else:
+                self._view.clearSelection()
 
     def _on_selection_changed(self, selected, _):
         if not selected.indexes():

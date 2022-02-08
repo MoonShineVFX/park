@@ -1,5 +1,6 @@
 
 import logging
+from typing import List
 from ._vendor.Qt5 import QtCore, QtGui, QtWidgets
 from .common import SlidePageWidget, WorkspaceBase, BaseScopeModel
 from ..backend_avalon import Entrance, Project, Asset, Task, MEMBER_ROLE
@@ -41,7 +42,7 @@ class AvalonWidget(WorkspaceBase):
 
         home.clicked.connect(self._on_home_clicked)
         project_list.scope_selected.connect(self.workspace_changed.emit)
-        asset_tree.scope_selected.connect(self.workspace_changed.emit)
+        asset_tree.scope_selected.connect(self._on_asset_selected)
         tasks.currentTextChanged.connect(asset_tree.on_task_selected)
         only_tasked.stateChanged.connect(asset_tree.on_asset_filtered)
 
@@ -55,6 +56,15 @@ class AvalonWidget(WorkspaceBase):
     def _on_home_clicked(self):
         assert self._entrance is not None
         self.workspace_changed.emit(self._entrance)
+
+    def _on_asset_selected(self, asset: Asset):
+        current = self._tasks.currentText()
+        tasks = asset.iter_children()
+        task = next((t for t in tasks if t.name == current), None)
+        if task:
+            self.workspace_changed.emit(task)
+        else:
+            log.warning(f"No matched task for {asset.name!r}.")
 
     def set_page(self, page):
         current = self._slider.currentIndex()
@@ -94,26 +104,21 @@ class AvalonWidget(WorkspaceBase):
         raise NotImplementedError(f"Unknown scope {elide(scope)!r}")
 
     @update_workspace.register
-    def _(self, scope: Entrance, scopes: list):
+    def _(self, scope: Entrance, scopes: List[Project]):
         _ = scope
         return self._projects.model().refresh(scopes)
 
     @update_workspace.register
-    def _(self, scope: Project, scopes: list):
+    def _(self, scope: Project, scopes: List[Asset]):
         _ = scope
         return self._assets.model().refresh(scopes)
 
     @update_workspace.register
-    def _(self, scope: Asset, scopes: list):
-        current_task = self._tasks.currentText()
-        matched = next((s for s in scopes if s.name == current_task), None)
-        if matched:
-            self.workspace_changed.emit(matched)
-        else:
-            log.warning(f"No matched task for {scope.name!r}.")
+    def _(self, scope: Asset, scopes: List[Task]):
+        pass
 
     @update_workspace.register
-    def _(self, scope: Task, scopes: list):
+    def _(self, scope: Task, scopes):
         pass
 
 

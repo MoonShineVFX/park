@@ -123,6 +123,7 @@ class SuiteTool:
     alias: str
     ctx_name: str
     variant: Variant
+    scope: AbstractScope or None
 
     @property
     def context(self):
@@ -160,7 +161,7 @@ def iter_tools(scope, filtering=None):
         else:
             if suite_path:
                 suite = load_suite(suite_path)
-                for _tool in suite.iter_tools():
+                for _tool in suite.iter_tools(scope=scope):
                     yield _tool
         if _scope.upstream is not None:
             for _tool in _iter_tools(_scope.upstream):
@@ -249,7 +250,7 @@ class ReadOnlySuite(_Suite):
     def is_live(self):
         return self._is_live
 
-    def iter_tools(self):
+    def iter_tools(self, scope=None):
         """Iter tools in this suite
         :return:
         :rtype: collections.Iterator[SuiteTool]
@@ -260,6 +261,7 @@ class ReadOnlySuite(_Suite):
                 alias=entry["tool_alias"],
                 ctx_name=entry["context_name"],
                 variant=entry["variant"],
+                scope=scope,
             )
 
     # Exposing protected member that I'd like to use.

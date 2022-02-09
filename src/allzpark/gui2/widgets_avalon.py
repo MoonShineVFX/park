@@ -1,6 +1,6 @@
 
 import logging
-from typing import List
+from typing import List, Union
 from ._vendor.Qt5 import QtCore, QtGui, QtWidgets
 from ..backend_avalon import Entrance, Project, Asset, Task, MEMBER_ROLE
 from ..util import singledispatchmethod, elide
@@ -27,8 +27,6 @@ class AvalonWidget(QtWidgets.QWidget):
 
         asset_page = QtWidgets.QWidget()
         current_project = ScopeLineLabel("current project..")
-        current_asset = ScopeLineLabel("current asset..")
-        current_task = ScopeLineLabel("current task..")
         home = QtWidgets.QPushButton()
         tasks = QtWidgets.QComboBox()
         only_tasked = QtWidgets.QCheckBox("Show Tasked Only")
@@ -40,8 +38,6 @@ class AvalonWidget(QtWidgets.QWidget):
         layout.addWidget(only_tasked, 1, 0, 1, 3)
         layout.addWidget(tasks, 1, 3, 1, 4)
         layout.addWidget(asset_tree, 2, 0, 1, 7)
-        layout.addWidget(current_asset, 3, 0, 1, 4)
-        layout.addWidget(current_task, 3, 4, 1, 3)
 
         slider = SlidePageWidget()
         slider.addWidget(project_list)
@@ -65,8 +61,6 @@ class AvalonWidget(QtWidgets.QWidget):
         self._slider = slider
         self._page = 0
         self._current_project = current_project
-        self._current_asset = current_asset
-        self._current_task = current_task
         self._current_scope = None
 
     def _on_home_clicked(self):
@@ -112,8 +106,6 @@ class AvalonWidget(QtWidgets.QWidget):
     def _(self, scope: Project):
         self._current_scope = scope
         self._current_project.setText(scope.name)
-        self._current_asset.setText("")
-        self._current_task.setText("")
         self.set_page(1)
         self._tasks.clear()
         self._tasks.addItems(scope.tasks)
@@ -122,38 +114,33 @@ class AvalonWidget(QtWidgets.QWidget):
     @enter_workspace.register
     def _(self, scope: Asset):
         self._current_scope = scope
-        self._current_asset.setText(scope.name)
-        self._current_task.setText("")
         self.tools_requested.emit(scope)
 
     @enter_workspace.register
     def _(self, scope: Task):
         self._current_scope = scope
-        self._current_asset.setText(scope.upstream.name)
-        self._current_task.setText(scope.name)
         self.tools_requested.emit(scope)
 
-    @singledispatchmethod
-    def update_workspace(self, scope, scopes):
-        raise NotImplementedError(f"Unknown scope {elide(scope)!r}")
+    def update_workspace(
+            self, scopes: Union[List[Project], List[Asset], List[Task]]
+    ) -> None:
 
-    @update_workspace.register
-    def _(self, scope: Entrance, scopes: List[Project]):
-        _ = scope
-        return self._projects.model().refresh(scopes)
+        if not scopes:
+            log.debug("No scopes to update.")
+            return
+        parent_scope = scopes[0].upstream  # take first scope as sample
 
-    @update_workspace.register
-    def _(self, scope: Project, scopes: List[Asset]):
-        _ = scope
-        return self._assets.model().refresh(scopes)
+        if isinstance(parent_scope, Entrance):
+            self._projects.model().refresh(scopes)
 
-    @update_workspace.register
-    def _(self, scope: Asset, scopes: List[Task]):
-        pass
+        elif isinstance(parent_scope, Project):
+            self._assets.model().refresh(scopes)
 
-    @update_workspace.register
-    def _(self, scope: Task, scopes):
-        pass
+        elif isinstance(parent_scope, Asset):
+            pass
+
+        elif isinstance(parent_scope, Task):
+            pass
 
 
 class ScopeLineLabel(QtWidgets.QLineEdit):

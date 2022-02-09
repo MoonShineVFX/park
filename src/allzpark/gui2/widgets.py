@@ -205,20 +205,18 @@ class WorkspaceWidget(BusyWidget):
 
         self._stack = entrances
         self._combo = backend_sel
-        self._current_scope = None
 
     def _on_backend_changed(self, name):
         # possibly need to do some cleanup before/after signal emitted ?
         self.backend_changed.emit(name)
 
     def on_workspace_entered(self, scope):
-        self._current_scope = scope
         widget = self._stack.currentWidget()
         widget.enter_workspace(scope)
 
     def on_workspace_updated(self, scopes):
         widget = self._stack.currentWidget()
-        widget.update_workspace(self._current_scope, scopes)
+        widget.update_workspace(scopes)
 
     def register_backends(self, names: List[str]):
         if self._stack.count() > 1:

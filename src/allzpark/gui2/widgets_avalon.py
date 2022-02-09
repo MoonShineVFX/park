@@ -163,6 +163,8 @@ class ProjectListWidget(QtWidgets.QWidget):
         search_bar = QtWidgets.QLineEdit()
         search_bar.setPlaceholderText("search projects..")
 
+        # todo: join/leave project
+
         model = ProjectListModel()
         view = QtWidgets.QListView()
         view.setModel(model)

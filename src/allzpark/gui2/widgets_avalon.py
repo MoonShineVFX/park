@@ -3,7 +3,7 @@ import logging
 from typing import List, Union
 from ._vendor.Qt5 import QtCore, QtGui, QtWidgets
 from ..backend_avalon import Entrance, Project, Asset, Task, MEMBER_ROLE
-from ..util import singledispatchmethod, elide
+from ..util import elide
 from ..core import AbstractScope
 from .widgets import SlidePageWidget, ScopeLineLabel
 from .models import BaseScopeModel

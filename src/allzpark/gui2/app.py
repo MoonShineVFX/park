@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from .. import core
 from ..exceptions import BackendError
 from ._vendor.Qt5 import QtCore, QtWidgets
-from . import control, window, widgets, common
+from . import control, window, widgets
 
 
 if sys.platform == "darwin":
@@ -71,7 +71,7 @@ class Session(object):
 
         workspace = view_.find(widgets.WorkspaceWidget)
         tools = view_.find(widgets.ToolsView)
-        busy_filter = common.BusyEventFilterSingleton()
+        busy_filter = widgets.BusyEventFilterSingleton()
 
         # view -> control
         workspace.workspace_changed.connect(ctrl.on_workspace_changed)

@@ -2,10 +2,11 @@
 import logging
 from typing import List
 from ._vendor.Qt5 import QtCore, QtGui, QtWidgets
-from .common import SlidePageWidget, WorkspaceBase, BaseScopeModel
 from ..backend_avalon import Entrance, Project, Asset, Task, MEMBER_ROLE
 from ..util import singledispatchmethod, elide
 from ..core import AbstractScope
+from .widgets import SlidePageWidget, WorkspaceBase
+from .models import BaseScopeModel
 
 log = logging.getLogger(__name__)
 

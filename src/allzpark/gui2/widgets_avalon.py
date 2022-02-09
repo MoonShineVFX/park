@@ -5,7 +5,7 @@ from ._vendor.Qt5 import QtCore, QtGui, QtWidgets
 from ..backend_avalon import Entrance, Project, Asset, Task, MEMBER_ROLE
 from ..util import singledispatchmethod, elide
 from ..core import AbstractScope
-from .widgets import SlidePageWidget, WorkspaceBase
+from .widgets import SlidePageWidget
 from .models import BaseScopeModel
 
 log = logging.getLogger(__name__)
@@ -14,8 +14,10 @@ log = logging.getLogger(__name__)
 ASSET_MUST_BE_TASKED = True
 
 
-class AvalonWidget(WorkspaceBase):
+class AvalonWidget(QtWidgets.QWidget):
     icon_path = ":/icons/avalon.svg"
+    tools_requested = QtCore.Signal(AbstractScope)
+    workspace_changed = QtCore.Signal(AbstractScope)
 
     def __init__(self, *args, **kwargs):
         super(AvalonWidget, self).__init__(*args, **kwargs)

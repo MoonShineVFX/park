@@ -175,18 +175,6 @@ class SlidePageWidget(QtWidgets.QStackedWidget):
         anim_group.start()
 
 
-class WorkspaceBase(QtWidgets.QWidget):
-    icon_path = None
-    tools_requested = QtCore.Signal(AbstractScope)
-    workspace_changed = QtCore.Signal(AbstractScope)
-
-    def enter_workspace(self, scope):
-        raise NotImplementedError
-
-    def update_workspace(self, scope, scopes):
-        raise NotImplementedError
-
-
 class WorkspaceWidget(BusyWidget):
     tools_requested = QtCore.Signal(AbstractScope)
     workspace_changed = QtCore.Signal(AbstractScope)
@@ -246,20 +234,17 @@ class WorkspaceWidget(BusyWidget):
             if widget_cls is None:
                 log.error(f"No widget for backend {name!r}.")
                 continue
-            if not issubclass(widget_cls, WorkspaceBase):
-                log.error(f"Invalid widget type {widget_cls.__name__!r}, "
-                          f"must be a subclass of {WorkspaceBase.__name__!r}.")
-                continue
 
+            w_icon = getattr(widget_cls, "icon_path", ":/icons/backend.svg")
             widget = widget_cls()
+            # these four signals and slots are the essentials
             widget.tools_requested.connect(self.tools_requested.emit)
             widget.workspace_changed.connect(self.workspace_changed.emit)
+            assert callable(widget.enter_workspace)
+            assert callable(widget.update_workspace)
 
             self._stack.addWidget(widget)
-            self._combo.addItem(
-                QtGui.QIcon(widget_cls.icon_path or ":/icons/backend.svg"),
-                name,
-            )
+            self._combo.addItem(QtGui.QIcon(w_icon), name)
 
         self.blockSignals(False)
 

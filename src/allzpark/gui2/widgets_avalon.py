@@ -89,30 +89,20 @@ class AvalonWidget(QtWidgets.QWidget):
         self._page = page
         self._slider.slide_view(page, direction=direction)
 
-    @singledispatchmethod
-    def enter_workspace(self, scope):
-        raise NotImplementedError(f"Unknown scope {elide(scope)!r}")
+    def enter_workspace(self, scope: Union[Entrance, Project]) -> None:
+        if isinstance(scope, Entrance):
+            self._entrance = scope
+            self.set_page(0)
 
-    @enter_workspace.register
-    def _(self, scope: Entrance):
-        self._entrance = scope
-        self.set_page(0)
+        elif isinstance(scope, Project):
+            self._current_project.setText(scope.name)
+            self.set_page(1)
+            self._tasks.clear()
+            self._tasks.addItems(scope.tasks)
+            self.tools_requested.emit(scope)
 
-    @enter_workspace.register
-    def _(self, scope: Project):
-        self._current_project.setText(scope.name)
-        self.set_page(1)
-        self._tasks.clear()
-        self._tasks.addItems(scope.tasks)
-        self.tools_requested.emit(scope)
-
-    @enter_workspace.register
-    def _(self, scope: Asset):
-        pass
-
-    @enter_workspace.register
-    def _(self, scope: Task):
-        pass
+        else:
+            pass
 
     def update_workspace(
             self, scopes: Union[List[Project], List[Asset], List[Task]]

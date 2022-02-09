@@ -129,6 +129,7 @@ class AvalonWidget(QtWidgets.QWidget):
         upstream = scopes[0].upstream  # take first scope as sample
 
         if isinstance(upstream, Entrance):
+            self._assets.model().reset()
             self._projects.model().refresh(scopes)
 
         elif isinstance(upstream, Project):
@@ -220,7 +221,8 @@ class AssetTreeWidget(QtWidgets.QWidget):
             self.scope_changed.emit(scope)  # for update task
         else:
             scope = self._model.project()
-            self.scope_changed.emit(scope)
+            if scope:  # could be None
+                self.scope_changed.emit(scope)
 
     def on_asset_filtered(self, enabled):
         self._proxy.set_filter_by_task(bool(enabled))
@@ -238,7 +240,8 @@ class AssetTreeWidget(QtWidgets.QWidget):
             self.scope_changed.emit(scope)
         else:
             scope = self._model.project()
-            self.scope_changed.emit(scope)
+            if scope:  # could be None
+                self.scope_changed.emit(scope)
 
 
 class ProjectListModel(BaseScopeModel):
@@ -274,6 +277,11 @@ class AssetTreeModel(BaseScopeModel):
 
     def set_task(self, name):
         self._task = name
+
+    def reset(self):
+        super(AssetTreeModel, self).reset()
+        self._project = None
+        self._task = None
 
     def refresh(self, scopes):
         self.reset()

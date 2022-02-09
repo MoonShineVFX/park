@@ -200,10 +200,9 @@ class AssetTreeWidget(QtWidgets.QWidget):
         layout.addWidget(search_bar)
         layout.addWidget(view)
 
-        model.modelAboutToBeReset.connect(proxy.invalidate)
-        selection.currentChanged.connect(self._on_current_changed)
         selection.selectionChanged.connect(self._on_selection_changed)
         search_bar.textChanged.connect(self._on_asset_searched)
+        model.modelAboutToBeReset.connect(proxy.invalidate)
 
         self._view = view
         self._model = model
@@ -217,9 +216,7 @@ class AssetTreeWidget(QtWidgets.QWidget):
         self._proxy.invalidate()
 
         index = self._view.currentIndex()
-        if not index.isValid():
-            self.deselected.emit()
-        else:
+        if index.isValid():
             scope = index.data(BaseScopeModel.ScopeRole)
             self.scope_selected.emit(scope)  # for update task
 
@@ -227,24 +224,17 @@ class AssetTreeWidget(QtWidgets.QWidget):
         self._proxy.set_filter_by_task(bool(enabled))
         self._proxy.invalidate()
 
-        index = self._view.currentIndex()
-        if not index.isValid():
-            self.deselected.emit()
-
     def _on_asset_searched(self, text):
         self._proxy.setFilterRegExp(text)
 
-    def _on_current_changed(self, index, _):
-        if index.isValid():
+    def _on_selection_changed(self, selected, _):
+        indexes = selected.indexes()
+        if indexes and indexes[0].isValid():
+            index = indexes[0]  # SingleSelection view
             index = self._proxy.mapToSource(index)
             scope = index.data(BaseScopeModel.ScopeRole)
-            if is_asset_tasked(scope, self._model.task()):
-                self.scope_selected.emit(scope)
-            else:
-                self._view.clearSelection()
-
-    def _on_selection_changed(self, selected, _):
-        if not selected.indexes():
+            self.scope_selected.emit(scope)
+        else:
             self.deselected.emit()
 
 

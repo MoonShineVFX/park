@@ -49,38 +49,36 @@ class AvalonWidget(QtWidgets.QWidget):
 
         home.clicked.connect(self._on_home_clicked)
         project_list.scope_selected.connect(self.workspace_changed.emit)
-        asset_tree.scope_selected.connect(self._on_asset_selected)
-        asset_tree.deselected.connect(self._on_asset_deselected)
+        asset_tree.scope_changed.connect(self._on_asset_changed)
         tasks.currentTextChanged.connect(asset_tree.on_task_selected)
         only_tasked.stateChanged.connect(asset_tree.on_asset_filtered)
 
-        self._entrance = None
+        self._entrance = None  # type: Entrance or None
         self._projects = project_list
         self._assets = asset_tree
         self._tasks = tasks
         self._slider = slider
         self._page = 0
         self._current_project = current_project
-        self._current_scope = None
 
     def _on_home_clicked(self):
         assert self._entrance is not None
         self.workspace_changed.emit(self._entrance)
 
-    def _on_asset_deselected(self):
-        if not isinstance(self._current_scope, Project):
-            self._current_scope = self._current_scope.project
-            self.tools_requested.emit(self._current_scope)
+    def _on_asset_changed(self, scope: Union[Asset, Project]):
+        if isinstance(scope, Project):
+            self.tools_requested.emit(scope)
+            return
 
-    def _on_asset_selected(self, asset: Asset):
+        asset = scope
         current = self._tasks.currentText()
         tasks = asset.iter_children()
         task = next((t for t in tasks if t.name == current), None)
         if task:
-            self.workspace_changed.emit(task)
+            self.tools_requested.emit(task)
         else:
             log.warning(f"No matched task for {asset.name!r}.")
-            self.workspace_changed.emit(asset)
+            self.tools_requested.emit(asset)
 
     def set_page(self, page):
         current = self._slider.currentIndex()
@@ -102,7 +100,6 @@ class AvalonWidget(QtWidgets.QWidget):
 
     @enter_workspace.register
     def _(self, scope: Project):
-        self._current_scope = scope
         self._current_project.setText(scope.name)
         self.set_page(1)
         self._tasks.clear()
@@ -111,13 +108,11 @@ class AvalonWidget(QtWidgets.QWidget):
 
     @enter_workspace.register
     def _(self, scope: Asset):
-        self._current_scope = scope
-        self.tools_requested.emit(scope)
+        pass
 
     @enter_workspace.register
     def _(self, scope: Task):
-        self._current_scope = scope
-        self.tools_requested.emit(scope)
+        pass
 
     def update_workspace(
             self, scopes: Union[List[Project], List[Asset], List[Task]]
@@ -178,8 +173,7 @@ class ProjectListWidget(QtWidgets.QWidget):
 
 
 class AssetTreeWidget(QtWidgets.QWidget):
-    scope_selected = QtCore.Signal(AbstractScope)
-    deselected = QtCore.Signal()
+    scope_changed = QtCore.Signal(AbstractScope)
 
     def __init__(self, *args, **kwargs):
         super(AssetTreeWidget, self).__init__(*args, **kwargs)
@@ -218,7 +212,10 @@ class AssetTreeWidget(QtWidgets.QWidget):
         index = self._view.currentIndex()
         if index.isValid():
             scope = index.data(BaseScopeModel.ScopeRole)
-            self.scope_selected.emit(scope)  # for update task
+            self.scope_changed.emit(scope)  # for update task
+        else:
+            scope = self._model.project()
+            self.scope_changed.emit(scope)
 
     def on_asset_filtered(self, enabled):
         self._proxy.set_filter_by_task(bool(enabled))
@@ -233,9 +230,10 @@ class AssetTreeWidget(QtWidgets.QWidget):
             index = indexes[0]  # SingleSelection view
             index = self._proxy.mapToSource(index)
             scope = index.data(BaseScopeModel.ScopeRole)
-            self.scope_selected.emit(scope)
+            self.scope_changed.emit(scope)
         else:
-            self.deselected.emit()
+            scope = self._model.project()
+            self.scope_changed.emit(scope)
 
 
 class ProjectListModel(BaseScopeModel):
@@ -260,7 +258,11 @@ class AssetTreeModel(BaseScopeModel):
 
     def __init__(self, *args, **kwargs):
         super(AssetTreeModel, self).__init__(*args, **kwargs)
-        self._task = None
+        self._project = None    # type: Project or None
+        self._task = None       # type: str or None
+
+    def project(self):
+        return self._project
 
     def task(self):
         return self._task
@@ -272,6 +274,7 @@ class AssetTreeModel(BaseScopeModel):
         self.reset()
 
         _asset_items = dict()
+        asset = None
         for asset in scopes:
             if not asset.is_hidden:
                 item = QtGui.QStandardItem()
@@ -286,6 +289,8 @@ class AssetTreeModel(BaseScopeModel):
                 else:
                     parent = _asset_items[asset.parent.name]
                     parent.appendRow(item)
+
+        self._project = asset.upstream if asset else None
 
     def data(self, index, role=QtCore.Qt.DisplayRole):
         """

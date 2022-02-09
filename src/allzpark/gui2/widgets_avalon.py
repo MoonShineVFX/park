@@ -70,8 +70,6 @@ class AvalonWidget(QtWidgets.QWidget):
     def _on_asset_deselected(self):
         if not isinstance(self._current_scope, Project):
             self._current_scope = self._current_scope.project
-            self._current_asset.setText("")
-            self._current_task.setText("")
             self.tools_requested.emit(self._current_scope)
 
     def _on_asset_selected(self, asset: Asset):

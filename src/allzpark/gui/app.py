@@ -89,7 +89,11 @@ class Session(object):
         ctrl.workspace_updated.connect(workspace.on_workspace_updated)
         ctrl.tools_updated.connect(tools.on_tools_updated)
 
+        # view -> view
+        view_.dark_toggled.connect(self.on_dark_toggled)
+
         # status bar messages
+        ctrl.status_message.connect(view_.spoken)
         busy_filter.overwhelmed.connect(view_.spoken)
 
         self._app = app

@@ -6,7 +6,7 @@ from .widgets import BusyWidget
 from .. import core
 
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("allzpark")
 
 
 def _defer(on_time=500):
@@ -72,7 +72,9 @@ def _thread(name, blocks=None):
             thread = self._thread[name]
 
             if thread.isRunning():
-                print(f"Thread {name!r} is busy, cannot process {fn_name!r}.")
+                log.critical(
+                    f"Thread {name!r} is busy, can't process {fn_name!r}."
+                )
                 return
 
             blocks_ = blocks or []
@@ -87,11 +89,11 @@ def _thread(name, blocks=None):
                 for w in busy_widgets:
                     w.set_overwhelmed(False)
                 thread.finished.disconnect(on_finished)
-                print(f"Thread {name!r} finished {fn_name!r}.")
+                log.debug(f"Thread {name!r} finished {fn_name!r}.")
 
             thread.finished.connect(on_finished)
 
-            print(f"Thread {name!r} is about to run {fn_name!r}.")
+            log.debug(f"Thread {name!r} is about to run {fn_name!r}.")
             thread.set_job(func, *args, **kwargs)
             thread.start()
 
@@ -103,9 +105,17 @@ class Controller(QtCore.QObject):
     workspace_entered = QtCore.Signal(core.AbstractScope)
     workspace_updated = QtCore.Signal(list)
     tools_updated = QtCore.Signal(list)
+    status_message = QtCore.Signal(str)
 
     def __init__(self, backends):
         super(Controller, self).__init__(parent=None)
+
+        # sending log messages to status-bar
+        formatter = logging.Formatter(fmt="%(levelname)-8s %(message)s")
+        handler = QtStatusBarHandler(self)
+        handler.setFormatter(formatter)
+        handler.setLevel(logging.INFO)
+        log.addHandler(handler)
 
         self._backend_entrances = dict(backends)
         self._timers = dict()
@@ -158,3 +168,14 @@ class Thread(QtCore.QThread):
 
     def run(self):
         self._func(*self._args, **self._kwargs)
+
+
+# https://docs.python.org/3/howto/logging-cookbook.html#a-qt-gui-for-logging
+class QtStatusBarHandler(logging.Handler):
+    def __init__(self, ctrl, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._ctrl = ctrl
+
+    def emit(self, record):
+        s = self.format(record)
+        self._ctrl.status_message.emit(s)

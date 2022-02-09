@@ -26,7 +26,7 @@ from .core import SuiteTool, AbstractScope
 ToolFilterCallable = Callable[[SuiteTool], bool]
 
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("allzpark")
 
 
 parkconfig = rezconfig.plugins.command.park

@@ -7,7 +7,7 @@ from rez.packages import Variant
 from rez.resolved_context import ResolvedContext
 from .exceptions import BackendError
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("allzpark")
 
 
 def _load_backends():

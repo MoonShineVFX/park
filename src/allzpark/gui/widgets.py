@@ -6,7 +6,7 @@ from ..core import AbstractScope
 from .models import ToolsModel
 
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("allzpark")
 
 
 def _backend_widgets():
@@ -277,3 +277,9 @@ class ToolsView(QtWidgets.QWidget):
 
     def on_tools_updated(self, tools):
         self._model.update_tools(tools)
+
+
+class ToolContextWidget(QtWidgets.QWidget):
+
+    def __init__(self, *args, **kwargs):
+        super(ToolContextWidget, self).__init__(*args, **kwargs)

@@ -3,7 +3,7 @@ import logging
 from ._vendor.Qt5 import QtCore, QtGui
 from ..core import SuiteTool
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("allzpark")
 
 
 def parse_icon(root, template):

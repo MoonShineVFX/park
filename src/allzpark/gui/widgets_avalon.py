@@ -8,7 +8,7 @@ from ..core import AbstractScope
 from .widgets import SlidePageWidget, ScopeLineLabel
 from .models import BaseScopeModel
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("allzpark")
 
 
 ASSET_MUST_BE_TASKED = True

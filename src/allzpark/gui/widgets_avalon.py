@@ -134,6 +134,7 @@ class AvalonWidget(QtWidgets.QWidget):
 
         elif isinstance(upstream, Project):
             self._assets.model().refresh(scopes)
+            self._assets.model().set_task(self._tasks.currentText())
 
         elif isinstance(upstream, Asset):
             pass

@@ -1,17 +1,22 @@
 
 import os
 import sys
+import logging
 import signal as py_signal
+from importlib import reload
 from contextlib import contextmanager
 
 from .. import core
 from ..exceptions import BackendError
 from ._vendor.Qt5 import QtCore, QtWidgets
-from . import control, window, widgets
+from . import control, window, widgets, resources
 
 
 if sys.platform == "darwin":
     os.environ["QT_MAC_WANTS_LAYER"] = "1"  # MacOS BigSur
+
+
+log = logging.getLogger("allzpark")
 
 
 def launch(app_name="park-gui"):
@@ -30,7 +35,7 @@ def launch(app_name="park-gui"):
 
 class Session(object):
 
-    def __init__(self, app_name="sweet-gui"):
+    def __init__(self, app_name="park-gui"):
         app = QtWidgets.QApplication.instance()
         if app is None:
             app = QtWidgets.QApplication([])
@@ -57,6 +62,7 @@ class Session(object):
         print("Preference file: %s" % storage.fileName())
 
         state = State(storage=storage)
+        resources.load_themes()
 
         try:
             backend_entrances = core.init_backends()
@@ -96,6 +102,8 @@ class Session(object):
             name for name, _ in backend_entrances]
         )
 
+        self.apply_theme()
+
     @property
     def app(self):
         return self._app
@@ -111,6 +119,27 @@ class Session(object):
     @property
     def state(self):
         return self._state
+
+    def on_dark_toggled(self, value):
+        self._state.store_dark_mode(value)
+        self.apply_theme(dark=value)
+        self._view.on_status_changed(self._view.statusBar().currentMessage())
+
+    def apply_theme(self, name=None, dark=None):
+        view = self._view
+        name = name or self.state.retrieve("theme")
+        dark = self.state.retrieve_dark_mode() if dark is None else dark
+        qss = resources.get_style_sheet(name, dark)
+        view.setStyleSheet(qss)
+        view.style().unpolish(view)
+        view.style().polish(view)
+        self.state.store("theme", resources.current_theme().name)
+
+    def reload_theme(self):
+        """For look-dev"""
+        reload(resources)
+        resources.load_themes()
+        self.apply_theme()
 
     def show(self):
         view = self._view
@@ -177,6 +206,12 @@ class State(object):
         if value is None:
             value = default
         return self._f(value)
+
+    def retrieve_dark_mode(self):
+        return bool(self.retrieve("theme.on_dark"))
+
+    def store_dark_mode(self, value):
+        self.store("theme.on_dark", bool(value))
 
     def preserve_layout(self, widget, group):
         # type: (QtWidgets.QWidget, str) -> None

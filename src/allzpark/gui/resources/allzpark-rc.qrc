@@ -1,0 +1,49 @@
+
+<!DOCTYPE RCC><RCC version="1.0">
+<qresource>
+    <file>icons/arrow-clockwise-on.svg</file>
+    <file>icons/arrow-clockwise.svg</file>
+    <file>icons/box-arrow-down.svg</file>
+    <file>icons/brightness-high-fill.svg</file>
+    <file>icons/brightness-low-fill.svg</file>
+    <file>icons/card-list.svg</file>
+    <file>icons/card-text.svg</file>
+    <file>icons/caret-down-fill-dim.svg</file>
+    <file>icons/caret-down-fill-on.svg</file>
+    <file>icons/caret-down-fill.svg</file>
+    <file>icons/caret-right-fill-dim.svg</file>
+    <file>icons/caret-right-fill-on.svg</file>
+    <file>icons/caret-right-fill.svg</file>
+    <file>icons/check-ok.svg</file>
+    <file>icons/chevron_down.svg</file>
+    <file>icons/chevron_left.svg</file>
+    <file>icons/chevron_right.svg</file>
+    <file>icons/chevron_up.svg</file>
+    <file>icons/exclamation-triangle-fill.svg</file>
+    <file>icons/exclamation-warn.svg</file>
+    <file>icons/log-critical.svg</file>
+    <file>icons/log-error.svg</file>
+    <file>icons/log-info.svg</file>
+    <file>icons/log-undefined.svg</file>
+    <file>icons/log-warning.svg</file>
+    <file>icons/rez_logo.svg</file>
+    <file>icons/server.svg</file>
+    <file>icons/square-check-dim.svg</file>
+    <file>icons/square-check.svg</file>
+    <file>icons/square-dim.svg</file>
+    <file>icons/square-slash-dim.svg</file>
+    <file>icons/square-slash.svg</file>
+    <file>icons/square.svg</file>
+    <file>icons/toggle-off-bright.svg</file>
+    <file>icons/toggle-off-dim.svg</file>
+    <file>icons/toggle-off.svg</file>
+    <file>icons/toggle-on-bright.svg</file>
+    <file>icons/toggle-on-dim.svg</file>
+    <file>icons/toggle-on.svg</file>
+    <file>icons/x.svg</file>
+    <file>fonts/opensans/OpenSans-Bold.ttf</file>
+    <file>fonts/opensans/OpenSans-Italic.ttf</file>
+    <file>fonts/opensans/OpenSans-Regular.ttf</file>
+    <file>fonts/jetbrainsmono/JetBrainsMono-Regular.ttf</file>
+</qresource>
+</RCC>

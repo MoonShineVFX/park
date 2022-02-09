@@ -128,19 +128,22 @@ class AvalonWidget(QtWidgets.QWidget):
         if not scopes:
             log.debug("No scopes to update.")
             return
-        parent_scope = scopes[0].upstream  # take first scope as sample
+        upstream = scopes[0].upstream  # take first scope as sample
 
-        if isinstance(parent_scope, Entrance):
+        if isinstance(upstream, Entrance):
             self._projects.model().refresh(scopes)
 
-        elif isinstance(parent_scope, Project):
+        elif isinstance(upstream, Project):
             self._assets.model().refresh(scopes)
 
-        elif isinstance(parent_scope, Asset):
+        elif isinstance(upstream, Asset):
             pass
 
-        elif isinstance(parent_scope, Task):
-            pass
+        elif isinstance(upstream, Task):
+            raise NotImplementedError(f"Task {elide(upstream)!r} shouldn't "
+                                      f"have downstream scope.")
+        else:
+            raise NotImplementedError(f"Unknown upstream {elide(upstream)!r}")
 
 
 class ScopeLineLabel(QtWidgets.QLineEdit):

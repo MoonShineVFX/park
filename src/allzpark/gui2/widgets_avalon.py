@@ -15,6 +15,21 @@ ASSET_MUST_BE_TASKED = True
 
 
 class AvalonWidget(QtWidgets.QWidget):
+    """Avalon backend GUI
+
+    Behaviors should be expected:
+
+        * Project Page
+            - select a project will side to asset page
+            - able to join/leave project (filtering projects from view)
+            - able to show *all projects* with a toggle (disable filtering)
+
+        * Asset Page
+            - tools should be updated whenever the asset selection changes
+            - if asset has no selection, change to project scope and tools
+            - able to use task to filter asset
+
+    """
     icon_path = ":/icons/avalon.svg"
     tools_requested = QtCore.Signal(AbstractScope)
     workspace_changed = QtCore.Signal(AbstractScope)

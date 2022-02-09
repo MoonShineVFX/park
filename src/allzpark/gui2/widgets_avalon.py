@@ -5,7 +5,7 @@ from ._vendor.Qt5 import QtCore, QtGui, QtWidgets
 from ..backend_avalon import Entrance, Project, Asset, Task, MEMBER_ROLE
 from ..util import singledispatchmethod, elide
 from ..core import AbstractScope
-from .widgets import SlidePageWidget
+from .widgets import SlidePageWidget, ScopeLineLabel
 from .models import BaseScopeModel
 
 log = logging.getLogger(__name__)
@@ -144,14 +144,6 @@ class AvalonWidget(QtWidgets.QWidget):
                                       f"have downstream scope.")
         else:
             raise NotImplementedError(f"Unknown upstream {elide(upstream)!r}")
-
-
-class ScopeLineLabel(QtWidgets.QLineEdit):
-
-    def __init__(self, placeholder="", *args, **kwargs):
-        super(ScopeLineLabel, self).__init__(*args, **kwargs)
-        self.setReadOnly(True)
-        self.setPlaceholderText(placeholder)
 
 
 class ProjectListWidget(QtWidgets.QWidget):

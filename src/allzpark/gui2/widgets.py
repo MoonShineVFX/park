@@ -175,6 +175,14 @@ class SlidePageWidget(QtWidgets.QStackedWidget):
         anim_group.start()
 
 
+class ScopeLineLabel(QtWidgets.QLineEdit):
+
+    def __init__(self, placeholder="", *args, **kwargs):
+        super(ScopeLineLabel, self).__init__(*args, **kwargs)
+        self.setReadOnly(True)
+        self.setPlaceholderText(placeholder)
+
+
 class WorkspaceWidget(BusyWidget):
     tools_requested = QtCore.Signal(AbstractScope)
     workspace_changed = QtCore.Signal(AbstractScope)

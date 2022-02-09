@@ -241,7 +241,7 @@ class WorkspaceWidget(BusyWidget):
                 log.error(f"No widget for backend {name!r}.")
                 continue
 
-            w_icon = getattr(widget_cls, "icon_path", ":/icons/backend.svg")
+            w_icon = getattr(widget_cls, "icon_path", ":/icons/server.svg")
             widget = widget_cls()
             # these four signals and slots are the essentials
             widget.tools_requested.connect(self.tools_requested.emit)

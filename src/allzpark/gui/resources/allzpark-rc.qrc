@@ -3,6 +3,7 @@
 <qresource>
     <file>icons/arrow-clockwise-on.svg</file>
     <file>icons/arrow-clockwise.svg</file>
+    <file>icons/avalon-logomark.svg</file>
     <file>icons/box-arrow-down.svg</file>
     <file>icons/brightness-high-fill.svg</file>
     <file>icons/brightness-low-fill.svg</file>

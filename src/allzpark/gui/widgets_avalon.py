@@ -30,7 +30,7 @@ class AvalonWidget(QtWidgets.QWidget):
             - able to use task to filter asset
 
     """
-    icon_path = ":/icons/avalon.svg"
+    icon_path = ":/icons/avalon-logomark.svg"
     tools_requested = QtCore.Signal(AbstractScope)
     workspace_changed = QtCore.Signal(AbstractScope)
 

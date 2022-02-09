@@ -260,6 +260,12 @@ class WorkspaceWidget(BusyWidget):
             log.error("No valid backend registered.")
 
 
+class WorkHistoryWidget(QtWidgets.QWidget):
+
+    def __init__(self, *args, **kwargs):
+        super(WorkHistoryWidget, self).__init__(*args, **kwargs)
+
+
 class ToolsView(QtWidgets.QWidget):
 
     def __init__(self, *args, **kwargs):
@@ -277,6 +283,12 @@ class ToolsView(QtWidgets.QWidget):
 
     def on_tools_updated(self, tools):
         self._model.update_tools(tools)
+
+
+class ToolScopeWidget(QtWidgets.QWidget):
+
+    def __init__(self, *args, **kwargs):
+        super(ToolScopeWidget, self).__init__(*args, **kwargs)
 
 
 class ToolContextWidget(QtWidgets.QWidget):

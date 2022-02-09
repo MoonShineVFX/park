@@ -150,6 +150,7 @@ class ProjectListWidget(QtWidgets.QWidget):
 
     def __init__(self, *args, **kwargs):
         super(ProjectListWidget, self).__init__(*args, **kwargs)
+        self.setObjectName("AvalonProjectView")
 
         search_bar = QtWidgets.QLineEdit()
         search_bar.setPlaceholderText("search projects..")

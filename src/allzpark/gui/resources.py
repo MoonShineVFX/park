@@ -851,8 +851,19 @@ class BaseTheme(object):
     def _q_tool_view(self):
         return f"""
 
-        #ToolsView::item {{
-            padding-left: {px(4).floor};
+        #ToolsView QListView::item {{
+            padding: 5px 1px;
+            border: 0px;
+        }}
+
+        """
+
+    def _q_avalon(self):
+        return f"""
+        
+        #AvalonProjectView QListView::item {{
+            padding: 5px 1px;
+            border: 0px;
         }}
 
         """

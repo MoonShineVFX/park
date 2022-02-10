@@ -9,6 +9,7 @@ def init_logging():
     )
 
     handler = logging.StreamHandler()
+    handler.set_name("stream")
     handler.setFormatter(formatter)
     handler.setLevel(logging.WARNING)
 

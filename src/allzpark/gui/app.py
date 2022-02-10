@@ -6,7 +6,7 @@ import signal as py_signal
 from importlib import reload
 from contextlib import contextmanager
 
-from .. import core
+from .. import core, util
 from ..exceptions import BackendError
 from ._vendor.Qt5 import QtCore, QtWidgets
 from . import control, window, widgets, resources
@@ -28,7 +28,8 @@ def launch(app_name="park-gui"):
     :return: QApplication exit code
     :rtype: int
     """
-    ses = Session(app_name=app_name)
+    with util.log_level(logging.INFO):
+        ses = Session(app_name=app_name)
     ses.show()
     return ses.app.exec_()
 
@@ -59,7 +60,7 @@ class Session(object):
         storage = QtCore.QSettings(QtCore.QSettings.IniFormat,
                                    QtCore.QSettings.UserScope,
                                    app_name, "preferences")
-        print("Preference file: %s" % storage.fileName())
+        log.info("Preference file: %s" % storage.fileName())
 
         state = State(storage=storage)
         resources.load_themes()
@@ -67,7 +68,7 @@ class Session(object):
         try:
             backend_entrances = core.init_backends()
         except BackendError as e:
-            print(e)
+            log.error(str(e))
             sys.exit(1)
 
         ctrl = control.Controller(backends=backend_entrances)

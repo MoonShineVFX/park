@@ -37,6 +37,7 @@ def init_backends(no_warning=False):
     available_backends = []
 
     for name, entrance_getter in possible_backends:
+        log.info(f"> Init backend {name!r}..")
         try:
             entrance = entrance_getter()
         except Exception as e:
@@ -47,11 +48,12 @@ def init_backends(no_warning=False):
             )
         else:
             available_backends.append((name, entrance))
+            log.info(f"- Backend {name!r} connected.")
 
     if available_backends:
         return available_backends
 
-    raise BackendError("No available backend.")
+    raise BackendError("* No available backend.")
 
 
 def load_suite(path):

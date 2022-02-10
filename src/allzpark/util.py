@@ -1,6 +1,10 @@
 
 import os
+import logging
+from contextlib import contextmanager
 from functools import singledispatch, update_wrapper
+
+log = logging.getLogger("allzpark")
 
 
 def normpath(path):
@@ -11,6 +15,15 @@ def normpath(path):
 
 def normpaths(*paths):
     return list(map(normpath, paths))
+
+
+@contextmanager
+def log_level(level, name="stream"):
+    stream_handler = next(h for h in log.handlers if h.name == name)
+    current = stream_handler.level
+    stream_handler.setLevel(level)
+    yield
+    stream_handler.setLevel(current)
 
 
 def elide(string, length=120):

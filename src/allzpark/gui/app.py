@@ -76,18 +76,22 @@ class Session(object):
         # signals
 
         workspace = view_.find(widgets.WorkspaceWidget)
-        tools = view_.find(widgets.ToolsView)
+        tool_list = view_.find(widgets.ToolsView)
+        work_dir = view_.find(widgets.WorkDirWidget)
         busy_filter = widgets.BusyEventFilterSingleton()
 
         # view -> control
         workspace.workspace_changed.connect(ctrl.on_workspace_changed)
         workspace.backend_changed.connect(ctrl.on_backend_changed)
         workspace.tools_requested.connect(ctrl.on_scope_tools_requested)
+        tool_list.tool_selected.connect(ctrl.on_tool_selected)
 
         # control -> view
         ctrl.workspace_entered.connect(workspace.on_workspace_entered)
         ctrl.workspace_updated.connect(workspace.on_workspace_updated)
-        ctrl.tools_updated.connect(tools.on_tools_updated)
+        ctrl.tools_updated.connect(tool_list.on_tools_updated)
+        ctrl.work_dir_obtained.connect(work_dir.on_work_dir_obtained)
+        ctrl.work_dir_resetted.connect(work_dir.on_work_dir_resetted)
 
         # view -> view
         view_.dark_toggled.connect(self.on_dark_toggled)

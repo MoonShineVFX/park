@@ -123,7 +123,7 @@ class SuiteTool:
     alias: str
     ctx_name: str
     variant: Variant
-    scope: AbstractScope or None
+    scope: Union[AbstractScope, None]
 
     @property
     def context(self):

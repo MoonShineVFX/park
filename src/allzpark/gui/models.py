@@ -73,6 +73,7 @@ class BaseScopeModel(BaseItemModel):
 
 
 class ToolsModel(BaseItemModel):
+    ToolRole = QtCore.Qt.UserRole + 10
     Headers = ["Name"]
 
     def update_tools(self, tools):
@@ -92,5 +93,6 @@ class ToolsModel(BaseItemModel):
                 item.setBackground(
                     QtGui.QBrush(QtGui.QColor(tool.metadata.color))
                 )
+            item.setData(tool, self.ToolRole)
 
             self.appendRow(item)

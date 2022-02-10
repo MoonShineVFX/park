@@ -921,6 +921,11 @@ class BaseTheme(object):
             image: url(:icons/toggle-on.svg);
         }}
         
+        #WorkDirLineRead {{
+            font-family: "JetBrains Mono";
+            padding: {px(6).floor};
+        }}
+
         #ColoredCodeView {{
             color: #9E9E9E;
             background-color: #101010;

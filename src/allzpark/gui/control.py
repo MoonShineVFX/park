@@ -104,6 +104,8 @@ def _thread(name, blocks=None):
 class Controller(QtCore.QObject):
     workspace_entered = QtCore.Signal(core.AbstractScope)
     workspace_updated = QtCore.Signal(list)
+    work_dir_obtained = QtCore.Signal(str)
+    work_dir_resetted = QtCore.Signal()
     tools_updated = QtCore.Signal(list)
     status_message = QtCore.Signal(str)
 
@@ -137,20 +139,27 @@ class Controller(QtCore.QObject):
     def on_scope_tools_requested(self, scope):
         self.update_tools(scope)
 
-    @_thread(name="workspace", blocks=("WorkspaceWidget", "ToolsView"))
+    @QtCore.Slot(core.SuiteTool)  # noqa
+    @_defer(on_time=50)
+    def on_tool_selected(self, suite_tool: core.SuiteTool):
+        self.select_tool(suite_tool)
+
+    @_thread(name="workspace", blocks=("ProductionPage",))
     def enter_workspace(self, scope):
+        self.work_dir_resetted.emit()
         # inform widget to e.g. change page
         self.workspace_entered.emit(scope)
         # crawl sub-workspaces in worker thread and send to widget
         self.workspace_updated.emit(list(scope.iter_children()))
 
-    @_thread(name="suite", blocks=("WorkspaceWidget", "ToolsView"))
+    @_thread(name="suite", blocks=("ProductionPage",))
     def update_tools(self, scope):
-        tools = list(core.iter_tools(scope))
-        self.tools_updated.emit(tools)
+        self.work_dir_resetted.emit()
+        self.tools_updated.emit(list(core.iter_tools(scope)))
 
-    def select_tool(self, tool):
-        pass
+    def select_tool(self, suite_tool: core.SuiteTool):
+        work_dir = suite_tool.scope.obtain_workspace(suite_tool)
+        self.work_dir_obtained.emit(work_dir)
 
 
 class Thread(QtCore.QThread):

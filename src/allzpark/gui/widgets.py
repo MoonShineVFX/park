@@ -2,7 +2,7 @@
 import logging
 from typing import List
 from ._vendor.Qt5 import QtCore, QtGui, QtWidgets
-from ..core import AbstractScope
+from ..core import AbstractScope, SuiteTool
 from .models import ToolsModel
 
 
@@ -267,6 +267,7 @@ class WorkHistoryWidget(QtWidgets.QWidget):
 
 
 class ToolsView(QtWidgets.QWidget):
+    tool_selected = QtCore.Signal(SuiteTool)
 
     def __init__(self, *args, **kwargs):
         super(ToolsView, self).__init__(*args, **kwargs)
@@ -275,20 +276,46 @@ class ToolsView(QtWidgets.QWidget):
         model = ToolsModel()
         view = QtWidgets.QListView()
         view.setModel(model)
+        selection = view.selectionModel()
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.addWidget(view)
 
+        selection.selectionChanged.connect(self._on_selection_changed)
+
         self._model = model
+
+    def _on_selection_changed(self, selected, _):
+        indexes = selected.indexes()
+        if indexes and indexes[0].isValid():
+            index = indexes[0]  # SingleSelection view
+            tool = index.data(self._model.ToolRole)
+            self.tool_selected.emit(tool)
 
     def on_tools_updated(self, tools):
         self._model.update_tools(tools)
 
 
-class ToolScopeWidget(QtWidgets.QWidget):
+class WorkDirWidget(QtWidgets.QWidget):
 
     def __init__(self, *args, **kwargs):
-        super(ToolScopeWidget, self).__init__(*args, **kwargs)
+        super(WorkDirWidget, self).__init__(*args, **kwargs)
+
+        line = QtWidgets.QLineEdit()
+        line.setObjectName("WorkDirLineRead")
+        line.setReadOnly(True)
+
+        layout = QtWidgets.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(line)
+
+        self._line = line
+
+    def on_work_dir_obtained(self, path):
+        self._line.setText(path)
+
+    def on_work_dir_resetted(self):
+        self._line.setText("")
 
 
 class ToolContextWidget(QtWidgets.QWidget):

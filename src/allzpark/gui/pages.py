@@ -3,19 +3,33 @@ from ._vendor.Qt5 import QtCore, QtWidgets
 from . import widgets
 
 
-class ProductionPage(QtWidgets.QWidget):
+class ProductionPage(widgets.BusyWidget):
 
     def __init__(self, *args, **kwargs):
         super(ProductionPage, self).__init__(*args, **kwargs)
+        self.setObjectName("ProductionPage")
 
+        # top
+        work_dir = widgets.WorkDirWidget()
+        # body
         body = QtWidgets.QWidget()
+        # - left side tab #1
         workspace_view = widgets.WorkspaceWidget()
         tools_view = widgets.ToolsView()
-        workspace = QtWidgets.QWidget()
+        # - left side tab #2
         work_history = widgets.WorkHistoryWidget()
-
-        tool_scope = widgets.ToolScopeWidget()
+        # - right side
         tool_context = widgets.ToolContextWidget()
+
+        work_split = QtWidgets.QSplitter()
+        work_split.addWidget(workspace_view)
+        work_split.addWidget(tools_view)
+
+        work_split.setOrientation(QtCore.Qt.Horizontal)
+        work_split.setChildrenCollapsible(False)
+        work_split.setContentsMargins(0, 0, 0, 0)
+        work_split.setStretchFactor(0, 50)
+        work_split.setStretchFactor(1, 50)
 
         tabs = QtWidgets.QTabBar()
         stack = QtWidgets.QStackedWidget()
@@ -25,34 +39,19 @@ class ProductionPage(QtWidgets.QWidget):
         # QTabWidget's frame (pane border) will not be rendered if documentMode
         # is enabled, so we make our own with bar + stack with border.
         tabs.addTab("Workspaces")
-        stack.addWidget(workspace)
+        stack.addWidget(work_split)
         tabs.addTab("History")
         stack.addWidget(work_history)
 
-        tool_split = QtWidgets.QSplitter()
-        tool_split.addWidget(tool_scope)
-        tool_split.addWidget(tool_context)
-
         body_split = QtWidgets.QSplitter()
         body_split.addWidget(body)
-        body_split.addWidget(tool_split)
-
-        tool_split.setOrientation(QtCore.Qt.Vertical)
-        tool_split.setChildrenCollapsible(False)
-        tool_split.setContentsMargins(0, 0, 0, 0)
-        tool_split.setStretchFactor(0, 35)
-        tool_split.setStretchFactor(1, 65)
+        body_split.addWidget(tool_context)
 
         body_split.setOrientation(QtCore.Qt.Horizontal)
         body_split.setChildrenCollapsible(False)
         body_split.setContentsMargins(0, 0, 0, 0)
-        body_split.setStretchFactor(0, 50)
-        body_split.setStretchFactor(1, 50)
-
-        layout = QtWidgets.QHBoxLayout(workspace)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(workspace_view)
-        layout.addWidget(tools_view)
+        body_split.setStretchFactor(0, 70)
+        body_split.setStretchFactor(1, 30)
 
         layout = QtWidgets.QHBoxLayout(body)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -62,6 +61,7 @@ class ProductionPage(QtWidgets.QWidget):
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 4, 0, 0)
-        layout.addWidget(body_split)
+        layout.addWidget(work_dir)
+        layout.addWidget(body_split, stretch=True)
 
         tabs.currentChanged.connect(stack.setCurrentIndex)

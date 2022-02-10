@@ -79,7 +79,7 @@ class Resources:
         "jetbrainsmono/JetBrainsMono-Regular.ttf"
     )
     icons_ext = ".png", ".svg"
-    qrc_updated = 1644410731  # !!<qrc-update-time>!! don't touch
+    qrc_updated = 1644506627  # !!<qrc-update-time>!! don't touch
 
     @classmethod
     def load(cls):
@@ -862,6 +862,16 @@ class BaseTheme(object):
         return f"""
         
         #AvalonProjectView QListView::item {{
+            padding: 5px 1px;
+            border: 0px;
+        }}
+
+        """
+
+    def _q_shotgrid(self):
+        return f"""
+
+        #ShotGridProjectView QListView::item {{
             padding: 5px 1px;
             border: 0px;
         }}

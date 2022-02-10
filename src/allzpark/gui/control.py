@@ -1,5 +1,6 @@
 
 import logging
+import traceback
 import functools
 from ._vendor.Qt5 import QtCore
 from .widgets import BusyWidget
@@ -161,7 +162,14 @@ class Controller(QtCore.QObject):
         # inform widget to e.g. change page
         self.workspace_entered.emit(scope)
         # crawl sub-workspaces in worker thread and send to widget
-        self.workspace_updated.emit(list(scope.iter_children()))
+        try:
+            children = list(scope.iter_children())  # todo: emit for each item
+        except Exception as e:
+            children = []
+            log.error(traceback.format_exc())
+            log.error(str(e))
+
+        self.workspace_updated.emit(children)
 
     @_thread(name="suite", blocks=("ProductionPage",))
     def update_tools(self, scope):

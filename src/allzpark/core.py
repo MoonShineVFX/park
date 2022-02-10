@@ -11,17 +11,31 @@ log = logging.getLogger("allzpark")
 
 
 def _load_backends():
-    from . import backend_avalon as avalon
 
-    def try_avalon_backend() -> avalon.Entrance:
+    def try_avalon_backend():
+        from . import backend_avalon as avalon
+
         scope = avalon.get_entrance()
         avalon.ping(
             avalon.AvalonMongo(scope.uri, scope.timeout, entrance=scope)
         )
-        return scope
+        return scope  # type: avalon.Entrance
+
+    def try_sg_sync_backend():
+        from . import backend_sg_sync as shotgrid
+
+        scope = shotgrid.get_entrance()
+        shotgrid.ping(
+            shotgrid.ShotGridConn(scope.sg_server,
+                                  scope.script_name,
+                                  scope.api_key,
+                                  entrance=scope)
+        )
+        return scope  # type: shotgrid.Entrance
 
     return [
-        (avalon.Entrance.name, try_avalon_backend),
+        ("avalon", try_avalon_backend),
+        ("sg_sync", try_sg_sync_backend),
         # could be ftrack, or shotgrid, could be...
     ]
 

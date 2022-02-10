@@ -9,12 +9,19 @@ from .models import ToolsModel
 log = logging.getLogger("allzpark")
 
 
-def _backend_widgets():
-    from .. import backend_avalon as avalon
-    from .widgets_avalon import AvalonWidget
+def _load_backends():
+
+    def try_avalon_backend():
+        from .widgets_avalon import AvalonWidget
+        return AvalonWidget
+
+    def try_sg_sync_backend():
+        from .widgets_sg_sync import ShotGridSyncWidget
+        return ShotGridSyncWidget
 
     return {
-        avalon.Entrance.name: AvalonWidget,
+        "avalon": try_avalon_backend,
+        "sg_sync": try_sg_sync_backend,
         # could be ftrack, or shotgrid, could be... (see core module)
     }
 
@@ -230,15 +237,20 @@ class WorkspaceWidget(BusyWidget):
         if self._stack.count() > 1:
             return
 
-        entrance_widgets = _backend_widgets()
+        possible_backends = _load_backends()
 
         self.blockSignals(True)
 
         for name in names:
-            widget_cls = entrance_widgets.get(name)
-
-            if widget_cls is None:
+            widget_getter = possible_backends.get(name)
+            if widget_getter is None:
                 log.error(f"No widget for backend {name!r}.")
+                continue
+
+            try:
+                widget_cls = widget_getter()
+            except Exception as e:
+                log.error(f"Failed to get widget for backend {name!r}: {str(e)}")
                 continue
 
             w_icon = getattr(widget_cls, "icon_path", ":/icons/server.svg")

@@ -268,6 +268,7 @@ class WorkHistoryWidget(QtWidgets.QWidget):
 
 class ToolsView(QtWidgets.QWidget):
     tool_selected = QtCore.Signal(SuiteTool)
+    tool_launched = QtCore.Signal(SuiteTool)
 
     def __init__(self, *args, **kwargs):
         super(ToolsView, self).__init__(*args, **kwargs)
@@ -282,6 +283,7 @@ class ToolsView(QtWidgets.QWidget):
         layout.addWidget(view)
 
         selection.selectionChanged.connect(self._on_selection_changed)
+        view.doubleClicked.connect(self._on_double_clicked)
 
         self._model = model
 
@@ -291,6 +293,11 @@ class ToolsView(QtWidgets.QWidget):
             index = indexes[0]  # SingleSelection view
             tool = index.data(self._model.ToolRole)
             self.tool_selected.emit(tool)
+
+    def _on_double_clicked(self, index):
+        if index.isValid():
+            tool = index.data(self._model.ToolRole)
+            self.tool_launched.emit(tool)
 
     def on_tools_updated(self, tools):
         self._model.update_tools(tools)
@@ -319,6 +326,8 @@ class WorkDirWidget(QtWidgets.QWidget):
 
 
 class ToolContextWidget(QtWidgets.QWidget):
+    tool_launched = QtCore.Signal(SuiteTool)
+    shell_launched = QtCore.Signal(SuiteTool)
 
     def __init__(self, *args, **kwargs):
         super(ToolContextWidget, self).__init__(*args, **kwargs)

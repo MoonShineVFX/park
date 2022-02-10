@@ -144,6 +144,16 @@ class Controller(QtCore.QObject):
     def on_tool_selected(self, suite_tool: core.SuiteTool):
         self.select_tool(suite_tool)
 
+    @QtCore.Slot(core.SuiteTool)  # noqa
+    @_defer(on_time=50)
+    def on_tool_launched(self, suite_tool: core.SuiteTool):
+        self.launch_tool(suite_tool)
+
+    @QtCore.Slot(core.SuiteTool)  # noqa
+    @_defer(on_time=50)
+    def on_shell_launched(self, suite_tool: core.SuiteTool):
+        self.launch_shell(suite_tool)
+
     @_thread(name="workspace", blocks=("ProductionPage",))
     def enter_workspace(self, scope):
         self.work_dir_resetted.emit()
@@ -160,6 +170,13 @@ class Controller(QtCore.QObject):
     def select_tool(self, suite_tool: core.SuiteTool):
         work_dir = suite_tool.scope.obtain_workspace(suite_tool)
         self.work_dir_obtained.emit(work_dir)
+
+    def launch_tool(self, suite_tool: core.SuiteTool):
+        log.warning(f"Launching {suite_tool.name}")
+        # todo: add tool and the scope into history
+
+    def launch_shell(self, suite_tool: core.SuiteTool):
+        log.warning(f"Launching {suite_tool.name} shell...")
 
 
 class Thread(QtCore.QThread):

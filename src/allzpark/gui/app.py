@@ -76,8 +76,9 @@ class Session(object):
         # signals
 
         workspace = view_.find(widgets.WorkspaceWidget)
-        tool_list = view_.find(widgets.ToolsView)
         work_dir = view_.find(widgets.WorkDirWidget)
+        tool_list = view_.find(widgets.ToolsView)
+        tool_context = view_.find(widgets.ToolContextWidget)
         busy_filter = widgets.BusyEventFilterSingleton()
 
         # view -> control
@@ -85,6 +86,9 @@ class Session(object):
         workspace.backend_changed.connect(ctrl.on_backend_changed)
         workspace.tools_requested.connect(ctrl.on_scope_tools_requested)
         tool_list.tool_selected.connect(ctrl.on_tool_selected)
+        tool_list.tool_launched.connect(ctrl.on_tool_launched)
+        tool_context.tool_launched.connect(ctrl.on_tool_launched)
+        tool_context.shell_launched.connect(ctrl.on_shell_launched)
 
         # control -> view
         ctrl.workspace_entered.connect(workspace.on_workspace_entered)
@@ -220,6 +224,12 @@ class State(object):
 
     def store_dark_mode(self, value):
         self.store("theme.on_dark", bool(value))
+
+    def retrieve_history(self):
+        pass
+
+    def store_history(self):
+        pass
 
     def preserve_layout(self, widget, group):
         # type: (QtWidgets.QWidget, str) -> None

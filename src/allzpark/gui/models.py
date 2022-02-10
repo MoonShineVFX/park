@@ -22,6 +22,15 @@ def parse_icon(root, template):
     return QtGui.QIcon(fname)
 
 
+class BaseProxyModel(QtCore.QSortFilterProxyModel):
+
+    def __init__(self, *args, **kwargs):
+        super(BaseProxyModel, self).__init__(*args, **kwargs)
+        self.setRecursiveFilteringEnabled(True)
+        self.setFilterCaseSensitivity(QtCore.Qt.CaseInsensitive)
+        self.setSortCaseSensitivity(QtCore.Qt.CaseInsensitive)
+
+
 class BaseItemModel(QtGui.QStandardItemModel):
     Headers = []
 

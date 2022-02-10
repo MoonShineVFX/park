@@ -6,7 +6,7 @@ from ..backend_avalon import Entrance, Project, Asset, Task, MEMBER_ROLE
 from ..util import elide
 from ..core import AbstractScope
 from .widgets import SlidePageWidget, ScopeLineLabel
-from .models import BaseScopeModel
+from .models import BaseScopeModel, BaseProxyModel
 
 log = logging.getLogger("allzpark")
 
@@ -159,8 +159,10 @@ class ProjectListWidget(QtWidgets.QWidget):
         # todo: join/leave project
 
         model = ProjectListModel()
+        proxy = BaseProxyModel()
+        proxy.setSourceModel(model)
         view = QtWidgets.QListView()
-        view.setModel(model)
+        view.setModel(proxy)
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 4, 0, 4)
@@ -168,8 +170,10 @@ class ProjectListWidget(QtWidgets.QWidget):
         layout.addWidget(view)
 
         view.clicked.connect(self._on_item_clicked)
+        search_bar.textChanged.connect(self._on_project_searched)
 
         self._view = view
+        self._proxy = proxy
         self._model = model
 
     def model(self):
@@ -178,6 +182,9 @@ class ProjectListWidget(QtWidgets.QWidget):
     def _on_item_clicked(self, index):
         scope = index.data(BaseScopeModel.ScopeRole)
         self.scope_selected.emit(scope)
+
+    def _on_project_searched(self, text):
+        self._proxy.setFilterRegExp(text)
 
 
 class AssetTreeWidget(QtWidgets.QWidget):
@@ -336,13 +343,10 @@ class AssetTreeModel(BaseScopeModel):
             return QtCore.Qt.ItemIsEnabled  # not selectable
 
 
-class AssetTreeProxyModel(QtCore.QSortFilterProxyModel):
+class AssetTreeProxyModel(BaseProxyModel):
 
     def __init__(self, *args, **kwargs):
         super(AssetTreeProxyModel, self).__init__(*args, **kwargs)
-        self.setRecursiveFilteringEnabled(True)
-        self.setFilterCaseSensitivity(QtCore.Qt.CaseInsensitive)
-        self.setSortCaseSensitivity(QtCore.Qt.CaseInsensitive)
         self._filter_by_task = False
 
     def set_filter_by_task(self, enabled: bool):

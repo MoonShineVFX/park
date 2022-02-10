@@ -162,10 +162,12 @@ class Controller(QtCore.QObject):
         # inform widget to e.g. change page
         self.workspace_entered.emit(scope)
         # crawl sub-workspaces in worker thread and send to widget
+        children = []
         try:
-            children = list(scope.iter_children())  # todo: emit for each item
+            for i, child in enumerate(scope.iter_children()):
+                children.append(child)
+                log.info(f"Pulling{'.' * (int(i / 2) % 5): <5} {child.name}")
         except Exception as e:
-            children = []
             log.error(traceback.format_exc())
             log.error(str(e))
 

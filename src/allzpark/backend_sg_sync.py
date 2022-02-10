@@ -220,7 +220,6 @@ def _(scope: Project, tool: SuiteTool) -> Union[str, None]:
 
 def iter_shotgrid_projects(server: "ShotGridConn"):
     for d in server.iter_valid_projects():
-        print(d["name"])
         roles = set()
         username = getpass.getuser()
         sg_user_ids = set([

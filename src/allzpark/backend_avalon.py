@@ -11,6 +11,7 @@ from bson.objectid import ObjectId
 from pymongo import MongoClient
 from pymongo.database import Database as MongoDatabase
 from pymongo.collection import Collection as MongoCollection
+from pymongo.results import UpdateResult
 from rez.config import config as rezconfig
 
 from .exceptions import BackendError
@@ -655,6 +656,40 @@ class AvalonMongo(object):
                 key=group_key
             )
         ]
+
+    def join_project(self, coll_name):
+        """
+        :param str coll_name:
+        :return: Update result
+        :rtype: UpdateResult
+        """
+        _user = getpass.getuser()
+        db = self.conn[self._db_name]  # type: MongoDatabase
+        coll = db.get_collection(coll_name)  # type: MongoCollection
+
+        result = coll.update_one(
+            {"type": "project"},
+            {"$addToSet": {f"data.role.{MEMBER_ROLE}": _user}}
+        )
+
+        return result
+
+    def leave_project(self, coll_name):
+        """
+        :param str coll_name:
+        :return: Update result
+        :rtype: UpdateResult
+        """
+        _user = getpass.getuser()
+        db = self.conn[self._db_name]  # type: MongoDatabase
+        coll = db.get_collection(coll_name)  # type: MongoCollection
+
+        result = coll.update_one(
+            {"type": "project"},
+            {"$pull": {f"data.role.{MEMBER_ROLE}": _user}}
+        )
+
+        return result
 
 
 def ping(database, retry=3):

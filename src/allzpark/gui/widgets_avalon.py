@@ -193,6 +193,7 @@ class ProjectListWidget(QtWidgets.QWidget):
         proxy.setSourceModel(model)
         view = QtWidgets.QListView()
         view.setModel(proxy)
+        view.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
 
         layout = QtWidgets.QHBoxLayout(top_bar)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -206,14 +207,17 @@ class ProjectListWidget(QtWidgets.QWidget):
         layout.addWidget(top_bar)
         layout.addWidget(view)
 
-        view.clicked.connect(self._on_item_clicked)
         search_bar.textChanged.connect(self._on_project_searched)
         filter_btn.toggled.connect(self.filter_toggled)
         refresh_btn.clicked.connect(self.refresh_clicked)
+        view.clicked.connect(self._on_item_clicked)
+        view.customContextMenuRequested.connect(self._on_right_click)
+        model.modelReset.connect(self._on_model_resetted)
 
         self._view = view
         self._proxy = proxy
         self._model = model
+        self.__member_changed = None
 
     def model(self):
         return self._model
@@ -224,6 +228,50 @@ class ProjectListWidget(QtWidgets.QWidget):
 
     def _on_project_searched(self, text):
         self._proxy.setFilterRegExp(text)
+
+    def _on_right_click(self, position):
+        index = self._view.indexAt(position)
+
+        if not index.isValid():
+            # Clicked outside any item
+            return
+
+        menu = QtWidgets.QMenu(self._view)
+        model_ = index.model()
+        project = model_.data(index, self._model.ScopeRole)  # type: Project
+        is_member = MEMBER_ROLE in project.roles
+
+        _label = "Leave" if is_member else "Join"
+        member_action = QtWidgets.QAction(_label, menu)
+
+        menu.addAction(member_action)
+
+        def on_member():
+            if is_member:
+                result = project.db.leave_project(project.coll)
+            else:
+                result = project.db.join_project(project.coll)
+
+            if result.modified_count:
+                _index = self._proxy.mapToSource(index)
+                self._model.removeRow(_index.row(), _index.parent())
+                self.__member_changed = project.name
+
+        member_action.triggered.connect(on_member)
+
+        menu.move(QtGui.QCursor.pos())
+        menu.show()
+
+    def _on_model_resetted(self):
+        if self.__member_changed:
+            items = self._model.findItems(self.__member_changed)
+            if items:
+                project_item = items[0]
+                index = self._proxy.mapFromSource(project_item.index())
+                selection = self._view.selectionModel()
+                selection.setCurrentIndex(index, selection.ClearAndSelect)
+                self._view.scrollTo(index)
+                self.__member_changed = None
 
 
 class AssetTreeWidget(QtWidgets.QWidget):
@@ -296,6 +344,7 @@ class ProjectListModel(BaseScopeModel):
     Headers = ["Name"]
 
     def refresh(self, scopes):
+        self.beginResetModel()
         self.reset()
 
         for project in scopes:
@@ -309,6 +358,8 @@ class ProjectListModel(BaseScopeModel):
                 item.setFont(font)
 
             self.appendRow(item)
+
+        self.endResetModel()
 
 
 class AssetTreeModel(BaseScopeModel):

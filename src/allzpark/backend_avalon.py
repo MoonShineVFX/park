@@ -43,7 +43,7 @@ def get_entrance(uri=None, timeout=None):
     out = timeout or int(os.getenv("AVALON_TIMEOUT") or 1000)
     uri = uri or os.getenv("AVALON_MONGO")
     if uri:
-        return Entrance(uri=uri, timeout=out)
+        return Entrance(uri=uri, timeout=out, kwargs={})
     raise BackendError("Avalon database URI not given.")
 
 
@@ -145,6 +145,7 @@ class Entrance(_Scope):
     upstream = None
     uri: str
     timeout: int
+    kwargs: dict
 
 
 @dataclass(frozen=True)
@@ -199,7 +200,8 @@ def iter_avalon_scopes(scope):
 @iter_avalon_scopes.register
 def _(scope: Entrance) -> Iterator[Project]:
     database = AvalonMongo(scope.uri, scope.timeout, entrance=scope)
-    return iter_avalon_projects(database)
+    joined = scope.kwargs.get("joined", True)
+    return iter_avalon_projects(database, joined)
 
 
 @iter_avalon_scopes.register
@@ -430,18 +432,23 @@ def get_avalon_task_workspace(task: Task, tool: SuiteTool):
     })
 
 
-def iter_avalon_projects(database):
+def iter_avalon_projects(database, joined=True, active_only=True):
     """Iter projects from Avalon MongoDB
 
     :param AvalonMongo database: An AvalonMongo connection instance
+    :param bool joined:
+    :param bool active_only:
     :return: Project item iterator
     :rtype: Iterator[Project]
     """
     username = getpass.getuser()
 
-    for coll_name, doc in database.iter_projects():
+    for coll_name, doc in database.iter_projects(joined):
 
         is_active = bool(doc["data"].get("active", True))
+        if active_only and not is_active:
+            continue
+
         project_root = doc["data"]["root"]
 
         roles = set()
@@ -568,11 +575,12 @@ class AvalonMongo(object):
         self.entrance = entrance
         self._db_name = os.getenv("AVALON_DB", "avalon")
 
-    def iter_projects(self):
+    def iter_projects(self, joined=True):
         """
         :return: yielding tuples of mongodb collection name and project doc
         :rtype: tuple[str, dict]
         """
+        _user = getpass.getuser()
         db = self.conn[self._db_name]  # type: MongoDatabase
         f = {"name": {"$regex": r"^(?!system\.)"}}  # non-system only
 
@@ -583,9 +591,13 @@ class AvalonMongo(object):
             "config.tasks.name": True,
             "config.template.work": True,
         }
+        query_filter = {
+            "type": "project",
+            "name": {"$exists": 1},
+            f"data.role.{MEMBER_ROLE}": _user if joined else {"$ne": _user}
+        }
 
         for name in sorted(db.list_collection_names(filter=f)):
-            query_filter = {"type": "project", "name": {"$exists": 1}}
             coll = db.get_collection(name)  # type: MongoCollection
             doc = coll.find_one(query_filter, projection=_projection)
             if doc:

@@ -69,6 +69,8 @@ class AvalonWidget(QtWidgets.QWidget):
 
         home.clicked.connect(self._on_home_clicked)
         project_list.scope_selected.connect(self.workspace_changed.emit)
+        project_list.filter_toggled.connect(self._on_project_filtered)
+        project_list.refresh_clicked.connect(self._on_project_refreshed)
         asset_tree.scope_changed.connect(self._on_asset_changed)
         tasks.currentTextChanged.connect(asset_tree.on_task_selected)
         only_tasked.stateChanged.connect(asset_tree.on_asset_filtered)
@@ -85,6 +87,14 @@ class AvalonWidget(QtWidgets.QWidget):
     def _on_home_clicked(self):
         assert self._entrance is not None
         self.workspace_changed.emit(self._entrance)
+
+    def _on_project_filtered(self, joined):
+        scope = self._entrance
+        scope.kwargs["joined"] = bool(joined)
+        self.workspace_refreshed.emit(scope)
+
+    def _on_project_refreshed(self):
+        self.workspace_refreshed.emit(self._entrance)
 
     def _on_asset_changed(self, scope: Union[Asset, Project]):
         if isinstance(scope, Project):
@@ -159,16 +169,24 @@ class AvalonWidget(QtWidgets.QWidget):
 
 
 class ProjectListWidget(QtWidgets.QWidget):
+    refresh_clicked = QtCore.Signal()
+    filter_toggled = QtCore.Signal(bool)
     scope_selected = QtCore.Signal(object)
 
     def __init__(self, *args, **kwargs):
         super(ProjectListWidget, self).__init__(*args, **kwargs)
         self.setObjectName("AvalonProjectView")
 
+        top_bar = QtWidgets.QWidget()
+        top_bar.setObjectName("ButtonBelt")
+        refresh_btn = QtWidgets.QPushButton()
+        refresh_btn.setObjectName("RefreshButton")
         search_bar = QtWidgets.QLineEdit()
         search_bar.setPlaceholderText("search projects..")
-
-        # todo: join/leave project
+        filter_btn = QtWidgets.QPushButton()
+        filter_btn.setObjectName("DarkSwitch")
+        filter_btn.setCheckable(True)
+        filter_btn.setChecked(True)  # the default defined in backend module
 
         model = ProjectListModel()
         proxy = BaseProxyModel()
@@ -176,13 +194,22 @@ class ProjectListWidget(QtWidgets.QWidget):
         view = QtWidgets.QListView()
         view.setModel(proxy)
 
+        layout = QtWidgets.QHBoxLayout(top_bar)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+        layout.addWidget(refresh_btn)
+        layout.addWidget(search_bar, stretch=True)
+        layout.addWidget(filter_btn)
+
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 4, 0, 4)
-        layout.addWidget(search_bar)
+        layout.addWidget(top_bar)
         layout.addWidget(view)
 
         view.clicked.connect(self._on_item_clicked)
         search_bar.textChanged.connect(self._on_project_searched)
+        filter_btn.toggled.connect(self.filter_toggled)
+        refresh_btn.clicked.connect(self.refresh_clicked)
 
         self._view = view
         self._proxy = proxy
@@ -272,14 +299,16 @@ class ProjectListModel(BaseScopeModel):
         self.reset()
 
         for project in scopes:
-            # todo: this should be toggleable
-            if project.is_active \
-                    and (not project.roles or MEMBER_ROLE in project.roles):
-                item = QtGui.QStandardItem()
-                item.setText(project.name)
-                item.setData(project, self.ScopeRole)
+            item = QtGui.QStandardItem()
+            item.setText(project.name)
+            item.setData(project, self.ScopeRole)
 
-                self.appendRow(item)
+            if MEMBER_ROLE not in project.roles:
+                font = QtGui.QFont()
+                font.setItalic(True)
+                item.setFont(font)
+
+            self.appendRow(item)
 
 
 class AssetTreeModel(BaseScopeModel):

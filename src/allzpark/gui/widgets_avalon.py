@@ -97,6 +97,8 @@ class AvalonWidget(QtWidgets.QWidget):
         self.workspace_refreshed.emit(self._entrance)
 
     def _on_asset_changed(self, scope: Union[Asset, Project]):
+        if self._page != 1:
+            return
         if isinstance(scope, Project):
             self.tools_requested.emit(scope)
             return

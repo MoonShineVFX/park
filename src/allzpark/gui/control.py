@@ -128,7 +128,7 @@ class Controller(QtCore.QObject):
         self._thread = dict()  # type: dict[str, Thread]
 
     @QtCore.Slot(core.AbstractScope)  # noqa
-    @_defer(on_time=500)
+    @_defer(on_time=250)
     def on_backend_changed(self, entrance):
         scope = self._backend_entrances[entrance]
         self.enter_workspace(scope)

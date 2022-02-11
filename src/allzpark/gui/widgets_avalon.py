@@ -69,6 +69,7 @@ class AvalonWidget(QtWidgets.QWidget):
         tasks.currentTextChanged.connect(asset_tree.on_task_selected)
         only_tasked.stateChanged.connect(asset_tree.on_asset_filtered)
 
+        self.__inited = False
         self._entrance = None  # type: Entrance or None
         self._projects = project_list
         self._assets = asset_tree
@@ -105,9 +106,13 @@ class AvalonWidget(QtWidgets.QWidget):
         self._page = page
         self._slider.slide_view(page, direction=direction)
 
-    def enter_workspace(self, scope: Union[Entrance, Project]) -> None:
+    def enter_workspace(self,
+                        scope: Union[Entrance, Project],
+                        backend_changed: bool) -> None:
         if isinstance(scope, Entrance):
             self._entrance = scope
+            if backend_changed and self.__inited:
+                return
             self.set_page(0)
 
         elif isinstance(scope, Project):
@@ -133,6 +138,7 @@ class AvalonWidget(QtWidgets.QWidget):
         if isinstance(upstream, Entrance):
             self._assets.model().reset()
             self._projects.model().refresh(scopes)
+            self.__inited = True
 
         elif isinstance(upstream, Project):
             self._assets.model().refresh(scopes)

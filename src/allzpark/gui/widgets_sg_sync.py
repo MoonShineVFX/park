@@ -27,23 +27,26 @@ class ShotGridSyncWidget(QtWidgets.QWidget):
 
         project_list.scope_selected.connect(self.workspace_changed.emit)
 
+        self.__inited = False
         self._entrance = None  # type: Entrance or None
         self._projects = project_list
-        self.__inited = False
 
-    def enter_workspace(self, scope: Union[Entrance, Project]) -> None:
+    def enter_workspace(self,
+                        scope: Union[Entrance, Project],
+                        backend_changed: bool) -> None:
         if isinstance(scope, Entrance):
             self._entrance = scope
-            if not self.__inited:  # shotgrid slow, only auto update on start
-                self.tools_requested.emit(scope)
-                self.workspace_refreshed.emit(scope)
+            if backend_changed and self.__inited:
+                return  # shotgrid slow, only auto update on start
 
         elif isinstance(scope, Project):
-            self.tools_requested.emit(scope)
-            self.workspace_refreshed.emit(scope)
+            pass
 
         else:
-            pass
+            return
+
+        self.tools_requested.emit(scope)
+        self.workspace_refreshed.emit(scope)
 
     def update_workspace(self, scopes: List[Project]) -> None:
         if not scopes:

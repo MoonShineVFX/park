@@ -80,6 +80,7 @@ class AvalonWidget(QtWidgets.QWidget):
         self._projects = project_list
         self._assets = asset_tree
         self._tasks = tasks
+        self._tasked = only_tasked
         self._slider = slider
         self._page = 0
         self._current_project = current_project
@@ -134,8 +135,10 @@ class AvalonWidget(QtWidgets.QWidget):
         elif isinstance(scope, Project):
             self._current_project.setText(scope.name)
             self.set_page(1)
+            self._tasks.blockSignals(True)
             self._tasks.clear()
             self._tasks.addItems(scope.tasks)
+            self._tasks.blockSignals(False)
         else:
             return
 
@@ -159,6 +162,7 @@ class AvalonWidget(QtWidgets.QWidget):
         elif isinstance(upstream, Project):
             self._assets.model().refresh(scopes)
             self._assets.model().set_task(self._tasks.currentText())
+            self._tasked.stateChanged.emit(self._tasked.checkState())
 
         elif isinstance(upstream, Asset):
             pass
@@ -300,7 +304,6 @@ class AssetTreeWidget(QtWidgets.QWidget):
 
         selection.selectionChanged.connect(self._on_selection_changed)
         search_bar.textChanged.connect(self._on_asset_searched)
-        model.modelAboutToBeReset.connect(proxy.invalidate)
 
         self._view = view
         self._model = model

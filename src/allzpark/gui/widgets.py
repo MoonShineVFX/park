@@ -225,9 +225,6 @@ class WorkspaceWidget(BusyWidget):
         layout.addWidget(backend_sel)
 
         backend_sel.currentTextChanged.connect(self._on_backend_changed)
-        backend_sel.currentIndexChanged.connect(
-            lambda i: entrances.setCurrentIndex(i + 1)
-        )
 
         self._stack = entrances
         self._combo = backend_sel
@@ -235,6 +232,8 @@ class WorkspaceWidget(BusyWidget):
     def _on_backend_changed(self, name):
         # possibly need to do some cleanup before/after signal emitted ?
         self.backend_changed.emit(name)
+        self._stack.setCurrentIndex(self._combo.currentIndex() + 1)
+        # + 1 because we have a void_page underneath
 
     def on_workspace_entered(self, scope):
         widget = self._stack.currentWidget()

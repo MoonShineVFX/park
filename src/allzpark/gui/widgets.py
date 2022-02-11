@@ -232,10 +232,15 @@ class WorkspaceWidget(BusyWidget):
     def _on_backend_changed(self, name):
         # possibly need to do some cleanup before/after signal emitted ?
         self.backend_changed.emit(name)
-        self._stack.setCurrentIndex(self._combo.currentIndex() + 1)
-        # + 1 because we have a void_page underneath
 
     def on_workspace_entered(self, scope):
+        if scope.upstream is None:  # is entrance object, backend changed
+            index = self._combo.findText(scope.name)
+            if index < 0:
+                log.critical(f"Unknown root level {scope.name}.")
+            # + 1 because we have a void_page underneath
+            self._stack.setCurrentIndex(index + 1)
+
         widget = self._stack.currentWidget()
         widget.enter_workspace(scope)
 

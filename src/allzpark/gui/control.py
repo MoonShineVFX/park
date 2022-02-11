@@ -138,6 +138,7 @@ class Controller(QtCore.QObject):
         self.enter_workspace(scope)
 
     @QtCore.Slot(core.AbstractScope)  # noqa
+    @_defer(on_time=200)
     def on_workspace_refreshed(self, scope):
         self.update_workspace(scope)
 

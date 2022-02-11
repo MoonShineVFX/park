@@ -37,7 +37,6 @@ class ShotGridSyncWidget(QtWidgets.QWidget):
             if not self.__inited:  # shotgrid slow, only auto update on start
                 self.tools_requested.emit(scope)
                 self.workspace_refreshed.emit(scope)
-                self.__inited = True
 
         elif isinstance(scope, Project):
             self.tools_requested.emit(scope)
@@ -54,6 +53,7 @@ class ShotGridSyncWidget(QtWidgets.QWidget):
 
         if isinstance(upstream, Entrance):
             self._projects.model().refresh(scopes)
+            self.__inited = True
         else:
             raise NotImplementedError(f"Invalid upstream {elide(upstream)!r}")
 

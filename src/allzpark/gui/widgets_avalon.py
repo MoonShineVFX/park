@@ -160,6 +160,10 @@ class AvalonWidget(QtWidgets.QWidget):
             self.__inited = True
 
         elif isinstance(upstream, Project):
+            self._tasked.stateChanged.emit(False)
+            # if the task filter is on, model refresh will be slower because
+            # the filterAcceptsRow() is also working while adding items into
+            # model. so we make sure it's disabled and set it back later.
             self._assets.model().refresh(scopes)
             self._assets.model().set_task(self._tasks.currentText())
             self._tasked.stateChanged.emit(self._tasked.checkState())
@@ -370,6 +374,7 @@ class ProjectListModel(BaseScopeModel):
 
 
 class AssetTreeModel(BaseScopeModel):
+    TaskFilterRole = QtCore.Qt.UserRole + 20
     Headers = ["Name"]
 
     def __init__(self, *args, **kwargs):
@@ -429,6 +434,10 @@ class AssetTreeModel(BaseScopeModel):
                 font.setStrikeOut(True)
                 return font
 
+        if role == self.TaskFilterRole:
+            scope = index.data(self.ScopeRole)  # type: Asset
+            return not scope.is_silo and is_asset_tasked(scope, self._task)
+
         return super(AssetTreeModel, self).data(index, role)
 
     def flags(self, index):
@@ -466,10 +475,7 @@ class AssetTreeProxyModel(BaseProxyModel):
         if accepted and self._filter_by_task:
             model = self.sourceModel()  # type: AssetTreeModel
             index = model.index(source_row, 0, source_parent)
-            scope = index.data(AssetTreeModel.ScopeRole)
-            return \
-                not scope.is_silo \
-                and is_asset_tasked(scope, model.task())
+            return index.data(AssetTreeModel.TaskFilterRole)
 
         return accepted
 

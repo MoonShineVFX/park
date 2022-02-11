@@ -157,7 +157,8 @@ class Project(_Scope):
     root: str
     username: str
     work_template: str
-    coll: MongoCollection
+    coll: str
+    db: "AvalonMongo"
 
 
 @dataclass(frozen=True)
@@ -170,7 +171,8 @@ class Asset(_Scope):
     tasks: List[str]
     is_silo: bool
     is_hidden: bool
-    coll: MongoCollection
+    coll: str
+    db: "AvalonMongo"
 
 
 @dataclass(frozen=True)
@@ -179,7 +181,8 @@ class Task(_Scope):
     upstream: Asset
     project: Project
     asset: Asset
-    coll: MongoCollection
+    coll: str
+    db: "AvalonMongo"
 
 
 @singledispatch
@@ -435,51 +438,36 @@ def iter_avalon_projects(database):
     :rtype: Iterator[Project]
     """
     username = getpass.getuser()
-    db_avalon = os.getenv("AVALON_DB", "avalon")
-    db = database.conn[db_avalon]  # type: MongoDatabase
-    f = {"name": {"$regex": r"^(?!system\.)"}}  # non-system only
 
-    _projection = {
-        "type": True,
-        "name": True,
-        "data": True,
-        "config.tasks.name": True,
-        "config.template.work": True,
-    }
+    for coll_name, doc in database.iter_projects():
 
-    for name in sorted(db.list_collection_names(filter=f)):
+        is_active = bool(doc["data"].get("active", True))
+        project_root = doc["data"]["root"]
 
-        query_filter = {"type": "project", "name": {"$exists": 1}}
-        coll = db.get_collection(name)
-        doc = coll.find_one(query_filter, projection=_projection)
+        roles = set()
+        _role_book = doc["data"].get("role", {})
+        if username in _role_book.get(MEMBER_ROLE, []):
+            roles.add(MEMBER_ROLE)
+        if username in _role_book.get(MANAGER_ROLE, []):
+            roles.add(MANAGER_ROLE)
 
-        if doc is not None:
-            is_active = bool(doc["data"].get("active", True))
-            project_root = doc["data"]["root"]
+        tasks = []
+        for task in doc["config"]["tasks"]:
+            if task["name"] not in tasks:
+                tasks.append(task["name"])
 
-            roles = set()
-            _role_book = doc["data"].get("role", {})
-            if username in _role_book.get(MEMBER_ROLE, []):
-                roles.add(MEMBER_ROLE)
-            if username in _role_book.get(MANAGER_ROLE, []):
-                roles.add(MANAGER_ROLE)
-
-            tasks = []
-            for task in doc["config"]["tasks"]:
-                if task["name"] not in tasks:
-                    tasks.append(task["name"])
-
-            yield Project(
-                name=name,
-                upstream=database.entrance,
-                is_active=is_active,
-                roles=roles,
-                tasks=tasks,
-                root=project_root,
-                username=username,
-                work_template=doc["config"]["template"]["work"],
-                coll=coll,
-            )
+        yield Project(
+            name=doc["name"],
+            upstream=database.entrance,
+            is_active=is_active,
+            roles=roles,
+            tasks=tasks,
+            root=project_root,
+            username=username,
+            work_template=doc["config"]["template"]["work"],
+            coll=coll_name,
+            db=database,
+        )
 
 
 def iter_avalon_assets(avalon_project):
@@ -493,42 +481,10 @@ def iter_avalon_assets(avalon_project):
     :rtype: Iterator[Asset]
     """
     this = avalon_project
-
-    _projection = {
-        "name": True,
-        "silo": True,
-        "data.trash": True,
-        "data.tasks": True,
-        "data.visualParent": True,
-    }
-
-    all_asset_docs = {d["_id"]: d for d in this.coll.find({
-        "type": "asset",
-        "name": {"$exists": 1},
-    }, projection=_projection)}
-
-    def count_depth(doc_):
-        def depth(_d):
-            p = _d["data"].get("visualParent")
-            yield 0 if p is None else 1 + sum(depth(all_asset_docs[p]))
-        return sum(depth(doc_))
-
-    def group_key(doc_):
-        """Key for sort/group assets by visual hierarchy depth
-        :param dict doc_: Asset document
-        :rtype: tuple[int, ObjectId] or tuple[int, str] or tuple[int, None]
-        """
-        _depth = count_depth(doc_)
-        _vp = doc_["data"]["visualParent"] if _depth else doc_.get("silo")
-        return _depth, _vp
-
-    grouped_assets = [
-        ((depth, key), list(group)) for (depth, key), group in
-        groupby(sorted(all_asset_docs.values(), key=group_key), key=group_key)
-    ]
+    grouped_assets = this.db.list_assets(this.coll)
 
     _silos = dict()
-    for (depth, key), assets in grouped_assets:
+    for depth, key, assets in grouped_assets:
         if not isinstance(key, str):
             continue  #
 
@@ -542,13 +498,14 @@ def iter_avalon_assets(avalon_project):
             is_silo=True,
             is_hidden=False,
             coll=this.coll,
+            db=this.db,
         )
         _silos[key] = silo
 
         yield silo
 
     _assets = dict()
-    for (depth, key), assets in grouped_assets:
+    for depth, key, assets in grouped_assets:
         for doc in assets:
             _parent = _assets[key] if depth else _silos.get(key)
             _hidden = _parent.is_hidden or bool(doc["data"].get("trash"))
@@ -562,6 +519,7 @@ def iter_avalon_assets(avalon_project):
                 is_silo=False,
                 is_hidden=_hidden,
                 coll=this.coll,
+                db=this.db,
             )
             _assets[doc["_id"]] = asset
 
@@ -587,6 +545,7 @@ def iter_avalon_tasks(avalon_asset):
             project=this.project,
             asset=this,
             coll=this.coll,
+            db=this.db,
         )
 
 
@@ -607,6 +566,83 @@ class AvalonMongo(object):
         self.conn = conn
         self.timeout = timeout
         self.entrance = entrance
+        self._db_name = os.getenv("AVALON_DB", "avalon")
+
+    def iter_projects(self):
+        """
+        :return: yielding tuples of mongodb collection name and project doc
+        :rtype: tuple[str, dict]
+        """
+        db = self.conn[self._db_name]  # type: MongoDatabase
+        f = {"name": {"$regex": r"^(?!system\.)"}}  # non-system only
+
+        _projection = {
+            "type": True,
+            "name": True,
+            "data": True,
+            "config.tasks.name": True,
+            "config.template.work": True,
+        }
+
+        for name in sorted(db.list_collection_names(filter=f)):
+            query_filter = {"type": "project", "name": {"$exists": 1}}
+            coll = db.get_collection(name)  # type: MongoCollection
+            doc = coll.find_one(query_filter, projection=_projection)
+            if doc:
+                yield name, doc
+
+    def list_assets(self, coll_name):
+        """Listing assets in breadth first manner
+
+        This returns a depth sorted list of tuple that holds grouped assets:
+            1. depth-level (int)
+            2. asset's visual parent (could be `ObjectId` or str if the
+                parent is a silo, or None if that asset has no visual parent)
+            3. list of asset doc that are in same depth and parent (list[dict])
+
+        :param str coll_name: Avalon project collection name
+        :rtype: list[tuple[int, Union[ObjectId, str, None], list[dict]]]
+        """
+        db = self.conn[self._db_name]  # type: MongoDatabase
+        coll = db.get_collection(coll_name)  # type: MongoCollection
+
+        _projection = {
+            "name": True,
+            "silo": True,
+            "data.trash": True,
+            "data.tasks": True,
+            "data.visualParent": True,
+        }
+
+        all_asset_docs = {d["_id"]: d for d in coll.find({
+            "type": "asset",
+            "name": {"$exists": 1},
+        }, projection=_projection)}
+
+        def count_depth(doc_):
+            def depth(_d):
+                p = _d["data"].get("visualParent")
+                yield 0 if p is None else 1 + sum(depth(all_asset_docs[p]))
+
+            return sum(depth(doc_))
+
+        def group_key(doc_):
+            """Key for sort/group assets by visual hierarchy depth
+            :param dict doc_: Asset document
+            :rtype: tuple[int, ObjectId] or tuple[int, str] or tuple[int, None]
+            """
+            _depth = count_depth(doc_)
+            _vp = doc_["data"]["visualParent"] if _depth else doc_.get("silo")
+            return _depth, _vp
+
+        return [
+            (depth, key, list(group))
+            for (depth, key), group in
+            groupby(
+                sorted(all_asset_docs.values(), key=group_key),
+                key=group_key
+            )
+        ]
 
 
 def ping(database, retry=3):

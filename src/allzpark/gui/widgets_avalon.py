@@ -314,7 +314,9 @@ class AssetTreeWidget(QtWidgets.QWidget):
 
     def on_task_selected(self, task_name):
         self._model.set_task(task_name)
-        self._proxy.invalidate()
+
+        if self._proxy.is_filter_by_task():
+            self._proxy.invalidate()
 
         index = self._view.currentIndex()
         if index.isValid():
@@ -445,6 +447,9 @@ class AssetTreeProxyModel(BaseProxyModel):
     def __init__(self, *args, **kwargs):
         super(AssetTreeProxyModel, self).__init__(*args, **kwargs)
         self._filter_by_task = False
+
+    def is_filter_by_task(self):
+        return self._filter_by_task
 
     def set_filter_by_task(self, enabled: bool):
         self._filter_by_task = enabled

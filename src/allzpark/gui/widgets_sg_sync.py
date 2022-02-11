@@ -19,10 +19,14 @@ class ShotGridSyncWidget(QtWidgets.QWidget):
     def __init__(self, *args, **kwargs):
         super(ShotGridSyncWidget, self).__init__(*args, **kwargs)
 
+        label = QtWidgets.QLabel("ShotGrid Sync")
+        label.setObjectName("BackendLabel")
+
         project_list = ProjectListWidget()
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(label)
         layout.addWidget(project_list)
 
         project_list.scope_selected.connect(self.workspace_changed.emit)

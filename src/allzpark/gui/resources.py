@@ -881,6 +881,10 @@ class BaseTheme(object):
     def _q_others(self):
         return f"""
         
+        #BackendLabel {{
+            font-size: {px(22).ceil};
+        }}
+        
         #RefreshButton {{
             icon: url(:/icons/arrow-clockwise.svg);
             border: none;

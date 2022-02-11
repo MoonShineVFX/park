@@ -221,6 +221,7 @@ class WorkspaceWidget(BusyWidget):
         entrances.addWidget(void_page)  # index 0
 
         layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(8, 2, 8, 4)
         layout.addWidget(entrances)
         layout.addWidget(backend_sel)
 

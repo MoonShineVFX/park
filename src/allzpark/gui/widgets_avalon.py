@@ -38,6 +38,9 @@ class AvalonWidget(QtWidgets.QWidget):
     def __init__(self, *args, **kwargs):
         super(AvalonWidget, self).__init__(*args, **kwargs)
 
+        label = QtWidgets.QLabel("Avalon")
+        label.setObjectName("BackendLabel")
+
         project_list = ProjectListWidget()
         asset_tree = AssetTreeWidget()
 
@@ -61,6 +64,7 @@ class AvalonWidget(QtWidgets.QWidget):
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(label)
         layout.addWidget(slider)
 
         home.clicked.connect(self._on_home_clicked)

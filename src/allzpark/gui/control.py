@@ -1,6 +1,7 @@
 
 import time
 import logging
+import inspect
 import traceback
 import functools
 from ._vendor.Qt5 import QtCore
@@ -126,6 +127,11 @@ class Controller(QtCore.QObject):
         self._timers = dict()
         self._sender = dict()
         self._thread = dict()  # type: dict[str, Thread]
+
+    def sender(self):
+        """Internal use. To preserve real signal sender for decorated method."""
+        f = inspect.stack()[1].function
+        return self._sender.pop(f, super(Controller, self).sender())
 
     @QtCore.Slot(core.AbstractScope)  # noqa
     @_defer(on_time=250)

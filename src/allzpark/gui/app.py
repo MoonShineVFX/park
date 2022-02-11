@@ -84,6 +84,7 @@ class Session(object):
 
         # view -> control
         workspace.workspace_changed.connect(ctrl.on_workspace_changed)
+        workspace.workspace_refreshed.connect(ctrl.on_workspace_refreshed)
         workspace.backend_changed.connect(ctrl.on_backend_changed)
         workspace.tools_requested.connect(ctrl.on_scope_tools_requested)
         tool_list.tool_selected.connect(ctrl.on_tool_selected)

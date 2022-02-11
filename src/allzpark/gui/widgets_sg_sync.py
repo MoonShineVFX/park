@@ -14,6 +14,7 @@ class ShotGridSyncWidget(QtWidgets.QWidget):
     icon_path = ":/icons/sg_logo.png"
     tools_requested = QtCore.Signal(AbstractScope)
     workspace_changed = QtCore.Signal(AbstractScope)
+    workspace_refreshed = QtCore.Signal(AbstractScope)
 
     def __init__(self, *args, **kwargs):
         super(ShotGridSyncWidget, self).__init__(*args, **kwargs)
@@ -28,13 +29,19 @@ class ShotGridSyncWidget(QtWidgets.QWidget):
 
         self._entrance = None  # type: Entrance or None
         self._projects = project_list
+        self.__inited = False
 
     def enter_workspace(self, scope: Union[Entrance, Project]) -> None:
         if isinstance(scope, Entrance):
             self._entrance = scope
+            if not self.__inited:  # shotgrid slow, only auto update on start
+                self.tools_requested.emit(scope)
+                self.workspace_refreshed.emit(scope)
+                self.__inited = True
 
         elif isinstance(scope, Project):
             self.tools_requested.emit(scope)
+            self.workspace_refreshed.emit(scope)
 
         else:
             pass

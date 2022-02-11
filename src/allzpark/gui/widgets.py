@@ -193,6 +193,7 @@ class ScopeLineLabel(QtWidgets.QLineEdit):
 class WorkspaceWidget(BusyWidget):
     tools_requested = QtCore.Signal(AbstractScope)
     workspace_changed = QtCore.Signal(AbstractScope)
+    workspace_refreshed = QtCore.Signal(AbstractScope)
     backend_changed = QtCore.Signal(str)
 
     def __init__(self, *args, **kwargs):
@@ -258,6 +259,7 @@ class WorkspaceWidget(BusyWidget):
             # these four signals and slots are the essentials
             widget.tools_requested.connect(self.tools_requested.emit)
             widget.workspace_changed.connect(self.workspace_changed.emit)
+            widget.workspace_refreshed.connect(self.workspace_refreshed.emit)
             assert callable(widget.enter_workspace)
             assert callable(widget.update_workspace)
 

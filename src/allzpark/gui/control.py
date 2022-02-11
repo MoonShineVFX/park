@@ -1,4 +1,5 @@
 
+import time
 import logging
 import traceback
 import functools
@@ -126,17 +127,21 @@ class Controller(QtCore.QObject):
         self._sender = dict()
         self._thread = dict()  # type: dict[str, Thread]
 
-    @QtCore.Slot()  # noqa
+    @QtCore.Slot(core.AbstractScope)  # noqa
     @_defer(on_time=500)
     def on_backend_changed(self, entrance):
         scope = self._backend_entrances[entrance]
         self.enter_workspace(scope)
 
-    @QtCore.Slot()  # noqa
+    @QtCore.Slot(core.AbstractScope)  # noqa
     def on_workspace_changed(self, scope):
         self.enter_workspace(scope)
 
-    @QtCore.Slot()  # noqa
+    @QtCore.Slot(core.AbstractScope)  # noqa
+    def on_workspace_refreshed(self, scope):
+        self.update_workspace(scope)
+
+    @QtCore.Slot(core.AbstractScope)  # noqa
     @_defer(on_time=100)
     def on_scope_tools_requested(self, scope):
         self.update_tools(scope)
@@ -156,12 +161,15 @@ class Controller(QtCore.QObject):
     def on_shell_launched(self, suite_tool: core.SuiteTool):
         self.launch_shell(suite_tool)
 
-    @_thread(name="workspace", blocks=("ProductionPage",))
     def enter_workspace(self, scope):
         self.work_dir_resetted.emit()
         # inform widget to e.g. change page
         self.workspace_entered.emit(scope)
-        # crawl sub-workspaces in worker thread and send to widget
+
+    @_thread(name="workspace", blocks=("ProductionPage",))
+    def update_workspace(self, scope):
+        _error = False
+        _start = time.time()
         children = []
         try:
             for i, child in enumerate(scope.iter_children()):
@@ -170,8 +178,12 @@ class Controller(QtCore.QObject):
         except Exception as e:
             log.error(traceback.format_exc())
             log.error(str(e))
+            _error = True
 
         self.workspace_updated.emit(children)
+        if not _error:
+            log.info(f"Workspace {scope.name} updated in "
+                     f"{time.time() - _start:.2f} secs.")
 
     @_thread(name="suite", blocks=("ProductionPage",))
     def update_tools(self, scope):

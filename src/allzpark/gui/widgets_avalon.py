@@ -33,6 +33,7 @@ class AvalonWidget(QtWidgets.QWidget):
     icon_path = ":/icons/avalon-logomark.svg"
     tools_requested = QtCore.Signal(AbstractScope)
     workspace_changed = QtCore.Signal(AbstractScope)
+    workspace_refreshed = QtCore.Signal(AbstractScope)
 
     def __init__(self, *args, **kwargs):
         super(AvalonWidget, self).__init__(*args, **kwargs)
@@ -114,10 +115,11 @@ class AvalonWidget(QtWidgets.QWidget):
             self.set_page(1)
             self._tasks.clear()
             self._tasks.addItems(scope.tasks)
-            self.tools_requested.emit(scope)
-
         else:
-            pass
+            return
+
+        self.tools_requested.emit(scope)
+        self.workspace_refreshed.emit(scope)
 
     def update_workspace(
             self, scopes: Union[List[Project], List[Asset], List[Task]]

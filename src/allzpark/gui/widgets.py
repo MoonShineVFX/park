@@ -39,6 +39,16 @@ class QSingleton(type(QtCore.QObject), type):
         return cls._instances[cls]
 
 
+class ComboBox(QtWidgets.QComboBox):
+
+    def __init__(self, *args, **kwargs):
+        super(ComboBox, self).__init__(*args, **kwargs)
+        delegate = QtWidgets.QStyledItemDelegate(self)
+        self.setItemDelegate(delegate)
+        # https://stackoverflow.com/a/21019371
+        # also see `app.AppProxyStyle`
+
+
 class BusyEventFilterSingleton(QtCore.QObject, metaclass=QSingleton):
     overwhelmed = QtCore.Signal(str)
 
@@ -213,7 +223,7 @@ class WorkspaceWidget(BusyWidget):
         void_page = QtWidgets.QWidget()
         void_text = QtWidgets.QLabel("No Available Backend")
         entrances = QtWidgets.QStackedWidget()
-        backend_sel = QtWidgets.QComboBox()
+        backend_sel = ComboBox()
 
         layout = QtWidgets.QVBoxLayout(void_page)
         layout.addWidget(void_text)

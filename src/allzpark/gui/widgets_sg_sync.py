@@ -74,6 +74,7 @@ class ProjectListWidget(QtWidgets.QWidget):
 
         search_bar = QtWidgets.QLineEdit()
         search_bar.setPlaceholderText("search projects..")
+        search_bar.setClearButtonEnabled(True)
 
         # todo: toggle tank_name <-> name
 

@@ -5,7 +5,7 @@ from ._vendor.Qt5 import QtCore, QtGui, QtWidgets
 from ..backend_avalon import Entrance, Project, Asset, Task, MEMBER_ROLE
 from ..util import elide
 from ..core import AbstractScope
-from .widgets import SlidePageWidget, ScopeLineLabel
+from .widgets import SlidePageWidget, ScopeLineLabel, ComboBox
 from .models import BaseScopeModel, BaseProxyModel
 
 log = logging.getLogger("allzpark")
@@ -45,18 +45,42 @@ class AvalonWidget(QtWidgets.QWidget):
         asset_tree = AssetTreeWidget()
 
         asset_page = QtWidgets.QWidget()
-        current_project = ScopeLineLabel("current project..")
-        home = QtWidgets.QPushButton()
-        tasks = QtWidgets.QComboBox()
-        only_tasked = QtWidgets.QCheckBox("Show Tasked Only")
 
-        layout = QtWidgets.QGridLayout(asset_page)
+        top_bar = QtWidgets.QWidget()
+        top_bar.setObjectName("ButtonBelt")
+        home = QtWidgets.QPushButton()
+        home.setObjectName("AvalonHomeButton")
+        slash = QtWidgets.QLabel()
+        slash.setObjectName("AvalonHomeSlash")
+        current_project = ScopeLineLabel("current project..")
+
+        task_bar = QtWidgets.QWidget()
+        task_bar.setObjectName("ButtonBelt")
+        only_tasked = QtWidgets.QPushButton()
+        only_tasked.setObjectName("AvalonTaskFilter")
+        only_tasked.setCheckable(True)
+        only_tasked.setChecked(False)
+        tasks = ComboBox()
+
+        layout = QtWidgets.QHBoxLayout(top_bar)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(home, 0, 0, 1, 1)
-        layout.addWidget(current_project, 0, 1, 1, 6)
-        layout.addWidget(only_tasked, 1, 0, 1, 3)
-        layout.addWidget(tasks, 1, 3, 1, 4)
-        layout.addWidget(asset_tree, 2, 0, 1, 7)
+        layout.setSpacing(0)
+        layout.addWidget(home)
+        layout.addWidget(slash)
+        layout.addWidget(current_project, stretch=True)
+
+        layout = QtWidgets.QHBoxLayout(task_bar)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+        layout.addWidget(only_tasked)
+        layout.addWidget(tasks, stretch=True)
+
+        layout = QtWidgets.QVBoxLayout(asset_page)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+        layout.addWidget(top_bar)
+        layout.addWidget(task_bar)
+        layout.addWidget(asset_tree)
 
         slider = SlidePageWidget()
         slider.addWidget(project_list)
@@ -72,8 +96,9 @@ class AvalonWidget(QtWidgets.QWidget):
         project_list.filter_toggled.connect(self._on_project_filtered)
         project_list.refresh_clicked.connect(self._on_project_refreshed)
         asset_tree.scope_changed.connect(self._on_asset_changed)
+        asset_tree.refresh_clicked.connect(self._on_asset_refreshed)
         tasks.currentTextChanged.connect(asset_tree.on_task_selected)
-        only_tasked.stateChanged.connect(asset_tree.on_asset_filtered)
+        only_tasked.toggled.connect(asset_tree.on_asset_filtered)
 
         self.__inited = False
         self._entrance = None  # type: Entrance or None
@@ -96,6 +121,9 @@ class AvalonWidget(QtWidgets.QWidget):
 
     def _on_project_refreshed(self):
         self.workspace_refreshed.emit(self._entrance)
+
+    def _on_asset_refreshed(self, scope: Project):
+        self.workspace_refreshed.emit(scope)
 
     def _on_asset_changed(self, scope: Union[Asset, Project]):
         if self._page != 1:
@@ -160,13 +188,13 @@ class AvalonWidget(QtWidgets.QWidget):
             self.__inited = True
 
         elif isinstance(upstream, Project):
-            self._tasked.stateChanged.emit(False)
+            self._tasked.toggled.emit(False)
             # if the task filter is on, model refresh will be slower because
             # the filterAcceptsRow() is also working while adding items into
             # model. so we make sure it's disabled and set it back later.
             self._assets.model().refresh(scopes)
             self._assets.model().set_task(self._tasks.currentText())
-            self._tasked.stateChanged.emit(self._tasked.checkState())
+            self._tasked.toggled.emit(self._tasked.isChecked())
 
         elif isinstance(upstream, Asset):
             pass
@@ -193,8 +221,9 @@ class ProjectListWidget(QtWidgets.QWidget):
         refresh_btn.setObjectName("RefreshButton")
         search_bar = QtWidgets.QLineEdit()
         search_bar.setPlaceholderText("search projects..")
+        search_bar.setClearButtonEnabled(True)
         filter_btn = QtWidgets.QPushButton()
-        filter_btn.setObjectName("DarkSwitch")
+        filter_btn.setObjectName("AvalonProjectArchive")
         filter_btn.setCheckable(True)
         filter_btn.setChecked(True)  # the default defined in backend module
 
@@ -285,28 +314,43 @@ class ProjectListWidget(QtWidgets.QWidget):
 
 
 class AssetTreeWidget(QtWidgets.QWidget):
+    refresh_clicked = QtCore.Signal(Project)
     scope_changed = QtCore.Signal(AbstractScope)
 
     def __init__(self, *args, **kwargs):
         super(AssetTreeWidget, self).__init__(*args, **kwargs)
+        self.setObjectName("AvalonAssetView")
 
+        top_bar = QtWidgets.QWidget()
+        top_bar.setObjectName("ButtonBelt")
+        refresh_btn = QtWidgets.QPushButton()
+        refresh_btn.setObjectName("RefreshButton")
         search_bar = QtWidgets.QLineEdit()
         search_bar.setPlaceholderText("search assets..")
+        search_bar.setClearButtonEnabled(True)
 
         model = AssetTreeModel()
         proxy = AssetTreeProxyModel()
         proxy.setSourceModel(model)
         view = QtWidgets.QTreeView()
         view.setSelectionMode(view.SingleSelection)
+        view.setHeaderHidden(True)
         view.setModel(proxy)
         selection = view.selectionModel()
 
+        layout = QtWidgets.QHBoxLayout(top_bar)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+        layout.addWidget(refresh_btn)
+        layout.addWidget(search_bar, stretch=True)
+
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(search_bar)
+        layout.addWidget(top_bar)
         layout.addWidget(view)
 
         selection.selectionChanged.connect(self._on_selection_changed)
+        refresh_btn.clicked.connect(self._on_refresh_clicked)
         search_bar.textChanged.connect(self._on_asset_searched)
 
         self._view = view
@@ -349,6 +393,11 @@ class AssetTreeWidget(QtWidgets.QWidget):
             scope = self._model.project()
             if scope:  # could be None
                 self.scope_changed.emit(scope)
+
+    def _on_refresh_clicked(self):
+        scope = self._model.project()
+        if scope:  # could be None
+            self.refresh_clicked.emit(scope)
 
 
 class ProjectListModel(BaseScopeModel):

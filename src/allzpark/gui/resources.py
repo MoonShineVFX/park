@@ -79,7 +79,7 @@ class Resources:
         "jetbrainsmono/JetBrainsMono-Regular.ttf"
     )
     icons_ext = ".png", ".svg"
-    qrc_updated = 1644829825  # !!<qrc-update-time>!! don't touch
+    qrc_updated = 1644831421  # !!<qrc-update-time>!! don't touch
 
     @classmethod
     def load(cls):
@@ -880,9 +880,39 @@ class BaseTheme(object):
     def _q_avalon(self):
         return f"""
         
+        #AvalonProjectView QListView {{
+            border: 1px solid {self.palette.border};
+        }}
         #AvalonProjectView QListView::item {{
             padding: 5px 1px;
             border: 0px;
+        }}
+        
+        #AvalonAssetView QTreeView {{
+            border: 1px solid {self.palette.border};
+        }}
+        
+        #AvalonProjectArchive:checked {{
+            icon: url(:/icons/journal-plus.svg);
+        }}
+        #AvalonProjectArchive:!checked {{
+            icon: url(:/icons/house-fill.svg);
+        }}
+        
+        #AvalonHomeSlash {{
+            min-width: {px(18)};
+            image: url(:/icons/chevron_right.svg);
+        }}
+        #AvalonHomeButton {{
+            icon: url(:/icons/house-fill.svg);
+        }}
+        
+        #AvalonTaskFilter {{
+            icon: url(:icons/funnel-fill.svg);
+        }}
+        #AvalonTaskFilter:checked {{
+            icon: url(:icons/funnel-fill-on.svg);
+            background-color: {self.palette.primary.fade};
         }}
 
         """

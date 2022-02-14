@@ -22,6 +22,9 @@
     <file>icons/chevron_up.svg</file>
     <file>icons/exclamation-triangle-fill.svg</file>
     <file>icons/exclamation-warn.svg</file>
+    <file>icons/house-fill.svg</file>
+    <file>icons/hypnotize.svg</file>
+    <file>icons/journal-plus.svg</file>
     <file>icons/log-critical.svg</file>
     <file>icons/log-error.svg</file>
     <file>icons/log-info.svg</file>
@@ -30,6 +33,7 @@
     <file>icons/rez_logo.svg</file>
     <file>icons/server.svg</file>
     <file>icons/sg_logo.png</file>
+    <file>icons/slash-lg.svg</file>
     <file>icons/square-check-dim.svg</file>
     <file>icons/square-check.svg</file>
     <file>icons/square-dim.svg</file>

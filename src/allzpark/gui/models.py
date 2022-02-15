@@ -120,8 +120,9 @@ class ToolsModel(BaseItemModel):
         self.reset()
 
         for tool in tools:
+            label = f"{tool.metadata.label} ({tool.ctx_name})"
             item = QtGui.QStandardItem()
-            item.setText(tool.metadata.label)
+            item.setText(label)
             item.setIcon(parse_icon(tool.variant.root, tool.metadata.icon))
             if tool.metadata.color:
                 item.setBackground(

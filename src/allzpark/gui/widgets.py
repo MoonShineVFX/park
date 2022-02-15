@@ -1,9 +1,19 @@
 
+import json
 import logging
 from typing import List
 from ._vendor.Qt5 import QtCore, QtGui, QtWidgets
+from ._vendor import qoverview
+from .. import lib
 from ..core import AbstractScope, SuiteTool
-from .models import ToolsModel
+from .models import (
+    QSingleton,
+    JsonModel,
+    ToolsModel,
+    ResolvedEnvironmentModel,
+    ResolvedEnvironmentProxyModel,
+    ContextDataModel,
+)
 
 
 log = logging.getLogger("allzpark")
@@ -24,19 +34,6 @@ def _load_backends():
         "sg_sync": try_sg_sync_backend,
         # could be ftrack, or shotgrid, could be... (see core module)
     }
-
-
-class QSingleton(type(QtCore.QObject), type):
-    """A metaclass for creating QObject singleton
-    https://forum.qt.io/topic/88531/singleton-in-python-with-qobject
-    https://bugreports.qt.io/browse/PYSIDE-1434?focusedCommentId=540135#comment-540135
-    """
-    _instances = {}
-
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            cls._instances[cls] = super(QSingleton, cls).__call__(*args, **kwargs)
-        return cls._instances[cls]
 
 
 class ComboBox(QtWidgets.QComboBox):
@@ -374,3 +371,265 @@ class ToolContextWidget(QtWidgets.QWidget):
 
     def __init__(self, *args, **kwargs):
         super(ToolContextWidget, self).__init__(*args, **kwargs)
+
+        environ = ResolvedEnvironment()
+        context = ResolvedContextView()
+
+        tabs = QtWidgets.QTabBar()
+        stack = QtWidgets.QStackedWidget()
+        stack.setObjectName("TabStackWidget")
+        tabs.setExpanding(True)
+        tabs.setDocumentMode(True)
+        # QTabWidget's frame (pane border) will not be rendered if documentMode
+        # is enabled, so we make our own with bar + stack with border.
+        # todo: tool info tab
+        tabs.addTab("Context")
+        stack.addWidget(context)
+        tabs.addTab("Environ")
+        stack.addWidget(environ)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setSpacing(0)
+        layout.addWidget(tabs)
+        layout.addWidget(stack)
+
+        tabs.currentChanged.connect(stack.setCurrentIndex)
+        # environ.hovered.connect(self.env_hovered.emit)  # todo: env hover
+
+        self._environ = environ
+        self._context = context
+
+    @QtCore.Slot(SuiteTool)  # noqa
+    def on_tool_selected(self, suite_tool: SuiteTool):
+        context = suite_tool.context
+        self._context.load(context)
+        self._environ.model().load(context.get_environ())
+        self._environ.model().note(lib.ContextEnvInspector.inspect(context))
+
+
+class TreeView(qoverview.VerticalExtendedTreeView):
+
+    def __init__(self, *args, **kwargs):
+        super(TreeView, self).__init__(*args, **kwargs)
+        self.setAllColumnsShowFocus(True)
+        self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+
+
+class JsonView(TreeView):
+
+    def __init__(self, parent=None):
+        super(JsonView, self).__init__(parent)
+        self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.on_right_click)
+
+    def on_right_click(self, position):
+        index = self.indexAt(position)
+
+        if not index.isValid():
+            # Clicked outside any item
+            return
+
+        model_ = index.model()
+        menu = QtWidgets.QMenu(self)
+        copy = QtWidgets.QAction("Copy JSON", menu)
+        copy_full = QtWidgets.QAction("Copy full JSON", menu)
+
+        menu.addAction(copy)
+        menu.addAction(copy_full)
+        menu.addSeparator()
+
+        def on_copy():
+            text = str(model_.data(index, JsonModel.JsonRole))
+            app = QtWidgets.QApplication.instance()
+            app.clipboard().setText(text)
+
+        def on_copy_full():
+            if isinstance(model_, QtCore.QSortFilterProxyModel):
+                data = model_.sourceModel().json()
+            else:
+                data = model_.json()
+
+            text = json.dumps(data,
+                              indent=4,
+                              sort_keys=True,
+                              ensure_ascii=False)
+
+            app = QtWidgets.QApplication.instance()
+            app.clipboard().setText(text)
+
+        copy.triggered.connect(on_copy)
+        copy_full.triggered.connect(on_copy_full)
+
+        menu.move(QtGui.QCursor.pos())
+        menu.show()
+
+
+class ResolvedEnvironment(QtWidgets.QWidget):
+    hovered = QtCore.Signal(str, int)
+
+    def __init__(self, *args, **kwargs):
+        super(ResolvedEnvironment, self).__init__(*args, **kwargs)
+
+        search = QtWidgets.QLineEdit()
+        search.setPlaceholderText("Search environ var..")
+        search.setClearButtonEnabled(True)
+        switch = QtWidgets.QCheckBox()
+        switch.setObjectName("EnvFilterSwitch")
+        inverse = QtWidgets.QCheckBox("Inverse")
+
+        model = ResolvedEnvironmentModel()
+        proxy = ResolvedEnvironmentProxyModel()
+        proxy.setSourceModel(model)
+        view = JsonView()
+        view.setModel(proxy)
+        view.setTextElideMode(QtCore.Qt.ElideMiddle)
+        header = view.header()
+        header.setSectionResizeMode(0, header.ResizeToContents)
+        header.setSectionResizeMode(1, header.Stretch)
+
+        _layout = QtWidgets.QHBoxLayout()
+        _layout.setContentsMargins(0, 0, 0, 0)
+        _layout.addWidget(search, stretch=True)
+        _layout.addWidget(switch)
+        _layout.addWidget(inverse)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addLayout(_layout)
+        layout.addWidget(view)
+
+        view.setMouseTracking(True)
+        view.entered.connect(self._on_entered)
+        search.textChanged.connect(self._on_searched)
+        switch.stateChanged.connect(self._on_switched)
+        inverse.stateChanged.connect(self._on_inverse)
+
+        timer = QtCore.QTimer(self)
+        timer.setSingleShot(True)
+        timer.timeout.connect(self._deferred_search)
+
+        self._view = view
+        self._proxy = proxy
+        self._model = model
+        self._timer = timer
+        self._search = search
+        self._switch = switch
+
+        switch.setCheckState(QtCore.Qt.Checked)
+
+    def model(self):
+        return self._model
+
+    def leaveEvent(self, event: QtCore.QEvent):
+        super(ResolvedEnvironment, self).leaveEvent(event)
+        self.hovered.emit("", 0)  # clear
+
+    def _on_entered(self, index):
+        if not index.isValid():
+            return
+        index = self._proxy.mapToSource(index)
+        column = index.column()
+
+        if column == 0:
+            self.hovered.emit("", 0)  # clear
+
+        elif column > 0:
+            parent = index.parent()
+            if parent.isValid():
+                key = self._model.index(parent.row(), 0).data()
+            else:
+                key = self._model.index(index.row(), 0).data()
+
+            if column == 1:
+                value = index.data()
+                scope = self._model.index(index.row(), 2, parent).data()
+            else:
+                value = self._model.index(index.row(), 1, parent).data()
+                scope = index.data()
+
+            self.hovered.emit(f"{key} | {value} <- {scope}", 0)
+
+    def _on_searched(self, _):
+        self._timer.start(400)
+
+    def _on_switched(self, state):
+        if state == QtCore.Qt.Checked:
+            self._switch.setText("On Key")
+            self._proxy.filter_by_key()
+        else:
+            self._switch.setText("On Value")
+            self._proxy.filter_by_value()
+
+    def _on_inverse(self, state):
+        self._proxy.inverse_filter(state)
+        text = self._search.text()
+        self._view.expandAll() if len(text) > 1 else self._view.collapseAll()
+        self._view.reset_extension()
+
+    def _deferred_search(self):
+        # https://doc.qt.io/qt-5/qregexp.html#introduction
+        text = self._search.text()
+        self._proxy.setFilterRegExp(text)
+        self._view.expandAll() if len(text) > 1 else self._view.collapseAll()
+        self._view.reset_extension()
+
+
+class ResolvedContextView(QtWidgets.QWidget):
+
+    def __init__(self, *args, **kwargs):
+        super(ResolvedContextView, self).__init__(*args, **kwargs)
+
+        top_bar = QtWidgets.QWidget()
+        top_bar.setObjectName("ButtonBelt")
+        attr_toggle = QtWidgets.QPushButton("T")
+        attr_toggle.setCheckable(True)
+        attr_toggle.setChecked(True)
+
+        model = ContextDataModel()
+        view = TreeView()
+        view.setObjectName("ResolvedContextTreeView")
+        view.setModel(model)
+        view.setTextElideMode(QtCore.Qt.ElideMiddle)
+        view.setHeaderHidden(True)
+
+        header = view.header()
+        header.setSectionResizeMode(0, header.ResizeToContents)
+        header.setSectionResizeMode(1, header.Stretch)
+
+        layout = QtWidgets.QHBoxLayout(top_bar)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(attr_toggle, alignment=QtCore.Qt.AlignLeft)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(top_bar)
+        layout.addWidget(view)
+
+        attr_toggle.toggled.connect(self._on_attr_toggled)
+
+        self._view = view
+        self._model = model
+
+    def _on_attr_toggled(self, show_pretty):
+        self._model.on_pretty_shown(show_pretty)
+        self._view.update()
+
+    def load(self, context):
+        self._model.load(context)
+        self._view.reset_extension()
+
+    def reset(self):
+        self._update_placeholder_color()  # set color for new model instance
+        self._model.pending()
+        self._view.reset_extension()
+
+    def changeEvent(self, event):
+        super(ResolvedContextView, self).changeEvent(event)
+        if event.type() == QtCore.QEvent.StyleChange:
+            # update color when theme changed
+            self._update_placeholder_color()
+
+    def _update_placeholder_color(self):
+        color = self._view.palette().color(QtGui.QPalette.PlaceholderText)
+        self._model.set_placeholder_color(color)

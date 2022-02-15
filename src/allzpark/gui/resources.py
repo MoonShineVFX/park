@@ -71,6 +71,10 @@ def get_style_sheet(name=None, dark=None):
     return theme.style_sheet()
 
 
+def icon(name):
+    return QtGui.QIcon(f":/icons/{name}")
+
+
 class Resources:
     fonts = (
         "opensans/OpenSans-Bold.ttf",
@@ -79,7 +83,7 @@ class Resources:
         "jetbrainsmono/JetBrainsMono-Regular.ttf"
     )
     icons_ext = ".png", ".svg"
-    qrc_updated = 1644831421  # !!<qrc-update-time>!! don't touch
+    qrc_updated = 1644940309  # !!<qrc-update-time>!! don't touch
 
     @classmethod
     def load(cls):

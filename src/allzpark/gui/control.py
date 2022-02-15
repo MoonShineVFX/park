@@ -110,6 +110,7 @@ class Controller(QtCore.QObject):
     work_dir_obtained = QtCore.Signal(str)
     work_dir_resetted = QtCore.Signal()
     tools_updated = QtCore.Signal(list)
+    tool_selected = QtCore.Signal(core.SuiteTool)
     status_message = QtCore.Signal(str)
 
     def __init__(self, backends):
@@ -200,6 +201,7 @@ class Controller(QtCore.QObject):
     def select_tool(self, suite_tool: core.SuiteTool):
         work_dir = suite_tool.scope.obtain_workspace(suite_tool)
         self.work_dir_obtained.emit(work_dir)
+        self.tool_selected.emit(suite_tool)
 
     def launch_tool(self, suite_tool: core.SuiteTool):
         log.warning(f"Launching {suite_tool.name}")

@@ -100,6 +100,7 @@ class Session(object):
         ctrl.tools_updated.connect(tool_list.on_tools_updated)
         ctrl.work_dir_obtained.connect(work_dir.on_work_dir_obtained)
         ctrl.work_dir_resetted.connect(work_dir.on_work_dir_resetted)
+        ctrl.tool_selected.connect(tool_context.on_tool_selected)
 
         # view -> view
         view_.dark_toggled.connect(self.on_dark_toggled)

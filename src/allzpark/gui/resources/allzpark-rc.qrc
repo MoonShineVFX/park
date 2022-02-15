@@ -20,6 +20,8 @@
     <file>icons/chevron_left.svg</file>
     <file>icons/chevron_right.svg</file>
     <file>icons/chevron_up.svg</file>
+    <file>icons/dash.svg</file>
+    <file>icons/dot.svg</file>
     <file>icons/exclamation-triangle-fill.svg</file>
     <file>icons/exclamation-warn.svg</file>
     <file>icons/funnel-fill-dim.svg</file>
@@ -33,6 +35,10 @@
     <file>icons/log-info.svg</file>
     <file>icons/log-undefined.svg</file>
     <file>icons/log-warning.svg</file>
+    <file>icons/people-fill-ok.svg</file>
+    <file>icons/people-fill.svg</file>
+    <file>icons/person-circle.svg</file>
+    <file>icons/plus.svg</file>
     <file>icons/rez_logo.svg</file>
     <file>icons/server.svg</file>
     <file>icons/sg_logo.png</file>

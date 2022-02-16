@@ -6,7 +6,9 @@ from ._vendor.Qt5 import QtCore, QtGui, QtWidgets
 from ._vendor import qoverview
 from .. import lib
 from ..core import AbstractScope, SuiteTool
+from . import resources as res
 from .models import (
+    parse_icon,
     QSingleton,
     JsonModel,
     ToolsModel,
@@ -391,12 +393,11 @@ class WorkDirWidget(QtWidgets.QWidget):
 
 
 class ToolContextWidget(QtWidgets.QWidget):
-    tool_launched = QtCore.Signal(SuiteTool)
-    shell_launched = QtCore.Signal(SuiteTool)
 
     def __init__(self, *args, **kwargs):
         super(ToolContextWidget, self).__init__(*args, **kwargs)
 
+        launcher = ToolLaunchWidget()
         environ = ResolvedEnvironment()
         context = ResolvedContextView()
 
@@ -407,7 +408,8 @@ class ToolContextWidget(QtWidgets.QWidget):
         tabs.setDocumentMode(True)
         # QTabWidget's frame (pane border) will not be rendered if documentMode
         # is enabled, so we make our own with bar + stack with border.
-        # todo: tool info tab
+        tabs.addTab("Tool")
+        stack.addWidget(launcher)
         tabs.addTab("Context")
         stack.addWidget(context)
         tabs.addTab("Environ")
@@ -421,6 +423,7 @@ class ToolContextWidget(QtWidgets.QWidget):
         tabs.currentChanged.connect(stack.setCurrentIndex)
         # environ.hovered.connect(self.env_hovered.emit)  # todo: env hover
 
+        self._launcher = launcher
         self._environ = environ
         self._context = context
 
@@ -430,10 +433,12 @@ class ToolContextWidget(QtWidgets.QWidget):
         self._context.load(context)
         self._environ.model().load(context.get_environ())
         self._environ.model().note(lib.ContextEnvInspector.inspect(context))
+        self._launcher.set_tool(suite_tool)
 
     def on_tool_cleared(self):
         self._context.reset()
         self._environ.model().clear()
+        self._launcher.reset()
 
 
 class TreeView(qoverview.VerticalExtendedTreeView):
@@ -492,6 +497,58 @@ class JsonView(TreeView):
 
         menu.move(QtGui.QCursor.pos())
         menu.show()
+
+
+class ToolLaunchWidget(QtWidgets.QWidget):
+    tool_launched = QtCore.Signal(SuiteTool)
+    shell_launched = QtCore.Signal(SuiteTool)
+
+    def __init__(self, *args, **kwargs):
+        super(ToolLaunchWidget, self).__init__(*args, **kwargs)
+
+        head = QtWidgets.QWidget()
+        icon = QtWidgets.QLabel()
+        label = QtWidgets.QLabel()
+
+        body = QtWidgets.QWidget()
+        launch = QtWidgets.QPushButton()
+
+        # todo:
+        #   * shell
+        #   * command arg
+
+        layout = QtWidgets.QHBoxLayout(head)
+        layout.addWidget(icon)
+        layout.addWidget(label)
+
+        layout = QtWidgets.QHBoxLayout(body)
+        layout.addWidget(launch, alignment=QtCore.Qt.AlignBottom)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(head)
+        layout.addWidget(body)
+
+        launch.clicked.connect(self._on_launch_tool_clicked)
+
+        self._label = label
+        self._icon = icon
+        self._tool = None
+
+    def _on_launch_tool_clicked(self):
+        self.tool_launched.emit(self._tool)
+
+    def reset(self):
+        self._label.setText("")
+        self._icon.clear()
+
+    def set_tool(self, tool: SuiteTool):
+        icon = parse_icon(tool.variant.root, tool.metadata.icon)
+        label = f"{tool.metadata.label} ({tool.ctx_name})"
+
+        size = QtCore.QSize(res.px(32), res.px(32))
+        self._icon.setPixmap(icon.pixmap(size))
+        self._label.setText(label)
+        self._tool = tool
 
 
 class ResolvedEnvironment(QtWidgets.QWidget):

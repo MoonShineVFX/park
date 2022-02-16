@@ -4,12 +4,17 @@ import logging
 import inspect
 import traceback
 import functools
+import threading
+import subprocess
+from rez.config import config as rezconfig
 from ._vendor.Qt5 import QtCore
 from .widgets import BusyWidget
-from .. import core
+from .. import core, util
 
 
 log = logging.getLogger("allzpark")
+
+allzparkconfig = rezconfig.plugins.command.park
 
 
 def _defer(on_time=500):
@@ -125,6 +130,7 @@ class Controller(QtCore.QObject):
         handler.setLevel(logging.INFO)
         log.addHandler(handler)
 
+        self._cwd = None
         self._backend_entrances = dict(backends)
         self._timers = dict()
         self._sender = dict()
@@ -218,8 +224,9 @@ class Controller(QtCore.QObject):
 
     def select_tool(self, suite_tool: core.SuiteTool):
         work_dir = suite_tool.scope.obtain_workspace(suite_tool)
-        self.work_dir_obtained.emit(work_dir)
+        self.work_dir_obtained.emit(work_dir or "")
         self.tool_selected.emit(suite_tool)
+        self._cwd = work_dir
 
     def cache_clear(self):
         core.cache_clear()
@@ -228,11 +235,120 @@ class Controller(QtCore.QObject):
         log.debug("Internal cache cleared.")
 
     def launch_tool(self, suite_tool: core.SuiteTool):
-        log.warning(f"Launching {suite_tool.name}")
+        log.info(f"Launching {suite_tool.name}")
         # todo: add tool and the scope into history
+
+        cmd = Command(
+            context=suite_tool.context,
+            command=suite_tool.name,  # todo: able to append args
+            cwd=self._cwd or None,
+            detached=True,
+            environ=None,  # todo: able to inject additional env
+            parent=self
+        )
+        cmd.execute()
 
     def launch_shell(self, suite_tool: core.SuiteTool):
         log.warning(f"Launching {suite_tool.name} shell...")
+
+
+class Command(QtCore.QObject):
+    stdout = QtCore.Signal(str)
+    stderr = QtCore.Signal(str)
+    killed = QtCore.Signal()
+
+    error = QtCore.Signal(Exception)
+
+    def __str__(self):
+        return "Command('%s')" % self.cmd
+
+    def __init__(self,
+                 context,
+                 command,
+                 cwd=None,
+                 detached=True,
+                 environ=None,
+                 parent=None):
+        super(Command, self).__init__(parent)
+
+        self.environ = environ
+        self.context = context
+        self.cwd = cwd
+        self.popen = None
+        self.detached = detached
+
+        # `cmd` rather than `command`, to distinguish
+        # between class and argument
+        self.cmd = command
+
+        self._running = False
+
+        # Launching may take a moment, and there's no need
+        # for the user to wait around for that to happen.
+        thread = threading.Thread(target=self._execute)
+        thread.daemon = True
+
+        self.thread = thread
+
+    @property
+    def pid(self):
+        if self.popen.poll is None:
+            return self.popen.pid
+
+    def execute(self):
+        self.thread.start()
+
+    def _execute(self):
+        startupinfo = None
+        no_console = hasattr(allzparkconfig, "__noconsole__")
+
+        # Windows-only
+        # Prevent additional windows from appearing when running
+        # Allzpark without a console, e.g. via pythonw.exe.
+        if no_console and hasattr(subprocess, "STARTUPINFO"):
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+
+        kwargs = {
+            "command": self.cmd,
+            "stdout": subprocess.PIPE,
+            "stderr": subprocess.PIPE,
+            "parent_environ": self.environ,
+            "startupinfo": startupinfo,
+            "encoding": util.subprocess_encoding(),
+            "errors": util.unicode_decode_error_handler(),
+            "universal_newlines": True,
+            "cwd": self.cwd,
+        }
+        try:
+            self.popen = self.context.execute_shell(**kwargs)
+        except Exception as e:
+            return self.error.emit(e)
+
+        for target in (self.listen_on_stdout,
+                       self.listen_on_stderr):
+            thread = threading.Thread(target=target)
+            thread.daemon = True
+            thread.start()
+
+    def is_running(self):
+        # Normally, you'd be able to determine whether a Popen instance was
+        # still running by querying Popen.poll() == None, but Rez may or may
+        # not use `Popen(shell=True)` which throws this mechanism off. Instead,
+        # we'll let an open pipe to STDOUT determine whether or not a process
+        # is currently running.
+        return self._running
+
+    def listen_on_stdout(self):
+        self._running = True
+        for line in iter(self.popen.stdout.readline, ""):
+            self.stdout.emit(line.rstrip())
+        self._running = False
+        self.killed.emit()
+
+    def listen_on_stderr(self):
+        for line in iter(self.popen.stderr.readline, ""):
+            self.stderr.emit(line.rstrip())
 
 
 class Thread(QtCore.QThread):

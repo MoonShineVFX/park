@@ -273,6 +273,10 @@ class WorkspaceWidget(BusyWidget):
         widget = self._stack.currentWidget()
         widget.update_workspace(scopes)
 
+    def on_cache_cleared(self):
+        widget = self._stack.currentWidget()
+        widget.on_cache_cleared()
+
     def register_backends(self, names: List[str]):
         if self._stack.count() > 1:
             return
@@ -301,6 +305,7 @@ class WorkspaceWidget(BusyWidget):
             widget.workspace_refreshed.connect(self.workspace_refreshed.emit)
             assert callable(widget.enter_workspace)
             assert callable(widget.update_workspace)
+            assert callable(widget.on_cache_cleared)
 
             self._stack.addWidget(widget)
             self._combo.addItem(QtGui.QIcon(w_icon), name)
@@ -320,6 +325,7 @@ class WorkHistoryWidget(QtWidgets.QWidget):
 
 
 class ToolsView(QtWidgets.QWidget):
+    tool_cleared = QtCore.Signal()
     tool_selected = QtCore.Signal(SuiteTool)
     tool_launched = QtCore.Signal(SuiteTool)
 
@@ -338,6 +344,7 @@ class ToolsView(QtWidgets.QWidget):
         selection.selectionChanged.connect(self._on_selection_changed)
         view.doubleClicked.connect(self._on_double_clicked)
 
+        self._view = view
         self._model = model
 
     def _on_selection_changed(self, selected, _):
@@ -346,6 +353,8 @@ class ToolsView(QtWidgets.QWidget):
             index = indexes[0]  # SingleSelection view
             tool = index.data(self._model.ToolRole)
             self.tool_selected.emit(tool)
+        else:
+            self.tool_cleared.emit()
 
     def _on_double_clicked(self, index):
         if index.isValid():
@@ -354,6 +363,9 @@ class ToolsView(QtWidgets.QWidget):
 
     def on_tools_updated(self, tools):
         self._model.update_tools(tools)
+
+    def on_cache_cleared(self):
+        self._view.clearSelection()
 
 
 class WorkDirWidget(QtWidgets.QWidget):
@@ -418,6 +430,10 @@ class ToolContextWidget(QtWidgets.QWidget):
         self._context.load(context)
         self._environ.model().load(context.get_environ())
         self._environ.model().note(lib.ContextEnvInspector.inspect(context))
+
+    def on_tool_cleared(self):
+        self._context.reset()
+        self._environ.model().clear()
 
 
 class TreeView(qoverview.VerticalExtendedTreeView):

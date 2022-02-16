@@ -316,6 +316,14 @@ class ResolvedEnvironmentProxyModel(QtCore.QSortFilterProxyModel):
         return accept
 
 
+class _PendingContext:
+    __getattr__ = (lambda self, k: "")
+    success = usable = True
+    package_paths = resolved_packages = resolved_ephemerals \
+        = _package_requests = implicit_packages = package_filter \
+        = package_orderers = []
+
+
 class ContextDataModel(BaseItemModel):
     FieldNameRole = QtCore.Qt.UserRole + 10
     PlaceholderRole = QtCore.Qt.UserRole + 11

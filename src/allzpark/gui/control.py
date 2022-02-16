@@ -112,6 +112,7 @@ class Controller(QtCore.QObject):
     tools_updated = QtCore.Signal(list)
     tool_selected = QtCore.Signal(core.SuiteTool)
     status_message = QtCore.Signal(str)
+    cache_cleared = QtCore.Signal()
 
     def __init__(self, backends):
         super(Controller, self).__init__(parent=None)
@@ -182,11 +183,11 @@ class Controller(QtCore.QObject):
     @_thread(name="workspace", blocks=("ProductionPage",))
     def update_workspace(self, scope, cache_clear=False):
         if cache_clear:
-            self.list_scopes.cache_clear()
+            self.cache_clear()
 
         error_occurred, child_scopes = self.list_scopes(scope)
         if error_occurred:
-            self.list_scopes.cache_clear()
+            self.cache_clear()
 
         self.workspace_updated.emit(child_scopes)
 
@@ -223,6 +224,7 @@ class Controller(QtCore.QObject):
     def cache_clear(self):
         core.cache_clear()
         self.list_scopes.cache_clear()
+        self.cache_cleared.emit()
 
     def launch_tool(self, suite_tool: core.SuiteTool):
         log.warning(f"Launching {suite_tool.name}")

@@ -109,6 +109,7 @@ class AvalonWidget(QtWidgets.QWidget):
         self._slider = slider
         self._page = 0
         self._current_project = current_project
+        self._entered_scope = None
 
     def _workspace_refreshed(self, scope, cache_clear=False):
         self.workspace_refreshed.emit(scope, cache_clear)
@@ -175,6 +176,7 @@ class AvalonWidget(QtWidgets.QWidget):
 
         self.tools_requested.emit(scope)
         self._workspace_refreshed(scope)
+        self._entered_scope = scope
 
     def update_workspace(
             self, scopes: Union[List[Project], List[Asset], List[Task]]
@@ -207,6 +209,10 @@ class AvalonWidget(QtWidgets.QWidget):
                                       f"have downstream scope.")
         else:
             raise NotImplementedError(f"Unknown upstream {elide(upstream)!r}")
+
+    def on_cache_cleared(self):
+        if self._entered_scope is not None:
+            self._workspace_refreshed(self._entered_scope)
 
 
 class ProjectListWidget(QtWidgets.QWidget):

@@ -34,6 +34,7 @@ class ShotGridSyncWidget(QtWidgets.QWidget):
         self.__inited = False
         self._entrance = None  # type: Entrance or None
         self._projects = project_list
+        self._entered_scope = None
 
     def _workspace_refreshed(self, scope, cache_clear=False):
         self.workspace_refreshed.emit(scope, cache_clear)
@@ -54,6 +55,7 @@ class ShotGridSyncWidget(QtWidgets.QWidget):
 
         self.tools_requested.emit(scope)
         self._workspace_refreshed(scope)
+        self._entered_scope = scope
 
     def update_workspace(self, scopes: List[Project]) -> None:
         if not scopes:
@@ -66,6 +68,10 @@ class ShotGridSyncWidget(QtWidgets.QWidget):
             self.__inited = True
         else:
             raise NotImplementedError(f"Invalid upstream {elide(upstream)!r}")
+
+    def on_cache_cleared(self):
+        if self._entered_scope is not None:
+            self._workspace_refreshed(self._entered_scope)
 
 
 class ProjectListWidget(QtWidgets.QWidget):

@@ -103,9 +103,12 @@ class Session(object):
         ctrl.work_dir_obtained.connect(work_dir.on_work_dir_obtained)
         ctrl.work_dir_resetted.connect(work_dir.on_work_dir_resetted)
         ctrl.tool_selected.connect(tool_context.on_tool_selected)
+        ctrl.cache_cleared.connect(tool_list.on_cache_cleared)
+        ctrl.cache_cleared.connect(workspace.on_cache_cleared)
 
         # view -> view
         view_.dark_toggled.connect(self.on_dark_toggled)
+        tool_list.tool_cleared.connect(tool_context.on_tool_cleared)
 
         # status bar messages
         ctrl.status_message.connect(view_.spoken)

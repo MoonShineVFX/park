@@ -57,9 +57,7 @@ class _Scope(AbstractScope):
     def exists(
             self: Union["Entrance", "Project", "Asset", "Task"]
     ) -> bool:
-        # todo: this should query database to see if the entity that
-        #  this scope represented still exists.
-        pass
+        return check_existence(self)
 
     @overload
     def iter_children(self: "Entrance") -> Iterator["Project"]:
@@ -444,6 +442,43 @@ def _(scope: Task) -> None:
     return None
 
 
+@singledispatch
+def check_existence(scope) -> bool:
+    """Check if the scope still valid in Avalon database
+
+    :param scope: The scope of workspace. Could be a project/asset/task.
+    :type scope: Entrance or Project or Asset
+    :rtype: Iterator[Project] or Iterator[Asset] or Iterator[Task] or None
+    """
+    raise NotImplementedError(f"Unknown scope type: {type(scope)}")
+
+
+@check_existence.register
+def _(scope: Entrance) -> bool:
+    try:
+        ping(AvalonMongo(scope.uri, scope.timeout, entrance=scope))
+    except IOError as e:
+        log.critical(f"Avalon Database connection lost: {str(e)}")
+        return False
+    return True
+
+
+@check_existence.register
+def _(scope: Project) -> bool:
+    return scope.db.is_project_exists(scope.coll)
+
+
+@check_existence.register
+def _(scope: Asset) -> bool:
+    return scope.db.is_asset_exists(scope.coll, scope.name)
+
+
+@check_existence.register
+def _(scope: Task) -> bool:
+    _ = scope
+    return True
+
+
 def get_avalon_task_workspace(task: Task, tool: SuiteTool):
     template = task.project.work_template
     return template.format(**{
@@ -599,6 +634,22 @@ class AvalonMongo(object):
         self.timeout = timeout
         self.entrance = entrance
         self._db_name = os.getenv("AVALON_DB", "avalon")
+
+    def is_project_exists(self, coll_name):
+        db = self.conn[self._db_name]  # type: MongoDatabase
+        coll = db.get_collection(coll_name)  # type: MongoCollection
+        return bool(
+            coll.find_one({"type": "project"},
+                          projection={"_id": True})
+        )
+
+    def is_asset_exists(self, coll_name, asset_name):
+        db = self.conn[self._db_name]  # type: MongoDatabase
+        coll = db.get_collection(coll_name)  # type: MongoCollection
+        return bool(
+            coll.find_one({"type": "asset", "name": asset_name},
+                          projection={"_id": True})
+        )
 
     def iter_projects(self, joined=True):
         """

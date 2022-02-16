@@ -225,6 +225,7 @@ class Controller(QtCore.QObject):
         core.cache_clear()
         self.list_scopes.cache_clear()
         self.cache_cleared.emit()
+        log.debug("Internal cache cleared.")
 
     def launch_tool(self, suite_tool: core.SuiteTool):
         log.warning(f"Launching {suite_tool.name}")

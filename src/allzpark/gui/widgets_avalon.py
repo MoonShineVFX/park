@@ -109,7 +109,7 @@ class AvalonWidget(QtWidgets.QWidget):
         self._slider = slider
         self._page = 0
         self._current_project = current_project
-        self._entered_scope = None
+        self._entered_scope = None  # type: AbstractScope or None
 
     def _workspace_refreshed(self, scope, cache_clear=False):
         self.workspace_refreshed.emit(scope, cache_clear)
@@ -211,8 +211,22 @@ class AvalonWidget(QtWidgets.QWidget):
             raise NotImplementedError(f"Unknown upstream {elide(upstream)!r}")
 
     def on_cache_cleared(self):
-        if self._entered_scope is not None:
-            self._workspace_refreshed(self._entered_scope)
+        if self._entered_scope is None:
+            return
+
+        scope = self._entered_scope  # type: AbstractScope
+        if not scope.exists():
+            if scope.upstream is not None:
+                # fallback to upstream
+                self._entered_scope = scope.upstream
+                self.on_cache_cleared()
+            else:
+                # backend lost
+                self._projects.model().reset()
+                self.set_page(0)
+                return
+
+        self._workspace_refreshed(scope)
 
 
 class ProjectListWidget(QtWidgets.QWidget):

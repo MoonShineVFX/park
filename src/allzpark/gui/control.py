@@ -144,10 +144,10 @@ class Controller(QtCore.QObject):
     def on_workspace_changed(self, scope):
         self.enter_workspace(scope)
 
-    @QtCore.Slot(core.AbstractScope)  # noqa
+    @QtCore.Slot(core.AbstractScope, bool)  # noqa
     @_defer(on_time=200)
-    def on_workspace_refreshed(self, scope):
-        self.update_workspace(scope)
+    def on_workspace_refreshed(self, scope, cache_clear):
+        self.update_workspace(scope, cache_clear)
 
     @QtCore.Slot(core.AbstractScope)  # noqa
     @_defer(on_time=100)
@@ -164,6 +164,11 @@ class Controller(QtCore.QObject):
     def on_tool_launched(self, suite_tool: core.SuiteTool):
         self.launch_tool(suite_tool)
 
+    @QtCore.Slot()  # noqa
+    @_defer(on_time=50)
+    def on_cache_clear_clicked(self):
+        self.cache_clear()
+
     @QtCore.Slot(core.SuiteTool)  # noqa
     @_defer(on_time=50)
     def on_shell_launched(self, suite_tool: core.SuiteTool):
@@ -175,7 +180,23 @@ class Controller(QtCore.QObject):
         self.workspace_entered.emit(scope)
 
     @_thread(name="workspace", blocks=("ProductionPage",))
-    def update_workspace(self, scope):
+    def update_workspace(self, scope, cache_clear=False):
+        if cache_clear:
+            self.list_scopes.cache_clear()
+
+        error_occurred, child_scopes = self.list_scopes(scope)
+        if error_occurred:
+            self.list_scopes.cache_clear()
+
+        self.workspace_updated.emit(child_scopes)
+
+    @_thread(name="tools", blocks=("ProductionPage",))
+    def update_tools(self, scope):
+        self.work_dir_resetted.emit()
+        self.tools_updated.emit(core.list_tools(scope))
+
+    @functools.lru_cache(maxsize=None)
+    def list_scopes(self, scope):
         _error = False
         _start = time.time()
         children = []
@@ -188,20 +209,20 @@ class Controller(QtCore.QObject):
             log.error(str(e))
             _error = True
 
-        self.workspace_updated.emit(children)
         if not _error:
             log.info(f"Workspace {scope.name} updated in "
                      f"{time.time() - _start:.2f} secs.")
 
-    @_thread(name="tools", blocks=("ProductionPage",))
-    def update_tools(self, scope):
-        self.work_dir_resetted.emit()
-        self.tools_updated.emit(list(core.iter_tools(scope)))
+        return _error, children
 
     def select_tool(self, suite_tool: core.SuiteTool):
         work_dir = suite_tool.scope.obtain_workspace(suite_tool)
         self.work_dir_obtained.emit(work_dir)
         self.tool_selected.emit(suite_tool)
+
+    def cache_clear(self):
+        core.cache_clear()
+        self.list_scopes.cache_clear()
 
     def launch_tool(self, suite_tool: core.SuiteTool):
         log.warning(f"Launching {suite_tool.name}")

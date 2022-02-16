@@ -121,6 +121,12 @@ class Entrance(_Scope):
     api_key: str
     script_name: str
 
+    def __repr__(self):
+        return f"Entrance(name={self.name}, sg_server={self.sg_server})"
+
+    def __hash__(self):
+        return hash(repr(self))
+
 
 @dataclass(frozen=True)
 class Project(_Scope):
@@ -130,6 +136,14 @@ class Project(_Scope):
     code: str
     tank_name: str
     sg_project_root: str
+
+    def __repr__(self):
+        return f"Project(" \
+               f"name={self.name}, tank_name={self.tank_name}, " \
+               f"upstream={self.upstream})"
+
+    def __hash__(self):
+        return hash(repr(self))
 
 
 @singledispatch

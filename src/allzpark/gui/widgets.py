@@ -207,10 +207,23 @@ class ScopeLineLabel(QtWidgets.QLineEdit):
         self.setPlaceholderText(placeholder)
 
 
+class ClearCacheWidget(QtWidgets.QWidget):
+    clear_clicked = QtCore.Signal()
+
+    def __init__(self, *args, **kwargs):
+        super(ClearCacheWidget, self).__init__(*args, **kwargs)
+        clear_cache = QtWidgets.QPushButton()
+        clear_cache.setObjectName("ClearCacheBtn")
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(clear_cache)
+        clear_cache.clicked.connect(self.clear_clicked)
+
+
 class WorkspaceWidget(BusyWidget):
     tools_requested = QtCore.Signal(AbstractScope)
     workspace_changed = QtCore.Signal(AbstractScope)
-    workspace_refreshed = QtCore.Signal(AbstractScope)
+    workspace_refreshed = QtCore.Signal(AbstractScope, bool)
     backend_changed = QtCore.Signal(str)
 
     def __init__(self, *args, **kwargs):

@@ -44,7 +44,7 @@ def get_entrance(uri=None, timeout=None):
     out = timeout or int(os.getenv("AVALON_TIMEOUT") or 1000)
     uri = uri or os.getenv("AVALON_MONGO")
     if uri:
-        return Entrance(uri=uri, timeout=out, kwargs={})
+        return Entrance(uri=uri, timeout=out, joined=True)
     raise BackendError("Avalon database URI not given.")
 
 
@@ -140,13 +140,20 @@ class _Scope(AbstractScope):
         return avalon_pipeline_env(self, tool)
 
 
-@dataclass(frozen=True)
+@dataclass  # can't froze this, attribute 'joined' can be changed
 class Entrance(_Scope):
     name = "avalon"
     upstream = None
     uri: str
     timeout: int
-    kwargs: dict
+    joined: bool
+
+    def __repr__(self):
+        return f"Entrance(" \
+               f"name={self.name}, uri={self.uri}, joined={self.joined})"
+
+    def __hash__(self):
+        return hash(repr(self))
 
 
 @dataclass(frozen=True)
@@ -162,6 +169,12 @@ class Project(_Scope):
     coll: str
     db: "AvalonMongo"
 
+    def __repr__(self):
+        return f"Project(name={self.name}, upstream={self.upstream})"
+
+    def __hash__(self):
+        return hash(repr(self))
+
 
 @dataclass(frozen=True)
 class Asset(_Scope):
@@ -176,6 +189,12 @@ class Asset(_Scope):
     coll: str
     db: "AvalonMongo"
 
+    def __repr__(self):
+        return f"Asset(name={self.name}, upstream={self.upstream})"
+
+    def __hash__(self):
+        return hash(repr(self))
+
 
 @dataclass(frozen=True)
 class Task(_Scope):
@@ -185,6 +204,12 @@ class Task(_Scope):
     asset: Asset
     coll: str
     db: "AvalonMongo"
+
+    def __repr__(self):
+        return f"Task(name={self.name}, upstream={self.upstream})"
+
+    def __hash__(self):
+        return hash(repr(self))
 
 
 @singledispatch
@@ -201,8 +226,7 @@ def iter_avalon_scopes(scope):
 @iter_avalon_scopes.register
 def _(scope: Entrance) -> Iterator[Project]:
     database = AvalonMongo(scope.uri, scope.timeout, entrance=scope)
-    joined = scope.kwargs.get("joined", True)
-    return iter_avalon_projects(database, joined)
+    return iter_avalon_projects(database, scope.joined)
 
 
 @iter_avalon_scopes.register

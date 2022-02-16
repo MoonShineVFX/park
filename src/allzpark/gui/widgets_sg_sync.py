@@ -14,7 +14,7 @@ class ShotGridSyncWidget(QtWidgets.QWidget):
     icon_path = ":/icons/sg_logo.png"
     tools_requested = QtCore.Signal(AbstractScope)
     workspace_changed = QtCore.Signal(AbstractScope)
-    workspace_refreshed = QtCore.Signal(AbstractScope)
+    workspace_refreshed = QtCore.Signal(AbstractScope, bool)
 
     def __init__(self, *args, **kwargs):
         super(ShotGridSyncWidget, self).__init__(*args, **kwargs)
@@ -35,6 +35,9 @@ class ShotGridSyncWidget(QtWidgets.QWidget):
         self._entrance = None  # type: Entrance or None
         self._projects = project_list
 
+    def _workspace_refreshed(self, scope, cache_clear=False):
+        self.workspace_refreshed.emit(scope, cache_clear)
+
     def enter_workspace(self,
                         scope: Union[Entrance, Project],
                         backend_changed: bool) -> None:
@@ -50,7 +53,7 @@ class ShotGridSyncWidget(QtWidgets.QWidget):
             return
 
         self.tools_requested.emit(scope)
-        self.workspace_refreshed.emit(scope)
+        self._workspace_refreshed(scope)
 
     def update_workspace(self, scopes: List[Project]) -> None:
         if not scopes:

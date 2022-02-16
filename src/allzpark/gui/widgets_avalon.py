@@ -33,7 +33,7 @@ class AvalonWidget(QtWidgets.QWidget):
     icon_path = ":/icons/avalon-logomark.svg"
     tools_requested = QtCore.Signal(AbstractScope)
     workspace_changed = QtCore.Signal(AbstractScope)
-    workspace_refreshed = QtCore.Signal(AbstractScope)
+    workspace_refreshed = QtCore.Signal(AbstractScope, bool)
 
     def __init__(self, *args, **kwargs):
         super(AvalonWidget, self).__init__(*args, **kwargs)
@@ -110,20 +110,23 @@ class AvalonWidget(QtWidgets.QWidget):
         self._page = 0
         self._current_project = current_project
 
+    def _workspace_refreshed(self, scope, cache_clear=False):
+        self.workspace_refreshed.emit(scope, cache_clear)
+
     def _on_home_clicked(self):
         assert self._entrance is not None
         self.workspace_changed.emit(self._entrance)
 
     def _on_project_filtered(self, joined):
         scope = self._entrance
-        scope.kwargs["joined"] = bool(joined)
-        self.workspace_refreshed.emit(scope)
+        scope.joined = bool(joined)
+        self._workspace_refreshed(scope, cache_clear=True)
 
     def _on_project_refreshed(self):
-        self.workspace_refreshed.emit(self._entrance)
+        self._workspace_refreshed(self._entrance)
 
     def _on_asset_refreshed(self, scope: Project):
-        self.workspace_refreshed.emit(scope)
+        self._workspace_refreshed(scope)
 
     def _on_asset_changed(self, scope: Union[Asset, Project]):
         if self._page != 1:
@@ -171,7 +174,7 @@ class AvalonWidget(QtWidgets.QWidget):
             return
 
         self.tools_requested.emit(scope)
-        self.workspace_refreshed.emit(scope)
+        self._workspace_refreshed(scope)
 
     def update_workspace(
             self, scopes: Union[List[Project], List[Asset], List[Task]]

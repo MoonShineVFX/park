@@ -83,7 +83,7 @@ class Resources:
         "jetbrainsmono/JetBrainsMono-Regular.ttf"
     )
     icons_ext = ".png", ".svg"
-    qrc_updated = 1644940309  # !!<qrc-update-time>!! don't touch
+    qrc_updated = 1645007850  # !!<qrc-update-time>!! don't touch
 
     @classmethod
     def load(cls):
@@ -938,18 +938,18 @@ class BaseTheme(object):
             font-size: {px(22).ceil};
         }}
         
-        #RefreshButton {{
-            icon: url(:/icons/arrow-clockwise.svg);
-            border: none;
-            width: {px(18)};
-            height: {px(18)};
+        #ClearCacheBtn {{
+            icon: url(:/icons/dot-red.svg);
+        }}
+        #ClearCacheBtn:hover {{
+            icon: url(:/icons/dot-red-on.svg);
         }}
         
+        #RefreshButton {{
+            icon: url(:/icons/arrow-clockwise.svg);
+        }}
         #RefreshButton:hover {{
             icon: url(:/icons/arrow-clockwise-on.svg);
-            border: none;
-            width: {px(18)};
-            height: {px(18)};
         }}
         
         #ButtonBelt QPushButton {{
@@ -965,6 +965,9 @@ class BaseTheme(object):
         }}
         #ButtonBelt QPushButton:hover {{
             background-color: {self.palette.secondary.fade};
+        }}
+        #ButtonBelt QPushButton:pressed {{
+            background-color: {self.palette.primary};
         }}
         
         #DarkSwitch:checked {{

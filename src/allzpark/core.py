@@ -1,10 +1,12 @@
 
 import logging
+import functools
 from typing import Set, Union, Iterator, Callable
 from dataclasses import dataclass
-from rez.suite import Suite
 from rez.packages import Variant
-from rez.resolved_context import ResolvedContext
+from rez.config import config as rezconfig
+from rez.package_repository import package_repository_manager
+from sweet.core import RollingContext, SweetSuite
 from .exceptions import BackendError
 
 log = logging.getLogger("allzpark")
@@ -77,7 +79,13 @@ def load_suite(path):
     :return:
     :rtype: ReadOnlySuite or None
     """
-    return ReadOnlySuite.load(path)
+    log.debug(f"Loading suite: {path}")
+    suite = ReadOnlySuite.load(path)
+    if suite.is_live():
+        log.debug(f"Re-resolve contexts in suite..")
+        suite.re_resolve_rxt_contexts()
+
+    return suite
 
 
 class AbstractScope:
@@ -157,17 +165,18 @@ class SuiteTool:
         )
 
 
-def iter_tools(scope, filtering=None):
-    """Iterate tools within scope and upstream scopes
+def cache_clear():
+    # clear cached packages
+    for path in rezconfig.packages_path:
+        repo = package_repository_manager.get_repository(path)
+        repo.clear_caches()
+    # clear cached suites and tools
+    _load_suite.cache_clear()
+    list_tools.cache_clear()
 
-    :param scope: where to iter tools from
-    :param filtering: If None, the default, tools will be filtered by
-        the scope. If False, no filtering. Or if a callable is given,
-        filtering tools with it instead.
-    :type scope: AbstractScope
-    :type filtering: bool or Callable or None
-    :rtype: Iterator[SuiteTool]
-    """
+
+def _tools_iter(scope, filtering=None, caching=False):
+    _get_suite = _load_suite if caching else load_suite
 
     def _iter_tools(_scope):
         try:
@@ -176,7 +185,7 @@ def iter_tools(scope, filtering=None):
             log.error(str(e))
         else:
             if suite_path:
-                suite = load_suite(suite_path)
+                suite = _get_suite(suite_path)
                 for _tool in suite.iter_tools(scope=scope):
                     yield _tool
         if _scope.upstream is not None:
@@ -194,77 +203,72 @@ def iter_tools(scope, filtering=None):
         yield tool
 
 
-class _Suite(Suite):
-    @classmethod
-    def from_dict(cls, d):
-        s = cls.__new__(cls)
-        s.load_path = None
-        s.tools = None
-        s.tool_conflicts = None
-        s.contexts = d["contexts"]
-        if s.contexts:
-            s.next_priority = max(x["priority"]
-                                  for x in s.contexts.values()) + 1
-        else:
-            s.next_priority = 1
-        return s
+@functools.lru_cache(maxsize=None)
+def _load_suite(path):
+    return load_suite(path)
 
 
-class ReadOnlySuite(_Suite):
+@functools.lru_cache(maxsize=None)
+def list_tools(scope, filtering=None):
+    """List tools within scope and upstream scopes with lru cached
+
+    :param scope: where to iter tools from
+    :param filtering: If None, the default, tools will be filtered by
+        the scope. If False, no filtering. Or if a callable is given,
+        filtering tools with it instead.
+    :type scope: AbstractScope
+    :type filtering: bool or Callable or None
+    :rtype: Iterator[SuiteTool]
+    """
+    return list(_tools_iter(scope, filtering, caching=True))
+
+
+def iter_tools(scope, filtering=None):
+    """Iterate tools within scope and upstream scopes
+
+    :param scope: where to iter tools from
+    :param filtering: If None, the default, tools will be filtered by
+        the scope. If False, no filtering. Or if a callable is given,
+        filtering tools with it instead.
+    :type scope: AbstractScope
+    :type filtering: bool or Callable or None
+    :rtype: Iterator[SuiteTool]
+    """
+    return _tools_iter(scope, filtering, caching=False)
+
+
+class ReadOnlySuite(SweetSuite):
     """A Read-Only SweetSuite"""
-
-    def __init__(self):
-        super(ReadOnlySuite, self).__init__()
-        self._is_live = True
-
-    @classmethod
-    def from_dict(cls, d):
-        """Parse dict into suite
-        :return:
-        :rtype: ReadOnlySuite
-        """
-        s = super(ReadOnlySuite, cls).from_dict(d)
-        s._is_live = d.get("live_resolve", False)
-        return s
 
     def _invalid_operation(self, *_, **__):
         raise RuntimeError("Invalid operation, this suite is Read-Only.")
 
-    add_context = _invalid_operation
-    remove_context = _invalid_operation
-    set_context_prefix = _invalid_operation
-    remove_context_prefix = _invalid_operation
-    set_context_suffix = _invalid_operation
-    remove_context_suffix = _invalid_operation
-    bump_context = _invalid_operation
-    hide_tool = _invalid_operation
-    unhide_tool = _invalid_operation
-    alias_tool = _invalid_operation
-    unalias_tool = _invalid_operation
-    save = _invalid_operation
+    _update_context = SweetSuite.update_context
+    add_context = \
+        update_context = \
+        remove_context = \
+        rename_context = \
+        set_context_prefix = \
+        remove_context_prefix = \
+        set_context_suffix = \
+        remove_context_suffix = \
+        bump_context = \
+        hide_tool = \
+        unhide_tool = \
+        alias_tool = \
+        unalias_tool = \
+        set_live = \
+        set_description = \
+        save = _invalid_operation
 
-    def context(self, name):
-        """Get a context.
-        :param name:
+    def re_resolve_rxt_contexts(self):
+        """Re-resolve all contexts that loaded from .rxt files
         :return:
         """
-        data = self._context(name)
-        context = data.get("context")
-        if context:
-            return context
-
-        assert self.load_path
-        context_path = self._context_path(name, self.load_path)
-        context = ResolvedContext.load(context_path)
-        if self._is_live:
-            context = re_resolve_rxt(context)
-        else:
-            data["context"] = context
-            data["loaded"] = True
-        return context
-
-    def is_live(self):
-        return self._is_live
+        for name in list(self.contexts.keys()):
+            context = self.context(name)
+            if context.load_path:
+                self._update_context(name, re_resolve_rxt(context))
 
     def iter_tools(self, scope=None):
         """Iter tools in this suite
@@ -279,9 +283,6 @@ class ReadOnlySuite(_Suite):
                 variant=entry["variant"],
                 scope=scope,
             )
-
-    # Exposing protected member that I'd like to use.
-    flush_tools = Suite._flush_tools
 
 
 def re_resolve_rxt(context):
@@ -298,12 +299,12 @@ def re_resolve_rxt(context):
     :param context: .rxt loaded context
     :type context: ResolvedContext
     :return: new resolved context
-    :rtype: ResolvedContext
+    :rtype: RollingContext
     :raises AssertionError: If no context.load_path (not loaded from .rxt)
     """
     assert context.load_path, "Not a loaded context."
     rxt = context
-    return ResolvedContext(
+    return RollingContext(
         package_requests=rxt.requested_packages(),
         timestamp=rxt.requested_timestamp,
         package_paths=rxt.package_paths,

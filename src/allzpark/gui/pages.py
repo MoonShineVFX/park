@@ -10,6 +10,9 @@ class ProductionPage(widgets.BusyWidget):
         self.setObjectName("ProductionPage")
 
         # top
+        head = QtWidgets.QWidget()
+        head.setObjectName("ButtonBelt")
+        clear_cache = widgets.ClearCacheWidget()
         work_dir = widgets.WorkDirWidget()
         # body
         body = QtWidgets.QWidget()
@@ -53,6 +56,12 @@ class ProductionPage(widgets.BusyWidget):
         body_split.setStretchFactor(0, 70)
         body_split.setStretchFactor(1, 30)
 
+        layout = QtWidgets.QHBoxLayout(head)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(clear_cache)
+        layout.addWidget(work_dir, stretch=True)
+
         layout = QtWidgets.QHBoxLayout(body)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
@@ -61,7 +70,7 @@ class ProductionPage(widgets.BusyWidget):
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 4, 0, 0)
-        layout.addWidget(work_dir)
+        layout.addWidget(head)
         layout.addWidget(body_split, stretch=True)
 
         tabs.currentChanged.connect(stack.setCurrentIndex)

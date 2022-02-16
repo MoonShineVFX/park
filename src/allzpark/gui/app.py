@@ -82,6 +82,7 @@ class Session(object):
         work_dir = view_.find(widgets.WorkDirWidget)
         tool_list = view_.find(widgets.ToolsView)
         tool_context = view_.find(widgets.ToolContextWidget)
+        clear_cache = view_.find(widgets.ClearCacheWidget)
         busy_filter = widgets.BusyEventFilterSingleton()
 
         # view -> control
@@ -89,6 +90,7 @@ class Session(object):
         workspace.workspace_refreshed.connect(ctrl.on_workspace_refreshed)
         workspace.backend_changed.connect(ctrl.on_backend_changed)
         workspace.tools_requested.connect(ctrl.on_scope_tools_requested)
+        clear_cache.clear_clicked.connect(ctrl.on_cache_clear_clicked)
         tool_list.tool_selected.connect(ctrl.on_tool_selected)
         tool_list.tool_launched.connect(ctrl.on_tool_launched)
         tool_context.tool_launched.connect(ctrl.on_tool_launched)

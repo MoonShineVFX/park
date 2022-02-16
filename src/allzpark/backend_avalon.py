@@ -368,34 +368,40 @@ def _(scope: Entrance, tool: SuiteTool) -> dict:
 @avalon_pipeline_env.register
 def _(scope: Project, tool: SuiteTool) -> dict:
     project = scope
-    return {
+    environ = scope.upstream.additional_env(tool)
+    environ.update({
         "AVALON_PROJECTS": project.root,
         "AVALON_PROJECT": project.name,
         "AVALON_APP": tool.name,
         "AVALON_APP_NAME": tool.name,  # application dir
-    }
+    })
+    return environ
 
 
 @avalon_pipeline_env.register
 def _(scope: Asset, tool: SuiteTool) -> dict:
     asset = scope
-    return {
+    environ = scope.upstream.additional_env(tool)
+    environ.update({
         "AVALON_SILO": asset.silo,
         "AVALON_ASSET": asset.name,
         "AVALON_APP": tool.name,
         "AVALON_APP_NAME": tool.name,  # application dir
-    }
+    })
+    return environ
 
 
 @avalon_pipeline_env.register
 def _(scope: Task, tool: SuiteTool) -> dict:
     task = scope
-    return {
+    environ = scope.upstream.additional_env(tool)
+    environ.update({
         "AVALON_TASK": task.name,
         "AVALON_WORKDIR": get_avalon_task_workspace(task, tool),
         "AVALON_APP": tool.name,
         "AVALON_APP_NAME": tool.name,  # application dir
-    }
+    })
+    return environ
 
 
 @singledispatch

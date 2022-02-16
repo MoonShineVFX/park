@@ -428,10 +428,12 @@ class ToolContextWidget(QtWidgets.QWidget):
         self._context = context
 
     @QtCore.Slot(SuiteTool)  # noqa
-    def on_tool_selected(self, suite_tool: SuiteTool):
+    def on_tool_selected(self, suite_tool: SuiteTool, work_env: dict):
         context = suite_tool.context
+        env = context.get_environ()
+        env.update(work_env)
         self._context.load(context)
-        self._environ.model().load(context.get_environ())
+        self._environ.model().load(env)
         self._environ.model().note(lib.ContextEnvInspector.inspect(context))
         self._launcher.set_tool(suite_tool)
 

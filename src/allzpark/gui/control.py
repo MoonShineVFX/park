@@ -1,4 +1,4 @@
-
+import os
 import time
 import logging
 import inspect
@@ -115,7 +115,7 @@ class Controller(QtCore.QObject):
     work_dir_obtained = QtCore.Signal(str)
     work_dir_resetted = QtCore.Signal()
     tools_updated = QtCore.Signal(list)
-    tool_selected = QtCore.Signal(core.SuiteTool)
+    tool_selected = QtCore.Signal(core.SuiteTool, dict)
     status_message = QtCore.Signal(str)
     cache_cleared = QtCore.Signal()
 
@@ -131,6 +131,7 @@ class Controller(QtCore.QObject):
         log.addHandler(handler)
 
         self._cwd = None
+        self._env = None
         self._backend_entrances = dict(backends)
         self._timers = dict()
         self._sender = dict()
@@ -201,6 +202,8 @@ class Controller(QtCore.QObject):
     def update_tools(self, scope):
         self.work_dir_resetted.emit()
         self.tools_updated.emit(core.list_tools(scope))
+        self._cwd = None
+        self._env = None
 
     @functools.lru_cache(maxsize=None)
     def list_scopes(self, scope):
@@ -224,9 +227,11 @@ class Controller(QtCore.QObject):
 
     def select_tool(self, suite_tool: core.SuiteTool):
         work_dir = suite_tool.scope.obtain_workspace(suite_tool)
+        work_env = suite_tool.scope.additional_env(suite_tool)
         self.work_dir_obtained.emit(work_dir or "")
-        self.tool_selected.emit(suite_tool)
+        self.tool_selected.emit(suite_tool, work_env or {})
         self._cwd = work_dir
+        self._env = work_env
 
     def cache_clear(self):
         core.cache_clear()
@@ -243,9 +248,10 @@ class Controller(QtCore.QObject):
             command=suite_tool.name,  # todo: able to append args
             cwd=self._cwd or None,
             detached=True,
-            environ=None,  # todo: able to inject additional env
+            environ=self._env,  # todo: able to inject additional env
             parent=self
         )
+        # todo: connect log window
         cmd.execute()
 
     def launch_shell(self, suite_tool: core.SuiteTool):
@@ -309,11 +315,16 @@ class Command(QtCore.QObject):
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
+        env = None
+        if self.environ:
+            env = os.environ.copy()
+            env.update(self.environ)
+
         kwargs = {
             "command": self.cmd,
             "stdout": subprocess.PIPE,
             "stderr": subprocess.PIPE,
-            "parent_environ": self.environ,
+            "parent_environ": env,
             "startupinfo": startupinfo,
             "encoding": util.subprocess_encoding(),
             "errors": util.unicode_decode_error_handler(),

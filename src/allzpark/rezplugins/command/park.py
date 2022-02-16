@@ -47,7 +47,13 @@ def setup_parser(parser, completions=False):
 
 
 def command(opts, parser=None, extra_arg_groups=None):
+    import logging
     from allzpark import cli
+
+    if opts.debug:
+        log = logging.getLogger("allzpark")
+        stream_handler = next(h for h in log.handlers if h.name == "stream")
+        stream_handler.setLevel(logging.DEBUG)
 
     if opts.version:
         from allzpark._version import print_info

@@ -28,6 +28,7 @@ class ProductionPage(widgets.BusyWidget):
         work_split.addWidget(workspace_view)
         work_split.addWidget(tools_view)
 
+        work_split.setObjectName("WorkspaceToolSplitter")
         work_split.setOrientation(QtCore.Qt.Horizontal)
         work_split.setChildrenCollapsible(False)
         work_split.setContentsMargins(0, 0, 0, 0)
@@ -50,6 +51,7 @@ class ProductionPage(widgets.BusyWidget):
         body_split.addWidget(body)
         body_split.addWidget(tool_context)
 
+        body_split.setObjectName("MainPageSplitter")
         body_split.setOrientation(QtCore.Qt.Horizontal)
         body_split.setChildrenCollapsible(False)
         body_split.setContentsMargins(0, 0, 0, 0)

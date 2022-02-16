@@ -513,7 +513,8 @@ class ToolLaunchWidget(QtWidgets.QWidget):
         label = QtWidgets.QLabel()
 
         body = QtWidgets.QWidget()
-        launch = QtWidgets.QPushButton()
+        launch = QtWidgets.QPushButton("run app")
+        shell = QtWidgets.QPushButton("shell")
 
         # todo:
         #   * shell
@@ -523,14 +524,17 @@ class ToolLaunchWidget(QtWidgets.QWidget):
         layout.addWidget(icon)
         layout.addWidget(label)
 
-        layout = QtWidgets.QHBoxLayout(body)
-        layout.addWidget(launch, alignment=QtCore.Qt.AlignBottom)
+        layout = QtWidgets.QVBoxLayout(body)
+        layout.addStretch(True)
+        layout.addWidget(launch)
+        layout.addWidget(shell)
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.addWidget(head)
         layout.addWidget(body)
 
         launch.clicked.connect(self._on_launch_tool_clicked)
+        shell.clicked.connect(self._on_launch_shell_clicked)
 
         self._label = label
         self._icon = icon
@@ -538,6 +542,9 @@ class ToolLaunchWidget(QtWidgets.QWidget):
 
     def _on_launch_tool_clicked(self):
         self.tool_launched.emit(self._tool)
+
+    def _on_launch_shell_clicked(self):
+        self.shell_launched.emit(self._tool)
 
     def reset(self):
         self._label.setText("")

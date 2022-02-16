@@ -1,3 +1,4 @@
+
 import os
 import time
 import logging
@@ -247,23 +248,33 @@ class Controller(QtCore.QObject):
             context=suite_tool.context,
             command=suite_tool.name,  # todo: able to append args
             cwd=self._cwd or None,
-            detached=True,
             environ=self._env,  # todo: able to inject additional env
+            detached=True,
             parent=self
         )
         # todo: connect log window
         cmd.execute()
 
     def launch_shell(self, suite_tool: core.SuiteTool):
-        log.warning(f"Launching {suite_tool.name} shell...")
+        log.info(f"Launching {suite_tool.name} shell...")
+
+        cmd = Command(
+            context=suite_tool.context,
+            command=None,
+            cwd=self._cwd or None,
+            environ=self._env,  # todo: able to inject additional env
+            detached=True,
+            start_new_session=True,
+            parent=self
+        )
+        # todo: connect log window
+        cmd.execute()
 
 
 class Command(QtCore.QObject):
     stdout = QtCore.Signal(str)
     stderr = QtCore.Signal(str)
     killed = QtCore.Signal()
-
-    error = QtCore.Signal(Exception)
 
     def __str__(self):
         return "Command('%s')" % self.cmd
@@ -272,8 +283,9 @@ class Command(QtCore.QObject):
                  context,
                  command,
                  cwd=None,
-                 detached=True,
                  environ=None,
+                 detached=True,
+                 start_new_session=False,
                  parent=None):
         super(Command, self).__init__(parent)
 
@@ -282,6 +294,7 @@ class Command(QtCore.QObject):
         self.cwd = cwd
         self.popen = None
         self.detached = detached
+        self.start_new_session = start_new_session
 
         # `cmd` rather than `command`, to distinguish
         # between class and argument
@@ -320,27 +333,41 @@ class Command(QtCore.QObject):
             env = os.environ.copy()
             env.update(self.environ)
 
+        if not os.path.isdir(self.cwd):
+            try:
+                os.makedirs(self.cwd)
+            except Exception as e:
+                log.critical(str(e))
+                return
+
         kwargs = {
             "command": self.cmd,
-            "stdout": subprocess.PIPE,
-            "stderr": subprocess.PIPE,
             "parent_environ": env,
+            "start_new_session": self.start_new_session,
             "startupinfo": startupinfo,
             "encoding": util.subprocess_encoding(),
             "errors": util.unicode_decode_error_handler(),
             "universal_newlines": True,
             "cwd": self.cwd,
         }
-        try:
-            self.popen = self.context.execute_shell(**kwargs)
-        except Exception as e:
-            return self.error.emit(e)
+        if not self.start_new_session:
+            kwargs.update({
+                "stdout": subprocess.PIPE,
+                "stderr": subprocess.PIPE,
+            })
 
-        for target in (self.listen_on_stdout,
-                       self.listen_on_stderr):
-            thread = threading.Thread(target=target)
-            thread.daemon = True
-            thread.start()
+        try:
+            self.popen = self.context.execute_shell(block=False, **kwargs)
+        except Exception as e:
+            log.error(str(e))
+            return
+
+        if not self.start_new_session:
+            for target in (self.listen_on_stdout,
+                           self.listen_on_stderr):
+                thread = threading.Thread(target=target)
+                thread.daemon = True
+                thread.start()
 
     def is_running(self):
         # Normally, you'd be able to determine whether a Popen instance was

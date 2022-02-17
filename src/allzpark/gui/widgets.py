@@ -600,6 +600,7 @@ class ToolLaunchWidget(QtWidgets.QWidget):
         self._name.setText("")
         self._label.setText("")
         self._icon.setPixmap(icon.pixmap(size))
+        self._packages.model().reset()
         self._unlock_launch_btn(False)
 
     def set_tool(self, tool: SuiteTool):

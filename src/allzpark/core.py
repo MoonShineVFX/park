@@ -150,11 +150,11 @@ class SuiteTool:
     scope: Union[AbstractScope, None]
 
     @property
-    def context(self):
+    def context(self) -> RollingContext:
         return self.variant.context
 
     @property
-    def metadata(self):
+    def metadata(self) -> ToolMetadata:
         data = getattr(self.variant, "_data", {})
         return ToolMetadata(
             label=data.get("label", self.variant.name),

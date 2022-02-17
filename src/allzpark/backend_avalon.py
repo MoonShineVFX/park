@@ -137,6 +137,9 @@ class _Scope(AbstractScope):
         """
         return avalon_pipeline_env(self, tool)
 
+    def generate_breadcrumb(self):
+        return ""
+
 
 @dataclass  # can't froze this, attribute 'joined' can be changed
 class Entrance(_Scope):

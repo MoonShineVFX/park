@@ -131,6 +131,21 @@ class AbstractScope:
         """Returns environ that will be applied to the tool context"""
         raise NotImplementedError
 
+    def generate_breadcrumb(self):
+        return ""
+
+
+def generate_tool_breadcrumb(tool: "SuiteTool") -> Union[str, None]:
+    breadcrumb = tool.scope.generate_breadcrumb()
+    if not breadcrumb:
+        return
+
+    # todo: combine breadcrumb and tool name
+
+
+def get_tool_from_breadcrumb(breadcrumb: str) -> "SuiteTool":
+    pass
+
 
 @dataclass(frozen=True)
 class ToolMetadata:
@@ -140,6 +155,7 @@ class ToolMetadata:
     hidden: bool
     required_roles: Set[str]
     start_new_session: bool
+    remember_me: bool
 
 
 @dataclass(frozen=True)
@@ -164,6 +180,7 @@ class SuiteTool:
             hidden=data.get("hidden", False),
             required_roles=set(data.get("required_roles", [])),
             start_new_session=data.get("start_new_session", True),
+            remember_me=data.get("remember_me", False),
         )
 
 

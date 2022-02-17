@@ -39,6 +39,11 @@ def _load_backends():
     }
 
 
+def _in_debug_mode():
+    stream_handler = next(h for h in log.handlers if h.name == "stream")
+    return stream_handler.level == logging.DEBUG
+
+
 class ComboBox(QtWidgets.QComboBox):
 
     def __init__(self, *args, **kwargs):
@@ -641,6 +646,9 @@ class ResolvedPackages(QtWidgets.QWidget):
         return self._model
 
     def on_right_click(self, position):
+        if not _in_debug_mode():
+            return
+
         view = self._view
         model = self._model
         index = view.indexAt(position)

@@ -635,6 +635,7 @@ class ResolvedPackages(QtWidgets.QWidget):
         header.setSectionResizeMode(2, header.Stretch)
 
         layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(0, 20, 0, 10)
         layout.addWidget(view)
 
         view.customContextMenuRequested.connect(self.on_right_click)

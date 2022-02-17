@@ -217,7 +217,7 @@ class JsonModel(qjsonmodel.QJsonModel):
 
 class ResolvedPackagesModel(BaseItemModel):
     Headers = [
-        "Name",
+        "Package Name",
         "Version",
         "Local/Released",
     ]

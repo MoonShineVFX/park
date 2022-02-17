@@ -338,7 +338,7 @@ class Command(QtCore.QObject):
 
     def _execute(self):
         startupinfo = None
-        no_console = hasattr(allzparkconfig, "__noconsole__")
+        no_console = getattr(allzparkconfig, "__noconsole__", True)
 
         # Windows-only
         # Prevent additional windows from appearing when running

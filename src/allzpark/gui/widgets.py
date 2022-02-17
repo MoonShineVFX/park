@@ -510,24 +510,40 @@ class ToolLaunchWidget(QtWidgets.QWidget):
 
         head = QtWidgets.QWidget()
         icon = QtWidgets.QLabel()
-        label = QtWidgets.QLabel()
+        label = QtWidgets.QLineEdit()
+        label.setObjectName("SuiteToolLabel")
+        label.setReadOnly(True)
+        label.setPlaceholderText("App name")
 
         body = QtWidgets.QWidget()
-        launch = QtWidgets.QPushButton("run app")
-        shell = QtWidgets.QPushButton("shell")
 
-        # todo:
-        #   * shell
-        #   * command arg
+        ctx_name = QtWidgets.QLineEdit()
+        ctx_name.setReadOnly(True)
+        ctx_name.setPlaceholderText("Workspace setup name")
+        tool_name = QtWidgets.QLineEdit()
+        tool_name.setObjectName("SuiteToolName")
+        tool_name.setReadOnly(True)
+        tool_name.setPlaceholderText("App command")
+
+        launch_bar = QtWidgets.QWidget()
+        launch = QtWidgets.QPushButton("Launch App")
+        launch.setObjectName("ToolLaunchBtn")
+        shell = QtWidgets.QPushButton()
+        shell.setObjectName("ShellLaunchBtn")
 
         layout = QtWidgets.QHBoxLayout(head)
         layout.addWidget(icon)
         layout.addWidget(label)
 
-        layout = QtWidgets.QVBoxLayout(body)
-        layout.addStretch(True)
+        layout = QtWidgets.QHBoxLayout(launch_bar)
         layout.addWidget(launch)
         layout.addWidget(shell)
+
+        layout = QtWidgets.QVBoxLayout(body)
+        layout.addWidget(ctx_name)
+        layout.addWidget(tool_name)
+        layout.addStretch(True)
+        layout.addWidget(launch_bar)
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.addWidget(head)
@@ -538,7 +554,13 @@ class ToolLaunchWidget(QtWidgets.QWidget):
 
         self._label = label
         self._icon = icon
+        self._ctx = ctx_name
+        self._name = tool_name
+        self._launch = launch
+        self._shell = shell
         self._tool = None
+
+        self.reset()
 
     def _on_launch_tool_clicked(self):
         self.tool_launched.emit(self._tool)
@@ -547,17 +569,27 @@ class ToolLaunchWidget(QtWidgets.QWidget):
         self.shell_launched.emit(self._tool)
 
     def reset(self):
+        icon = QtGui.QIcon(":/icons/joystick.svg")
+        size = QtCore.QSize(res.px(64), res.px(64))
+
+        self._ctx.setText("")
+        self._name.setText("")
         self._label.setText("")
-        self._icon.clear()
+        self._icon.setPixmap(icon.pixmap(size))
+        self._shell.setEnabled(False)
+        self._launch.setEnabled(False)
 
     def set_tool(self, tool: SuiteTool):
         icon = parse_icon(tool.variant.root, tool.metadata.icon)
-        label = f"{tool.metadata.label} ({tool.ctx_name})"
+        size = QtCore.QSize(res.px(64), res.px(64))
 
-        size = QtCore.QSize(res.px(32), res.px(32))
         self._icon.setPixmap(icon.pixmap(size))
-        self._label.setText(label)
+        self._label.setText(tool.metadata.label)
+        self._ctx.setText(tool.ctx_name)
+        self._name.setText(tool.name)
         self._tool = tool
+        self._shell.setEnabled(True)
+        self._launch.setEnabled(True)
 
 
 class ResolvedEnvironment(QtWidgets.QWidget):

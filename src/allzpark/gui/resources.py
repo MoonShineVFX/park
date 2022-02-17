@@ -83,7 +83,7 @@ class Resources:
         "jetbrainsmono/JetBrainsMono-Regular.ttf"
     )
     icons_ext = ".png", ".svg"
-    qrc_updated = 1645007850  # !!<qrc-update-time>!! don't touch
+    qrc_updated = 1645090882  # !!<qrc-update-time>!! don't touch
 
     @classmethod
     def load(cls):
@@ -951,7 +951,8 @@ class BaseTheme(object):
         #RefreshButton:hover {{
             icon: url(:/icons/arrow-clockwise-on.svg);
         }}
-        
+
+        #ShellLaunchBtn,
         #ButtonBelt QPushButton {{
             max-width: {px(20)};
             max-height: {px(20)};
@@ -963,11 +964,44 @@ class BaseTheme(object):
             border-radius: {px(4)};
             background-color: transparent;
         }}
+        #ShellLaunchBtn:hover,
         #ButtonBelt QPushButton:hover {{
             background-color: {self.palette.secondary.fade};
         }}
+        #ShellLaunchBtn:pressed,
         #ButtonBelt QPushButton:pressed {{
             background-color: {self.palette.primary};
+        }}
+
+        #ShellLaunchBtn {{
+            max-width: {px(24)};
+            max-height: {px(24)};
+            min-width: {px(24)};
+            min-height: {px(24)};
+            icon: url(:/icons/terminal.svg);
+        }}
+        #ShellLaunchBtn:hover {{
+            icon: url(:/icons/terminal-on.svg);
+        }}
+        #ShellLaunchBtn:disabled {{
+            icon: url(:/icons/terminal-dim.svg);
+        }}
+
+        #ToolLaunchBtn {{
+            icon: url(:/icons/hypnotize.svg);
+        }}
+        #ToolLaunchBtn:hover {{
+            icon: url(:/icons/hypnotize-on.svg);
+        }}
+        #ToolLaunchBtn:disabled {{
+            icon: url(:/icons/hypnotize-dim.svg);
+        }}
+        
+        #SuiteToolLabel {{
+            font-size: {px(32).ceil};
+        }}
+        #SuiteToolName {{
+            font-family: "JetBrains Mono";
         }}
         
         #DarkSwitch:checked {{

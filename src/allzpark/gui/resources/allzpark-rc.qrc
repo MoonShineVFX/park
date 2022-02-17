@@ -30,8 +30,11 @@
     <file>icons/funnel-fill-on.svg</file>
     <file>icons/funnel-fill.svg</file>
     <file>icons/house-fill.svg</file>
+    <file>icons/hypnotize-dim.svg</file>
+    <file>icons/hypnotize-on.svg</file>
     <file>icons/hypnotize.svg</file>
     <file>icons/journal-plus.svg</file>
+    <file>icons/joystick.svg</file>
     <file>icons/log-critical.svg</file>
     <file>icons/log-error.svg</file>
     <file>icons/log-info.svg</file>
@@ -51,6 +54,9 @@
     <file>icons/square-slash-dim.svg</file>
     <file>icons/square-slash.svg</file>
     <file>icons/square.svg</file>
+    <file>icons/terminal-dim.svg</file>
+    <file>icons/terminal-on.svg</file>
+    <file>icons/terminal.svg</file>
     <file>icons/toggle-off-bright.svg</file>
     <file>icons/toggle-off-dim.svg</file>
     <file>icons/toggle-off.svg</file>

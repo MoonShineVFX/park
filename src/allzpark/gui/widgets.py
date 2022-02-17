@@ -551,6 +551,10 @@ class ToolLaunchWidget(QtWidgets.QWidget):
         layout.addWidget(head)
         layout.addWidget(body)
 
+        timer = QtCore.QTimer(self)
+        timer.setSingleShot(True)
+        timer.timeout.connect(lambda: self._unlock_launch_btn(True))
+
         launch.clicked.connect(self._on_launch_tool_clicked)
         shell.clicked.connect(self._on_launch_shell_clicked)
 
@@ -560,15 +564,24 @@ class ToolLaunchWidget(QtWidgets.QWidget):
         self._name = tool_name
         self._launch = launch
         self._shell = shell
+        self._timer = timer
         self._tool = None
 
         self.reset()
 
+    def _unlock_launch_btn(self, lock):
+        self._shell.setEnabled(lock)
+        self._launch.setEnabled(lock)
+
     def _on_launch_tool_clicked(self):
         self.tool_launched.emit(self._tool)
+        self._unlock_launch_btn(False)
+        self._timer.start(1000)
 
     def _on_launch_shell_clicked(self):
         self.shell_launched.emit(self._tool)
+        self._unlock_launch_btn(False)
+        self._timer.start(1000)
 
     def reset(self):
         icon = QtGui.QIcon(":/icons/joystick.svg")
@@ -578,8 +591,7 @@ class ToolLaunchWidget(QtWidgets.QWidget):
         self._name.setText("")
         self._label.setText("")
         self._icon.setPixmap(icon.pixmap(size))
-        self._shell.setEnabled(False)
-        self._launch.setEnabled(False)
+        self._unlock_launch_btn(False)
 
     def set_tool(self, tool: SuiteTool):
         icon = parse_icon(tool.variant.root, tool.metadata.icon)
@@ -590,8 +602,7 @@ class ToolLaunchWidget(QtWidgets.QWidget):
         self._ctx.setText(tool.ctx_name)
         self._name.setText(tool.name)
         self._tool = tool
-        self._shell.setEnabled(True)
-        self._launch.setEnabled(True)
+        self._unlock_launch_btn(True)
 
 
 class ResolvedEnvironment(QtWidgets.QWidget):

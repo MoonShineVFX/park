@@ -243,7 +243,6 @@ class Controller(QtCore.QObject):
         self.cache_cleared.emit()
         log.debug("Internal cache cleared.")
 
-    @_thread(name="launch", blocks=("ProductionPage",))
     def launch(self, tool: core.SuiteTool, shell=False):
         env = None
         if self._env:

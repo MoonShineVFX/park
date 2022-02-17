@@ -331,3 +331,14 @@ def re_resolve_rxt(context):
         package_orderers=rxt.package_orderers,
         building=rxt.building,
     )
+
+
+def make_shell_tool(scope):
+    name = "<shell>"
+    return SuiteTool(
+        name=name,
+        alias=name,
+        ctx_name="",
+        variant=None,
+        scope=scope,
+    )

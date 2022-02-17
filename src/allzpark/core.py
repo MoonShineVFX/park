@@ -185,13 +185,20 @@ class SuiteTool:
 
 
 def cache_clear():
+    log.debug("Cleaning caches..")
+
     # clear cached packages
     for path in rezconfig.packages_path:
+        log.debug(f"Cleaning package repository cache: {path}")
         repo = package_repository_manager.get_repository(path)
         repo.clear_caches()
+
     # clear cached suites and tools
+    log.debug("Cleaning cached suites and tools")
     _load_suite.cache_clear()
     list_tools.cache_clear()
+
+    log.debug("Core cache cleared.")
 
 
 def _tools_iter(scope, filtering=None, caching=False):

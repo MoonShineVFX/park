@@ -139,6 +139,7 @@ class ToolMetadata:
     color: str
     hidden: bool
     required_roles: Set[str]
+    start_new_session: bool
 
 
 @dataclass(frozen=True)
@@ -162,6 +163,7 @@ class SuiteTool:
             color=data.get("color"),
             hidden=data.get("hidden", False),
             required_roles=set(data.get("required_roles", [])),
+            start_new_session=data.get("start_new_session", True),
         )
 
 

@@ -172,19 +172,19 @@ class Controller(QtCore.QObject):
         self.select_tool(suite_tool)
 
     @QtCore.Slot(core.SuiteTool)  # noqa
-    @_defer(on_time=50)
+    @_defer(on_time=200)
     def on_tool_launched(self, suite_tool: core.SuiteTool):
-        self.launch_tool(suite_tool)
+        self.launch(suite_tool, shell=False)
+
+    @QtCore.Slot(core.SuiteTool)  # noqa
+    @_defer(on_time=200)
+    def on_shell_launched(self, suite_tool: core.SuiteTool):
+        self.launch(suite_tool, shell=True)
 
     @QtCore.Slot()  # noqa
     @_defer(on_time=50)
     def on_cache_clear_clicked(self):
         self.cache_clear()
-
-    @QtCore.Slot(core.SuiteTool)  # noqa
-    @_defer(on_time=50)
-    def on_shell_launched(self, suite_tool: core.SuiteTool):
-        self.launch_shell(suite_tool)
 
     def enter_workspace(self, scope):
         self.work_dir_resetted.emit()
@@ -243,7 +243,37 @@ class Controller(QtCore.QObject):
         self.cache_cleared.emit()
         log.debug("Internal cache cleared.")
 
-    def launch_tool(self, suite_tool: core.SuiteTool):
+    @_thread(name="launch", blocks=("ProductionPage",))
+    def launch(self, tool: core.SuiteTool, shell=False):
+        env = None
+        if self._env:
+            env = os.environ.copy()
+            env.update(self._env)
+
+        if not os.path.isdir(self._cwd):
+            try:
+                os.makedirs(self._cwd)
+            except Exception as e:
+                log.critical(str(e))
+                return
+
+        if shell:
+            self._launch_shell(tool, env)
+        else:
+            self._launch_tool(tool, env)
+
+    def _launch_shell(self, suite_tool: core.SuiteTool, env=None):
+        log.info(f"Launching {suite_tool.name} shell...")
+
+        suite_tool.context.execute_shell(
+            command=None,
+            block=False,
+            detached=True,
+            start_new_session=True,
+            parent_environ=env,
+        )
+
+    def _launch_tool(self, suite_tool: core.SuiteTool, env=None):
         log.info(f"Launching {suite_tool.name}")
         # todo: add tool and the scope into history
 
@@ -251,26 +281,11 @@ class Controller(QtCore.QObject):
             context=suite_tool.context,
             command=suite_tool.name,  # todo: able to append args
             cwd=self._cwd or None,
-            environ=self._env,  # todo: able to inject additional env
-            detached=True,
-            parent=self
+            environ=env,  # todo: inject additional env
+            start_new_session=suite_tool.metadata.start_new_session,
+            parent=self,
         )
-        # todo: connect log window
-        cmd.execute()
-
-    def launch_shell(self, suite_tool: core.SuiteTool):
-        log.info(f"Launching {suite_tool.name} shell...")
-
-        cmd = Command(
-            context=suite_tool.context,
-            command=None,
-            cwd=self._cwd or None,
-            environ=self._env,  # todo: able to inject additional env
-            detached=True,
-            start_new_session=True,
-            parent=self
-        )
-        # todo: connect log window
+        # todo: connect log window if not start_new_session
         cmd.execute()
 
 
@@ -287,7 +302,6 @@ class Command(QtCore.QObject):
                  command,
                  cwd=None,
                  environ=None,
-                 detached=True,
                  start_new_session=False,
                  parent=None):
         super(Command, self).__init__(parent)
@@ -296,7 +310,6 @@ class Command(QtCore.QObject):
         self.context = context
         self.cwd = cwd
         self.popen = None
-        self.detached = detached
         self.start_new_session = start_new_session
 
         # `cmd` rather than `command`, to distinguish
@@ -311,6 +324,10 @@ class Command(QtCore.QObject):
         thread.daemon = True
 
         self.thread = thread
+
+        if start_new_session and isinstance(parent, Controller):
+            # connect signals
+            pass
 
     @property
     def pid(self):
@@ -331,22 +348,11 @@ class Command(QtCore.QObject):
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
-        env = None
-        if self.environ:
-            env = os.environ.copy()
-            env.update(self.environ)
-
-        if not os.path.isdir(self.cwd):
-            try:
-                os.makedirs(self.cwd)
-            except Exception as e:
-                log.critical(str(e))
-                return
-
         kwargs = {
             "command": self.cmd,
-            "parent_environ": env,
+            "parent_environ": self.environ,
             "start_new_session": self.start_new_session,
+            # Popen args
             "startupinfo": startupinfo,
             "encoding": util.subprocess_encoding(),
             "errors": util.unicode_decode_error_handler(),
@@ -365,12 +371,14 @@ class Command(QtCore.QObject):
             log.error(str(e))
             return
 
-        if not self.start_new_session:
-            for target in (self.listen_on_stdout,
-                           self.listen_on_stderr):
-                thread = threading.Thread(target=target)
-                thread.daemon = True
-                thread.start()
+        if self.start_new_session:
+            return
+
+        for target in (self.listen_on_stdout,
+                       self.listen_on_stderr):
+            thread = threading.Thread(target=target)
+            thread.daemon = True
+            thread.start()
 
     def is_running(self):
         # Normally, you'd be able to determine whether a Popen instance was

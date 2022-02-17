@@ -533,9 +533,10 @@ class ToolLaunchWidget(QtWidgets.QWidget):
 
         layout = QtWidgets.QHBoxLayout(head)
         layout.addWidget(icon)
-        layout.addWidget(label)
+        layout.addWidget(label, alignment=QtCore.Qt.AlignBottom)
 
         layout = QtWidgets.QHBoxLayout(launch_bar)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(launch)
         layout.addWidget(shell)
 
@@ -546,6 +547,7 @@ class ToolLaunchWidget(QtWidgets.QWidget):
         layout.addWidget(launch_bar)
 
         layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(head)
         layout.addWidget(body)
 

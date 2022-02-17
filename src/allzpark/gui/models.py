@@ -30,10 +30,11 @@ class QSingleton(type(QtCore.QObject), type):
         return cls._instances[cls]
 
 
-def parse_icon(root, template):
+def parse_icon(pkg_root, pkg_icon_path, default_icon=None):
+    pkg_icon_path = pkg_icon_path or ""
     try:
-        fname = template.format(
-            root=root,
+        fname = pkg_icon_path.format(
+            root=pkg_root,
             width=32,
             height=32,
             w=32,
@@ -43,7 +44,7 @@ def parse_icon(root, template):
     except KeyError:
         fname = ""
 
-    return QtGui.QIcon(fname)
+    return QtGui.QIcon(fname or default_icon or ":/icons/box-seam.svg")
 
 
 class BaseProxyModel(QtCore.QSortFilterProxyModel):
@@ -120,9 +121,14 @@ class ToolsModel(BaseItemModel):
 
         for tool in tools:
             label = f"{tool.metadata.label} ({tool.ctx_name})"
+            icon = parse_icon(
+                tool.variant.root,
+                tool.metadata.icon,
+                "joystick.svg"
+            )
             item = QtGui.QStandardItem()
             item.setText(label)
-            item.setIcon(parse_icon(tool.variant.root, tool.metadata.icon))
+            item.setIcon(icon)
             if tool.metadata.color:
                 item.setBackground(
                     QtGui.QBrush(QtGui.QColor(tool.metadata.color))
@@ -207,6 +213,63 @@ class JsonModel(qjsonmodel.QJsonModel):
         return super(JsonModel, self).data(index, role)
 
     reset = qjsonmodel.QJsonModel.clear
+
+
+class ResolvedPackagesModel(BaseItemModel):
+    Headers = [
+        "Name",
+        "Version",
+        "Local/Released",
+    ]
+
+    PackageRole = QtCore.Qt.UserRole + 10
+
+    def pkg_icon_from_metadata(self, variant):
+        metadata = getattr(variant, "_data", {})
+        return parse_icon(variant.root, metadata.icon)
+
+    def load(self, packages):
+        """
+        :param packages:
+        :type packages: list[Variant]
+        :return:
+        """
+        self.reset()
+        indicator = _LocationIndicator()
+
+        for pkg in packages:
+            metadata = getattr(pkg, "_data", {})
+            pkg_icon = parse_icon(pkg.root, metadata.get("icon"))
+
+            loc_text, loc_icon = indicator.compute(pkg.resource.location)
+
+            name_item = QtGui.QStandardItem(pkg.name)
+            name_item.setIcon(pkg_icon)
+            name_item.setData(pkg, self.PackageRole)
+
+            version_item = QtGui.QStandardItem(str(pkg.version))
+
+            location_item = QtGui.QStandardItem(loc_text)
+            location_item.setIcon(loc_icon)
+
+            self.appendRow([name_item, version_item, location_item])
+
+    def pkg_path_from_index(self, index):
+        if not index.isValid():
+            return
+
+        item_index = self.index(index.row(), 0)
+        package = item_index.data(role=self.PackageRole)
+        resource = package.resource
+
+        if resource.key == "filesystem.package":
+            return resource.filepath
+        elif resource.key == "filesystem.variant":
+            return resource.parent.filepath
+        elif resource.key == "filesystem.package.combined":
+            return resource.parent.filepath
+        elif resource.key == "filesystem.variant.combined":
+            return resource.parent.parent.filepath
 
 
 class ResolvedEnvironmentModel(JsonModel):

@@ -12,6 +12,7 @@ from .models import (
     QSingleton,
     JsonModel,
     ToolsModel,
+    ResolvedPackagesModel,
     ResolvedEnvironmentModel,
     ResolvedEnvironmentProxyModel,
     ContextDataModel,
@@ -525,6 +526,8 @@ class ToolLaunchWidget(QtWidgets.QWidget):
         tool_name.setReadOnly(True)
         tool_name.setPlaceholderText("App command")
 
+        packages = ResolvedPackages()
+
         launch_bar = QtWidgets.QWidget()
         launch = QtWidgets.QPushButton("Launch App")
         launch.setObjectName("ToolLaunchBtn")
@@ -543,7 +546,7 @@ class ToolLaunchWidget(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout(body)
         layout.addWidget(ctx_name)
         layout.addWidget(tool_name)
-        layout.addStretch(True)
+        layout.addWidget(packages)
         layout.addWidget(launch_bar)
 
         layout = QtWidgets.QVBoxLayout(self)
@@ -558,13 +561,14 @@ class ToolLaunchWidget(QtWidgets.QWidget):
         launch.clicked.connect(self._on_launch_tool_clicked)
         shell.clicked.connect(self._on_launch_shell_clicked)
 
+        self._timer = timer
         self._label = label
         self._icon = icon
         self._ctx = ctx_name
         self._name = tool_name
         self._launch = launch
         self._shell = shell
-        self._timer = timer
+        self._packages = packages
         self._tool = None
 
         self.reset()
@@ -594,15 +598,84 @@ class ToolLaunchWidget(QtWidgets.QWidget):
         self._unlock_launch_btn(False)
 
     def set_tool(self, tool: SuiteTool):
-        icon = parse_icon(tool.variant.root, tool.metadata.icon)
+        icon = parse_icon(
+            tool.variant.root,
+            tool.metadata.icon,
+            "joystick.svg"
+        )
         size = QtCore.QSize(res.px(64), res.px(64))
 
         self._icon.setPixmap(icon.pixmap(size))
         self._label.setText(tool.metadata.label)
         self._ctx.setText(tool.ctx_name)
         self._name.setText(tool.name)
+        self._packages.model().load(tool.context.resolved_packages)
         self._tool = tool
         self._unlock_launch_btn(True)
+
+
+class ResolvedPackages(QtWidgets.QWidget):
+
+    def __init__(self, *args, **kwargs):
+        super(ResolvedPackages, self).__init__(*args, **kwargs)
+
+        model = ResolvedPackagesModel()
+        view = TreeView()
+        view.setModel(model)
+        view.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+
+        header = view.header()
+        header.setSectionResizeMode(0, header.Stretch)
+        header.setSectionResizeMode(1, header.ResizeToContents)
+        header.setSectionResizeMode(2, header.Stretch)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(view)
+
+        view.customContextMenuRequested.connect(self.on_right_click)
+
+        self._view = view
+        self._model = model
+
+    def model(self):
+        return self._model
+
+    def on_right_click(self, position):
+        view = self._view
+        model = self._model
+        index = view.indexAt(position)
+
+        if not index.isValid():
+            # Clicked outside any item
+            return
+
+        menu = QtWidgets.QMenu(view)
+        openfile = QtWidgets.QAction("Open file location", menu)
+        copyfile = QtWidgets.QAction("Copy file location", menu)
+
+        menu.addAction(openfile)
+        menu.addAction(copyfile)
+
+        def on_openfile():
+            file_path = model.pkg_path_from_index(index)
+            if file_path:
+                lib.open_file_location(file_path)
+            else:
+                log.error("Not a valid filesystem package.")
+
+        def on_copyfile():
+            file_path = model.pkg_path_from_index(index)
+            if file_path:
+                clipboard = QtWidgets.QApplication.instance().clipboard()
+                clipboard.setText(file_path)
+            else:
+                log.error("Not a valid filesystem package.")
+
+        openfile.triggered.connect(on_openfile)
+        copyfile.triggered.connect(on_copyfile)
+
+        menu.move(QtGui.QCursor.pos())
+        menu.show()
 
 
 class ResolvedEnvironment(QtWidgets.QWidget):

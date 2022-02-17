@@ -159,7 +159,7 @@ class SuiteTool:
         data = getattr(self.variant, "_data", {})
         return ToolMetadata(
             label=data.get("label", self.variant.name),
-            icon=data.get("icon", ":/icons/general-tool.svg"),
+            icon=data.get("icon"),
             color=data.get("color"),
             hidden=data.get("hidden", False),
             required_roles=set(data.get("required_roles", [])),

@@ -122,6 +122,9 @@ class Controller(QtCore.QObject):
 
     def __init__(self, backends):
         super(Controller, self).__init__(parent=None)
+        # note:
+        #   we may need a state machine, for handling complex signal-slot
+        #   connections.
 
         # sending log messages to status-bar
         formatter = logging.Formatter(fmt="%(levelname)-8s %(message)s")

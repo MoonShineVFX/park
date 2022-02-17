@@ -101,6 +101,7 @@ class AvalonWidget(QtWidgets.QWidget):
         only_tasked.toggled.connect(asset_tree.on_asset_filtered)
 
         self.__inited = False
+        self.__cleared = False
         self._entrance = None  # type: Entrance or None
         self._projects = project_list
         self._assets = asset_tree
@@ -112,6 +113,7 @@ class AvalonWidget(QtWidgets.QWidget):
         self._entered_scope = None  # type: AbstractScope or None
 
     def _workspace_refreshed(self, scope, cache_clear=False):
+        self.__cleared = cache_clear
         self.workspace_refreshed.emit(scope, cache_clear)
 
     def _on_home_clicked(self):
@@ -121,12 +123,16 @@ class AvalonWidget(QtWidgets.QWidget):
     def _on_project_filtered(self, joined):
         scope = self._entrance
         scope.joined = bool(joined)
+        log.debug(f"Refresh workspace (filtering projects): {scope}")
         self._workspace_refreshed(scope, cache_clear=True)
 
     def _on_project_refreshed(self):
-        self._workspace_refreshed(self._entrance)
+        scope = self._entrance
+        log.debug(f"Refresh workspace (refresh projects): {scope}")
+        self._workspace_refreshed(scope)
 
     def _on_asset_refreshed(self, scope: Project):
+        log.debug(f"Refresh workspace (refresh assets): {scope}")
         self._workspace_refreshed(scope)
 
     def _on_asset_changed(self, scope: Union[Asset, Project]):
@@ -174,7 +180,9 @@ class AvalonWidget(QtWidgets.QWidget):
         else:
             return
 
+        log.debug(f"Requesting tools for scope: {scope}")
         self.tools_requested.emit(scope)
+        log.debug(f"Refresh workspace (enter workspace): {scope}")
         self._workspace_refreshed(scope)
         self._entered_scope = scope
 
@@ -213,6 +221,9 @@ class AvalonWidget(QtWidgets.QWidget):
     def on_cache_cleared(self):
         if self._entered_scope is None:
             return
+        if self.__cleared:  # avoid refreshing workspace twice.
+            self.__cleared = False
+            return
 
         scope = self._entered_scope  # type: AbstractScope
         if not scope.exists():
@@ -226,6 +237,7 @@ class AvalonWidget(QtWidgets.QWidget):
                 self.set_page(0)
                 return
 
+        log.debug(f"Refresh workspace (cache cleared): {scope}")
         self._workspace_refreshed(scope)
 
 

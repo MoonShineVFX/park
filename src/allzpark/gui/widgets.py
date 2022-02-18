@@ -4,8 +4,7 @@ import logging
 from typing import List
 from ._vendor.Qt5 import QtCore, QtGui, QtWidgets
 from ._vendor import qoverview
-from .. import lib
-from ..core import AbstractScope, SuiteTool
+from .. import core, lib
 from . import resources as res
 from .models import (
     parse_icon,
@@ -229,9 +228,9 @@ class ClearCacheWidget(QtWidgets.QWidget):
 
 
 class WorkspaceWidget(BusyWidget):
-    tools_requested = QtCore.Signal(AbstractScope)
-    workspace_changed = QtCore.Signal(AbstractScope)
-    workspace_refreshed = QtCore.Signal(AbstractScope, bool)
+    tools_requested = QtCore.Signal(core.AbstractScope)
+    workspace_changed = QtCore.Signal(core.AbstractScope)
+    workspace_refreshed = QtCore.Signal(core.AbstractScope, bool)
     backend_changed = QtCore.Signal(str)
 
     def __init__(self, *args, **kwargs):
@@ -334,8 +333,8 @@ class WorkHistoryWidget(QtWidgets.QWidget):
 
 class ToolsView(QtWidgets.QWidget):
     tool_cleared = QtCore.Signal()
-    tool_selected = QtCore.Signal(SuiteTool)
-    tool_launched = QtCore.Signal(SuiteTool)
+    tool_selected = QtCore.Signal(core.SuiteTool)
+    tool_launched = QtCore.Signal(core.SuiteTool)
 
     def __init__(self, *args, **kwargs):
         super(ToolsView, self).__init__(*args, **kwargs)
@@ -433,8 +432,8 @@ class ToolContextWidget(QtWidgets.QWidget):
         self._environ = environ
         self._context = context
 
-    @QtCore.Slot(SuiteTool)  # noqa
-    def on_tool_selected(self, suite_tool: SuiteTool, work_env: dict):
+    @QtCore.Slot(core.SuiteTool)  # noqa
+    def on_tool_selected(self, suite_tool: core.SuiteTool, work_env: dict):
         context = suite_tool.context
         env = context.get_environ()
         env.update(work_env)
@@ -508,8 +507,8 @@ class JsonView(TreeView):
 
 
 class ToolLaunchWidget(QtWidgets.QWidget):
-    tool_launched = QtCore.Signal(SuiteTool)
-    shell_launched = QtCore.Signal(SuiteTool)
+    tool_launched = QtCore.Signal(core.SuiteTool)
+    shell_launched = QtCore.Signal(core.SuiteTool)
 
     def __init__(self, *args, **kwargs):
         super(ToolLaunchWidget, self).__init__(*args, **kwargs)
@@ -603,7 +602,7 @@ class ToolLaunchWidget(QtWidgets.QWidget):
         self._packages.model().reset()
         self._unlock_launch_btn(False)
 
-    def set_tool(self, tool: SuiteTool):
+    def set_tool(self, tool: core.SuiteTool):
         icon = parse_icon(
             tool.variant.root,
             tool.metadata.icon,

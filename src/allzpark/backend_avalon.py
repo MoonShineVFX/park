@@ -786,7 +786,7 @@ class AvalonMongo(object):
             if doc:
                 yield name, doc
 
-    def list_assets(self, coll_name):
+    def list_assets(self, coll_name):  # todo: lur cache this
         """Listing assets in breadth first manner
 
         This returns a depth sorted list of tuple that holds grouped assets:

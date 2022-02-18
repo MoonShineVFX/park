@@ -198,7 +198,7 @@ class Controller(QtCore.QObject):
 
         error_occurred, child_scopes = self.list_scopes(scope)
         if error_occurred:
-            self.cache_clear()
+            self.list_scopes.cache_clear()
 
         self.workspace_updated.emit(child_scopes)
 

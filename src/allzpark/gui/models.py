@@ -138,6 +138,48 @@ class ToolsModel(BaseItemModel):
             self.appendRow(item)
 
 
+class HistoryToolModel(BaseItemModel):
+    ToolRole = QtCore.Qt.UserRole + 10
+    Headers = ["Name", "Workspace"]
+
+    def update_tools(self, tools):
+        """
+
+        :param tools:
+        :type tools: list[SuiteTool]
+        :return:
+        """
+        self.reset()
+
+        for tool in tools:
+            label = f"{tool.metadata.label} ({tool.ctx_name})"
+            icon = parse_icon(
+                tool.variant.root,
+                tool.metadata.icon,
+                "joystick.svg"
+            )
+            item = QtGui.QStandardItem()
+            item.setText(label)
+            item.setIcon(icon)
+            if tool.metadata.color:
+                item.setBackground(
+                    QtGui.QBrush(QtGui.QColor(tool.metadata.color))
+                )
+            item.setData(tool, self.ToolRole)
+
+            scope_names = []
+            scope = tool.scope
+            while scope.upstream is not None:
+                scope_names.append(scope.name)
+                scope = scope.upstream
+
+            work_item = QtGui.QStandardItem()
+            work_item.setText(" / ".join(reversed(scope_names)))
+            # todo: backend icon
+
+            self.appendRow([item, work_item])
+
+
 class _LocationIndicator(QtCore.QObject, metaclass=QSingleton):
 
     def __init__(self, *args, **kwargs):

@@ -131,20 +131,60 @@ class AbstractScope:
         """Returns environ that will be applied to the tool context"""
         raise NotImplementedError
 
-    def generate_breadcrumb(self):
-        return ""
+    def generate_breadcrumb(self) -> dict:
+        return {}
 
 
-def generate_tool_breadcrumb(tool: "SuiteTool") -> Union[str, None]:
+def generate_tool_breadcrumb(tool: "SuiteTool") -> Union[dict, None]:
     breadcrumb = tool.scope.generate_breadcrumb()
     if not breadcrumb:
         return
+    breadcrumb["tool_alias"] = tool.alias
+    return breadcrumb
 
-    # todo: combine breadcrumb and tool name
 
+def get_tool_from_breadcrumb(
+        breadcrumb: dict,
+        backends: dict
+) -> Union["SuiteTool", None]:
+    """
+    """
+    log.debug(f"Parsing breadcrumb: {breadcrumb}")
 
-def get_tool_from_breadcrumb(breadcrumb: str) -> "SuiteTool":
-    pass
+    backend_name = breadcrumb.get("entrance")
+    if not backend_name:
+        log.error("No backend found in breadcrumb.")
+        return
+
+    tool_alias = breadcrumb.get("tool_alias")
+    if not tool_alias:
+        log.error("No tool alias found in breadcrumb.")
+        return
+
+    backend = backends.get(backend_name)
+    if not backend:
+        log.error(f"Backend {backend_name!r} is currently not available.")
+        return
+
+    if not callable(getattr(backend, "get_scope_from_breadcrumb", None)):
+        log.critical(f"Backend {backend_name!r} doesn't have "
+                     "'get_scope_from_breadcrumb()' implemented.")
+        return
+
+    scope = backend.get_scope_from_breadcrumb(breadcrumb)  # type: AbstractScope
+    if scope is None:
+        log.debug("Unable to get scope from backend.")
+        return
+    log.debug(f"Searching tool {tool_alias!r} in scope {scope}")
+
+    tool = None
+    for tool in _tools_iter(scope, caching=True):
+        if tool.alias == tool_alias:
+            break
+    else:
+        log.debug("No matched tool found in scope.")
+
+    return tool
 
 
 @dataclass(frozen=True)

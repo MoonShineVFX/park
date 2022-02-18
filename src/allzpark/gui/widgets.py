@@ -1,6 +1,7 @@
 
 import json
 import logging
+import traceback
 from typing import List
 from ._vendor.Qt5 import QtCore, QtGui, QtWidgets
 from ._vendor import qoverview
@@ -11,6 +12,7 @@ from .models import (
     QSingleton,
     JsonModel,
     ToolsModel,
+    HistoryToolModel,
     ResolvedPackagesModel,
     ResolvedEnvironmentModel,
     ResolvedEnvironmentProxyModel,
@@ -325,12 +327,6 @@ class WorkspaceWidget(BusyWidget):
             log.error("No valid backend registered.")
 
 
-class WorkHistoryWidget(QtWidgets.QWidget):
-
-    def __init__(self, *args, **kwargs):
-        super(WorkHistoryWidget, self).__init__(*args, **kwargs)
-
-
 class ToolsView(QtWidgets.QWidget):
     tool_cleared = QtCore.Signal()
     tool_selected = QtCore.Signal(core.SuiteTool)
@@ -373,6 +369,84 @@ class ToolsView(QtWidgets.QWidget):
 
     def on_cache_cleared(self):
         self._view.clearSelection()
+
+
+class WorkHistoryWidget(QtWidgets.QWidget):
+    MAX_ENTRY_COUNT = 20
+    tool_cleared = QtCore.Signal()
+    tool_selected = QtCore.Signal(core.SuiteTool)
+    tool_launched = QtCore.Signal(core.SuiteTool)
+    history_saved = QtCore.Signal(list)  # list of dict
+
+    def __init__(self, *args, **kwargs):
+        super(WorkHistoryWidget, self).__init__(*args, **kwargs)
+        self.setObjectName("WorkHistoryWidget")
+
+        model = HistoryToolModel()
+        view = TreeView()
+        view.setModel(model)
+        view.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        selection = view.selectionModel()
+        header = view.header()
+        header.setSectionResizeMode(0, header.ResizeToContents)
+        header.setSectionResizeMode(1, header.Stretch)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(view)
+
+        selection.selectionChanged.connect(self._on_selection_changed)
+        view.doubleClicked.connect(self._on_double_clicked)
+
+        self._view = view
+        self._model = model
+        self._history = []
+        self._tools = []
+
+    @QtCore.Slot(list, list)  # noqa
+    def on_history_updated(self, tools, history):
+        self._model.update_tools(tools)
+        self._tools = tools
+        self._history = history
+
+    @QtCore.Slot(core.SuiteTool)  # noqa
+    def on_history_made(self, tool: core.SuiteTool):
+        log.debug(f"Generating scope breadcrumb: {tool.scope}")
+        try:
+            breadcrumb = core.generate_tool_breadcrumb(tool)
+        except Exception as e:
+            log.error(traceback.format_exc())
+            log.error(f"Generating scope breadcrumb failed: {str(e)}")
+            return
+
+        if not breadcrumb:
+            log.debug(f"No scope breadcrumb for memorizing {tool.alias!r}: "
+                      f"{tool.scope}")
+            return
+
+        history = self._history
+        tools = self._tools
+        if len(history) >= self.MAX_ENTRY_COUNT:
+            history = history[:self.MAX_ENTRY_COUNT - 1]
+            tools = tools[:self.MAX_ENTRY_COUNT - 1]
+        history.insert(0, breadcrumb)
+        tools.insert(0, tool)
+
+        self._model.update_tools(tools)
+        self.history_saved.emit(history)
+
+    def _on_selection_changed(self, selected, _):
+        indexes = selected.indexes()
+        if indexes and indexes[0].isValid():
+            index = indexes[0]  # SingleSelection view
+            tool = index.data(self._model.ToolRole)
+            self.tool_selected.emit(tool)
+        else:
+            self.tool_cleared.emit()
+
+    def _on_double_clicked(self, index):
+        if index.isValid():
+            tool = index.data(self._model.ToolRole)
+            self.tool_launched.emit(tool)
 
 
 class WorkDirWidget(QtWidgets.QWidget):

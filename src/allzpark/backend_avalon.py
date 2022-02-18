@@ -137,8 +137,15 @@ class _Scope(AbstractScope):
         """
         return avalon_pipeline_env(self, tool)
 
-    def generate_breadcrumb(self):
-        return ""
+    def generate_breadcrumb(
+            self: Union["Entrance", "Project", "Asset", "Task"]
+    ) -> dict:
+        """
+        :type self: Entrance or Project or Asset or Task
+        :return:
+        :rtype: dict
+        """
+        return generate_avalon_scope_breadcrumb(self)
 
 
 @dataclass  # can't froze this, attribute 'joined' can be changed
@@ -155,6 +162,9 @@ class Entrance(_Scope):
 
     def __hash__(self):
         return hash(repr(self))
+
+    def get_scope_from_breadcrumb(self, breadcrumb: dict):
+        get_scope_from_breadcrumb(self, breadcrumb)
 
 
 @dataclass(frozen=True)
@@ -488,6 +498,86 @@ def _(scope: Task) -> bool:
     return True
 
 
+@singledispatch
+def generate_avalon_scope_breadcrumb(scope):
+    """
+
+    :param scope: The scope of workspace. Could be at project/asset/task.
+    :type scope: Entrance or Project or Asset or Task
+    :return:
+    :rtype: dict
+    """
+    raise NotImplementedError(f"Unknown scope type: {type(scope)}")
+
+
+@generate_avalon_scope_breadcrumb.register
+def _(scope: Entrance) -> dict:
+    return {"entrance": scope.name}
+
+
+@generate_avalon_scope_breadcrumb.register
+def _(scope: Project) -> dict:
+    breadcrumb = scope.upstream.generate_breadcrumb()
+    breadcrumb.update({"project": scope.coll})
+    return breadcrumb
+
+
+@generate_avalon_scope_breadcrumb.register
+def _(scope: Asset) -> dict:
+    breadcrumb = scope.upstream.generate_breadcrumb()
+    breadcrumb.update({"asset": scope.name})
+    return breadcrumb
+
+
+@generate_avalon_scope_breadcrumb.register
+def _(scope: Task) -> dict:
+    breadcrumb = scope.upstream.generate_breadcrumb()
+    breadcrumb.update({"task": scope.name})
+    return breadcrumb
+
+
+def get_scope_from_breadcrumb(entrance: Entrance, breadcrumb: dict):
+
+    if "project" in breadcrumb:
+        coll_name = breadcrumb["project"]
+        db = AvalonMongo(entrance.uri, entrance.timeout, entrance=entrance)
+        doc = db.find_project(coll_name)
+        if doc:
+            project = _mk_project_scope(coll_name, doc, db)
+        else:
+            return
+    else:
+        return entrance
+
+    if "asset" in breadcrumb:
+        asset_name = breadcrumb["asset"]
+        asset = next(
+            # so to get a full asset hierarchy, and it's hidden state
+            (a for a in project.iter_children() if a.name == asset_name), None
+        )
+        if asset is None or asset.is_hidden:
+            return
+    else:
+        return project
+
+    if "task" in breadcrumb:
+        task_name = breadcrumb["task"]
+        if task_name in asset.tasks:
+            task = Task(
+                name=task_name,
+                upstream=asset,
+                project=asset.project,
+                asset=asset,
+                coll=asset.coll,
+                db=asset.db,
+            )
+            return task
+        else:
+            return
+    else:
+        return asset
+
+
 def get_avalon_task_workspace(task: Task, tool: SuiteTool):
     template = task.project.work_template
     return template.format(**{
@@ -501,6 +591,40 @@ def get_avalon_task_workspace(task: Task, tool: SuiteTool):
     })
 
 
+def _mk_project_scope(coll_name, doc, database, active_only=True):
+    is_active = bool(doc["data"].get("active", True))
+    if active_only and not is_active:
+        return
+
+    username = getpass.getuser()
+    project_root = doc["data"]["root"]
+
+    roles = set()
+    _role_book = doc["data"].get("role", {})
+    if username in _role_book.get(MEMBER_ROLE, []):
+        roles.add(MEMBER_ROLE)
+    if username in _role_book.get(MANAGER_ROLE, []):
+        roles.add(MANAGER_ROLE)
+
+    tasks = []
+    for task in doc["config"]["tasks"]:
+        if task["name"] not in tasks:
+            tasks.append(task["name"])
+
+    return Project(
+        name=doc["name"],
+        upstream=database.entrance,
+        is_active=is_active,
+        roles=roles,
+        tasks=tasks,
+        root=project_root,
+        username=username,
+        work_template=doc["config"]["template"]["work"],
+        coll=coll_name,
+        db=database,
+    )
+
+
 def iter_avalon_projects(database, joined=True, active_only=True):
     """Iter projects from Avalon MongoDB
 
@@ -510,40 +634,10 @@ def iter_avalon_projects(database, joined=True, active_only=True):
     :return: Project item iterator
     :rtype: Iterator[Project]
     """
-    username = getpass.getuser()
-
     for coll_name, doc in database.iter_projects(joined):
-
-        is_active = bool(doc["data"].get("active", True))
-        if active_only and not is_active:
-            continue
-
-        project_root = doc["data"]["root"]
-
-        roles = set()
-        _role_book = doc["data"].get("role", {})
-        if username in _role_book.get(MEMBER_ROLE, []):
-            roles.add(MEMBER_ROLE)
-        if username in _role_book.get(MANAGER_ROLE, []):
-            roles.add(MANAGER_ROLE)
-
-        tasks = []
-        for task in doc["config"]["tasks"]:
-            if task["name"] not in tasks:
-                tasks.append(task["name"])
-
-        yield Project(
-            name=doc["name"],
-            upstream=database.entrance,
-            is_active=is_active,
-            roles=roles,
-            tasks=tasks,
-            root=project_root,
-            username=username,
-            work_template=doc["config"]["template"]["work"],
-            coll=coll_name,
-            db=database,
-        )
+        scope = _mk_project_scope(coll_name, doc, database, active_only)
+        if scope is not None:
+            yield scope
 
 
 def iter_avalon_assets(avalon_project):
@@ -660,14 +754,9 @@ class AvalonMongo(object):
                           projection={"_id": True})
         )
 
-    def iter_projects(self, joined=True):
-        """
-        :return: yielding tuples of mongodb collection name and project doc
-        :rtype: tuple[str, dict]
-        """
+    def find_project(self, coll_name, joined=True):
         _user = getpass.getuser()
         db = self.conn[self._db_name]  # type: MongoDatabase
-        f = {"name": {"$regex": r"^(?!system\.)"}}  # non-system only
 
         _projection = {
             "type": True,
@@ -681,10 +770,19 @@ class AvalonMongo(object):
             "name": {"$exists": 1},
             f"data.role.{MEMBER_ROLE}": _user if joined else {"$ne": _user}
         }
+        coll = db.get_collection(coll_name)  # type: MongoCollection
+        return coll.find_one(query_filter, projection=_projection)
+
+    def iter_projects(self, joined=True):
+        """
+        :return: yielding tuples of mongodb collection name and project doc
+        :rtype: tuple[str, dict]
+        """
+        db = self.conn[self._db_name]  # type: MongoDatabase
+        f = {"name": {"$regex": r"^(?!system\.)"}}  # non-system only
 
         for name in sorted(db.list_collection_names(filter=f)):
-            coll = db.get_collection(name)  # type: MongoCollection
-            doc = coll.find_one(query_filter, projection=_projection)
+            doc = self.find_project(name, joined)
             if doc:
                 yield name, doc
 

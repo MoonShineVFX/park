@@ -119,6 +119,8 @@ class Controller(QtCore.QObject):
     tool_selected = QtCore.Signal(core.SuiteTool, dict)
     status_message = QtCore.Signal(str)
     cache_cleared = QtCore.Signal()
+    history_made = QtCore.Signal(core.SuiteTool)
+    history_updated = QtCore.Signal(list, list)
 
     def __init__(self, backends):
         super(Controller, self).__init__(parent=None)
@@ -160,6 +162,11 @@ class Controller(QtCore.QObject):
     @_defer(on_time=200)
     def on_workspace_refreshed(self, scope, cache_clear):
         self.update_workspace(scope, cache_clear)
+
+    @QtCore.Slot(list)  # noqa
+    @_defer(on_time=250)
+    def on_history_refreshed(self, history):
+        self.parse_history(history)
 
     @QtCore.Slot(core.AbstractScope)  # noqa
     @_defer(on_time=100)
@@ -209,6 +216,21 @@ class Controller(QtCore.QObject):
         self._cwd = None
         self._env = None
 
+    @_thread(name="history", blocks=("WorkHistoryWidget",))
+    def parse_history(self, history):
+        parsed_tools = []
+        valid_history = []
+
+        for entry in history:
+            tool = core.get_tool_from_breadcrumb(
+                breadcrumb=entry, backends=self._backend_entrances
+            )
+            if tool is not None:
+                parsed_tools.append(tool)
+                valid_history.append(entry)
+
+        self.history_updated.emit(valid_history, parsed_tools)
+
     @functools.lru_cache(maxsize=None)
     def list_scopes(self, scope):
         _error = False
@@ -243,26 +265,8 @@ class Controller(QtCore.QObject):
         self.cache_cleared.emit()
         log.debug("Internal cache cleared.")
 
-    def remember_launched(self, tool: core.SuiteTool):
-        log.debug(f"Generating scope breadcrumb: {tool.scope}")
-        try:
-            breadcrumb = core.generate_tool_breadcrumb(tool)
-        except Exception as e:
-            log.error(traceback.format_exc())
-            log.error(f"Generating scope breadcrumb failed: {str(e)}")
-            return
-
-        if not breadcrumb:
-            log.debug(f"No scope breadcrumb for memorizing {tool.alias!r}: "
-                      f"{tool.scope}")
-            return
-
-        # todo: save breadcrumb with timestamp
-
-    def parse_history(self, breadcrumb: str) -> core.SuiteTool:
-        return core.get_tool_from_breadcrumb(breadcrumb)
-
     def launch(self, tool: core.SuiteTool, shell=False):
+        # todo: check tool.scope existence
         env = None
         if self._env:
             env = os.environ.copy()
@@ -306,7 +310,7 @@ class Controller(QtCore.QObject):
         cmd.execute()
 
         if suite_tool.metadata.remember_me:
-            self.remember_launched(suite_tool)
+            self.history_made.emit(suite_tool)
 
 
 class Command(QtCore.QObject):

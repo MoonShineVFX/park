@@ -1,6 +1,7 @@
 
 import os
 import sys
+import json
 import logging
 import signal as py_signal
 from typing import Optional
@@ -73,6 +74,12 @@ class Session(object):
             log.error(str(e))
             sys.exit(1)
 
+        try:
+            history = state.retrieve_history()
+        except Exception as e:
+            log.error(f"Failed to retrieve workspace history: {str(e)}")
+            history = []
+
         ctrl = control.Controller(backends=backend_entrances)
         view_ = window.MainWindow(state=state)
 
@@ -80,6 +87,7 @@ class Session(object):
 
         workspace = view_.find(widgets.WorkspaceWidget)
         work_dir = view_.find(widgets.WorkDirWidget)
+        work_history = view_.find(widgets.WorkHistoryWidget)
         tool_list = view_.find(widgets.ToolsView)
         tool_context = view_.find(widgets.ToolContextWidget)
         tool_launcher = view_.find(widgets.ToolLaunchWidget)
@@ -94,6 +102,8 @@ class Session(object):
         clear_cache.clear_clicked.connect(ctrl.on_cache_clear_clicked)
         tool_list.tool_selected.connect(ctrl.on_tool_selected)
         tool_list.tool_launched.connect(ctrl.on_tool_launched)
+        work_history.tool_selected.connect(ctrl.on_tool_selected)
+        work_history.tool_launched.connect(ctrl.on_tool_launched)
         tool_launcher.tool_launched.connect(ctrl.on_tool_launched)
         tool_launcher.shell_launched.connect(ctrl.on_shell_launched)
 
@@ -106,10 +116,14 @@ class Session(object):
         ctrl.tool_selected.connect(tool_context.on_tool_selected)
         ctrl.cache_cleared.connect(tool_list.on_cache_cleared)
         ctrl.cache_cleared.connect(workspace.on_cache_cleared)
+        ctrl.history_made.connect(work_history.on_history_made)
+        ctrl.history_updated.connect(work_history.on_history_updated)
 
         # view -> view
         view_.dark_toggled.connect(self.on_dark_toggled)
         tool_list.tool_cleared.connect(tool_context.on_tool_cleared)
+        work_history.tool_cleared.connect(tool_context.on_tool_cleared)
+        work_history.history_saved.connect(self.on_history_saved)
 
         # status bar messages
         ctrl.status_message.connect(view_.spoken)
@@ -124,6 +138,7 @@ class Session(object):
         workspace.register_backends(names=[
             name for name, _ in backend_entrances]
         )
+        ctrl.on_history_refreshed(history)
 
         self.apply_theme()
 
@@ -142,6 +157,9 @@ class Session(object):
     @property
     def state(self):
         return self._state
+
+    def on_history_saved(self, history):
+        self._state.store_history(history)
 
     def on_dark_toggled(self, value):
         self._state.store_dark_mode(value)
@@ -237,10 +255,12 @@ class State(object):
         self.store("theme.on_dark", bool(value))
 
     def retrieve_history(self):
-        pass
+        history = self.retrieve("workspace.history", "")
+        return [json.loads(entry) for entry in history.split(os.pathsep)]
 
-    def store_history(self):
-        pass
+    def store_history(self, history):
+        self.store("workspace.history",
+                   os.pathsep.join(json.dumps(entry) for entry in history))
 
     def preserve_layout(self, widget, group):
         # type: (QtWidgets.QWidget, str) -> None

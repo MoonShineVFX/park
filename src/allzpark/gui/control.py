@@ -236,10 +236,13 @@ class Controller(QtCore.QObject):
         _error = False
         _start = time.time()
         children = []
+        log.info(f"Pulling sub-workspaces from {scope.name}")
         try:
             for i, child in enumerate(scope.iter_children()):
                 children.append(child)
-                log.info(f"Pulling{'.' * (int(i / 2) % 5): <5} {child.name}")
+                self.status_message.emit(
+                    f"Pulling{'.' * (int(i / 2) % 5): <5} {child.name}"
+                )
         except Exception as e:
             log.error(traceback.format_exc())
             log.error(str(e))
@@ -247,7 +250,8 @@ class Controller(QtCore.QObject):
 
         if not _error:
             log.info(f"Workspace {scope.name} updated in "
-                     f"{time.time() - _start:.2f} secs.")
+                     f"{time.time() - _start:.2f} secs. "
+                     f"({len(children)} pulled)")
 
         return _error, children
 

@@ -532,6 +532,16 @@ class ToolContextWidget(QtWidgets.QWidget):
         self._environ.model().clear()
         self._launcher.reset()
 
+    def changeEvent(self, event):
+        super(ToolContextWidget, self).changeEvent(event)
+        if event.type() == QtCore.QEvent.StyleChange:
+            # update color when theme changed
+            self._update_placeholder_color()
+
+    def _update_placeholder_color(self):
+        color = self._environ.palette().color(QtGui.QPalette.PlaceholderText)
+        self._environ.model().set_placeholder_color(color)
+
 
 class TreeView(qoverview.VerticalExtendedTreeView):
 

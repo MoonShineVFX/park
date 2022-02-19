@@ -514,6 +514,9 @@ class ToolContextWidget(QtWidgets.QWidget):
         self._environ = environ
         self._context = context
 
+        # init
+        context.reset()
+
     @QtCore.Slot(core.SuiteTool)  # noqa
     def on_tool_selected(self, suite_tool: core.SuiteTool, work_env: dict):
         context = suite_tool.context

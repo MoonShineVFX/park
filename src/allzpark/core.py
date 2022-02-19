@@ -1,6 +1,7 @@
 
 import logging
 import functools
+import traceback
 from typing import Set, Union, Iterator, Callable
 from dataclasses import dataclass
 from rez.packages import Variant
@@ -251,9 +252,14 @@ def _tools_iter(scope, filtering=None, caching=False):
             log.error(str(e))
         else:
             if suite_path:
-                suite = _get_suite(suite_path)
-                for _tool in suite.iter_tools(scope=scope):
-                    yield _tool
+                try:
+                    suite = _get_suite(suite_path)
+                except Exception as e:
+                    log.error(traceback.format_exc())
+                    log.error(f"Failed load suite: {str(e)}")
+                else:
+                    for _tool in suite.iter_tools(scope=scope):
+                        yield _tool
         if _scope.upstream is not None:
             for _tool in _iter_tools(_scope.upstream):
                 yield _tool

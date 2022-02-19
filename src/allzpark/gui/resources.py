@@ -83,7 +83,7 @@ class Resources:
         "jetbrainsmono/JetBrainsMono-Regular.ttf"
     )
     icons_ext = ".png", ".svg"
-    qrc_updated = 1645094971  # !!<qrc-update-time>!! don't touch
+    qrc_updated = 1645312893  # !!<qrc-update-time>!! don't touch
 
     @classmethod
     def load(cls):

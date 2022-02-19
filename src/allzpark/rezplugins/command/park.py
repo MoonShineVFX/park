@@ -48,7 +48,8 @@ def setup_parser(parser, completions=False):
 
 def command(opts, parser=None, extra_arg_groups=None):
     import logging
-    from allzpark import cli
+    from allzpark import cli, report
+    report.init_logging()
 
     if opts.debug:
         log = logging.getLogger("allzpark")

@@ -3,6 +3,7 @@ import os
 import sys
 import json
 import logging
+import traceback
 import signal as py_signal
 from typing import Optional
 from importlib import reload
@@ -77,6 +78,7 @@ class Session(object):
         try:
             history = state.retrieve_history()
         except Exception as e:
+            log.error(traceback.format_exc())
             log.error(f"Failed to retrieve workspace history: {str(e)}")
             history = []
 
@@ -255,12 +257,18 @@ class State(object):
         self.store("theme.on_dark", bool(value))
 
     def retrieve_history(self):
+        sep = "</>"
         history = self.retrieve("workspace.history", "")
-        return [json.loads(entry) for entry in history.split(os.pathsep)]
+        return [
+            json.loads(entry)
+            for entry in history.split(sep)
+            if entry
+        ]
 
     def store_history(self, history):
+        sep = "</>"
         self.store("workspace.history",
-                   os.pathsep.join(json.dumps(entry) for entry in history))
+                   sep.join(json.dumps(entry) for entry in history))
 
     def preserve_layout(self, widget, group):
         # type: (QtWidgets.QWidget, str) -> None

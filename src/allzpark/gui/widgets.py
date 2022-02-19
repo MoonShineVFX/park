@@ -425,9 +425,17 @@ class WorkHistoryWidget(QtWidgets.QWidget):
 
         history = self._history
         tools = self._tools
-        if len(history) >= self.MAX_ENTRY_COUNT:
-            history = history[:self.MAX_ENTRY_COUNT - 1]
-            tools = tools[:self.MAX_ENTRY_COUNT - 1]
+
+        if breadcrumb in history:
+            _tool = tools[history.index(breadcrumb)]
+            tools.remove(_tool)
+            history.remove(breadcrumb)
+
+        else:
+            if len(history) >= self.MAX_ENTRY_COUNT:
+                history = history[:self.MAX_ENTRY_COUNT - 1]
+                tools = tools[:self.MAX_ENTRY_COUNT - 1]
+
         history.insert(0, breadcrumb)
         tools.insert(0, tool)
 

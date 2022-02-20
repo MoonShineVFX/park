@@ -83,7 +83,7 @@ class Resources:
         "jetbrainsmono/JetBrainsMono-Regular.ttf"
     )
     icons_ext = ".png", ".svg"
-    qrc_updated = 1645381553  # !!<qrc-update-time>!! don't touch
+    qrc_updated = 1645384414  # !!<qrc-update-time>!! don't touch
 
     @classmethod
     def load(cls):
@@ -906,15 +906,11 @@ class BaseTheme(object):
             icon: url(:/icons/journal-plus.svg);
         }}
         #AvalonProjectArchive:!checked {{
-            icon: url(:/icons/house-fill.svg);
+            icon: url(:/icons/chevron-double-left.svg);
         }}
         
-        #AvalonHomeSlash {{
-            min-width: {px(18)};
-            image: url(:/icons/chevron_right.svg);
-        }}
         #AvalonHomeButton {{
-            icon: url(:/icons/house-fill.svg);
+            icon: url(:/icons/chevron-double-left.svg);
         }}
         
         #AvalonTaskFilter {{

@@ -19,6 +19,7 @@
     <file>icons/caret-right-fill-on.svg</file>
     <file>icons/caret-right-fill.svg</file>
     <file>icons/check-ok.svg</file>
+    <file>icons/chevron-double-left.svg</file>
     <file>icons/chevron_down.svg</file>
     <file>icons/chevron_left.svg</file>
     <file>icons/chevron_right.svg</file>
@@ -35,7 +36,6 @@
     <file>icons/funnel-fill-dim.svg</file>
     <file>icons/funnel-fill-on.svg</file>
     <file>icons/funnel-fill.svg</file>
-    <file>icons/house-fill.svg</file>
     <file>icons/hypnotize-dim.svg</file>
     <file>icons/hypnotize-on.svg</file>
     <file>icons/hypnotize.svg</file>

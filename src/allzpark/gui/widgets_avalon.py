@@ -50,8 +50,6 @@ class AvalonWidget(QtWidgets.QWidget):
         top_bar.setObjectName("ButtonBelt")
         home = QtWidgets.QPushButton()
         home.setObjectName("AvalonHomeButton")
-        slash = QtWidgets.QLabel()
-        slash.setObjectName("AvalonHomeSlash")
         current_project = ScopeLineLabel("current project..")
 
         task_bar = QtWidgets.QWidget()
@@ -66,12 +64,11 @@ class AvalonWidget(QtWidgets.QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         layout.addWidget(home)
-        layout.addWidget(slash)
         layout.addWidget(current_project, stretch=True)
 
         layout = QtWidgets.QHBoxLayout(task_bar)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(8)
+        layout.setSpacing(2)
         layout.addWidget(only_tasked)
         layout.addWidget(tasks, stretch=True)
 

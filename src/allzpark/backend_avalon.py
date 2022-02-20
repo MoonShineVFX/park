@@ -167,7 +167,7 @@ class Entrance(_Scope):
         get_scope_from_breadcrumb(self, breadcrumb)
 
 
-@dataclass(frozen=True)
+@dataclass
 class Project(_Scope):
     name: str
     upstream: Entrance
@@ -187,7 +187,7 @@ class Project(_Scope):
         return hash(repr(self))
 
 
-@dataclass(frozen=True)
+@dataclass
 class Asset(_Scope):
     name: str
     upstream: Project
@@ -196,7 +196,9 @@ class Asset(_Scope):
     silo: str
     tasks: List[str]
     is_silo: bool
+    is_leaf: bool
     is_hidden: bool
+    child_task: set
     coll: str
     db: "AvalonMongo"
 
@@ -207,7 +209,7 @@ class Asset(_Scope):
         return hash(repr(self))
 
 
-@dataclass(frozen=True)
+@dataclass
 class Task(_Scope):
     name: str
     upstream: Asset
@@ -667,6 +669,8 @@ def iter_avalon_assets(avalon_project):
             tasks=[],
             is_silo=True,
             is_hidden=False,
+            is_leaf=False,
+            child_task=set(),
             coll=this.coll,
             db=this.db,
         )
@@ -677,20 +681,25 @@ def iter_avalon_assets(avalon_project):
     _assets = dict()
     for depth, key, assets in grouped_assets:
         for doc in assets:
-            _parent = _assets[key] if depth else _silos.get(key)
+            _parent = _assets[key] if depth else _silos[key]
             _hidden = _parent.is_hidden or bool(doc["data"].get("trash"))
+            tasks = doc["data"].get("tasks") or []
             asset = Asset(
                 name=doc["name"],
                 upstream=this,
                 project=this,
                 parent=_parent,
                 silo=doc.get("silo"),
-                tasks=doc["data"].get("tasks") or [],
+                tasks=tasks,
                 is_silo=False,
+                is_leaf=True,
                 is_hidden=_hidden,
+                child_task=set(),
                 coll=this.coll,
                 db=this.db,
             )
+            _parent.is_leaf = False
+            _parent.child_task.update(tasks)
             _assets[doc["_id"]] = asset
 
             yield asset

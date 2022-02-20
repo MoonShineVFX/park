@@ -397,6 +397,8 @@ class AssetTreeWidget(QtWidgets.QWidget):
 
         if self._proxy.is_filter_by_task():
             self._proxy.invalidate()
+        else:
+            self._view.update()
 
         index = self._view.currentIndex()
         if index.isValid():
@@ -408,6 +410,7 @@ class AssetTreeWidget(QtWidgets.QWidget):
                 self.scope_changed.emit(scope)
 
     def on_asset_filtered(self, enabled):
+        self._model.set_task_filtering(bool(enabled))
         self._proxy.set_filter_by_task(bool(enabled))
         self._proxy.invalidate()
 
@@ -430,6 +433,16 @@ class AssetTreeWidget(QtWidgets.QWidget):
         scope = self._model.project()
         if scope:  # could be None
             self.refresh_clicked.emit(scope)
+
+    def changeEvent(self, event):
+        super(AssetTreeWidget, self).changeEvent(event)
+        if event.type() == QtCore.QEvent.StyleChange:
+            # update color when theme changed
+            self._update_placeholder_color()
+
+    def _update_placeholder_color(self):
+        color = self.palette().color(QtGui.QPalette.PlaceholderText)
+        self._model.set_placeholder_color(color)
 
 
 class ProjectListModel(BaseScopeModel):
@@ -463,6 +476,18 @@ class AssetTreeModel(BaseScopeModel):
         super(AssetTreeModel, self).__init__(*args, **kwargs)
         self._project = None    # type: Project or None
         self._task = None       # type: str or None
+        self._icon_silo = QtGui.QIcon(":/icons/collection.svg")
+        self._icon_tasked = QtGui.QIcon(":/icons/folder.svg")
+        self._icon_tasked_not = QtGui.QIcon(":/icons/folder-x.svg")
+        self._icon_tasked_semi = QtGui.QIcon(":/icons/folder-minus.svg")
+        self._task_filtering = None
+        self._placeholder_color = None
+
+    def set_placeholder_color(self, color):
+        self._placeholder_color = color
+
+    def set_task_filtering(self, enabled):
+        self._task_filtering = enabled
 
     def project(self):
         return self._project
@@ -509,12 +534,21 @@ class AssetTreeModel(BaseScopeModel):
         if not index.isValid():
             return
 
-        if role == QtCore.Qt.FontRole:
+        if role == QtCore.Qt.ForegroundRole:
             scope = index.data(self.ScopeRole)  # type: Asset
-            if not scope.is_silo and not is_asset_tasked(scope, self._task):
-                font = QtGui.QFont()
-                font.setStrikeOut(True)
-                return font
+            if scope.is_leaf and not is_asset_tasked(scope, self._task):
+                return self._placeholder_color
+
+        if role == QtCore.Qt.DecorationRole:
+            scope = index.data(self.ScopeRole)  # type: Asset
+            if scope.is_silo:
+                return self._icon_silo
+            elif self._task_filtering or is_asset_tasked(scope, self._task):
+                return self._icon_tasked
+            elif not scope.is_leaf and self._task in scope.child_task:
+                return self._icon_tasked_semi
+            else:
+                return self._icon_tasked_not
 
         if role == self.TaskFilterRole:
             scope = index.data(self.ScopeRole)  # type: Asset
@@ -562,6 +596,7 @@ class AssetTreeProxyModel(BaseProxyModel):
         return accepted
 
 
+# todo: lru-cache this
 def is_asset_tasked(scope: Asset, task_name: str) -> bool:
     if ASSET_MUST_BE_TASKED:
         return task_name in scope.tasks

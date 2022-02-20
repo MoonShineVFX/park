@@ -25,6 +25,7 @@
     <file>icons/chevron_right.svg</file>
     <file>icons/chevron_up.svg</file>
     <file>icons/code-slash.svg</file>
+    <file>icons/collection.svg</file>
     <file>icons/dash.svg</file>
     <file>icons/door-closed.svg</file>
     <file>icons/door-open.svg</file>
@@ -33,6 +34,9 @@
     <file>icons/dot.svg</file>
     <file>icons/exclamation-triangle-fill.svg</file>
     <file>icons/exclamation-warn.svg</file>
+    <file>icons/folder-minus.svg</file>
+    <file>icons/folder-x.svg</file>
+    <file>icons/folder.svg</file>
     <file>icons/funnel-fill-dim.svg</file>
     <file>icons/funnel-fill-on.svg</file>
     <file>icons/funnel-fill.svg</file>

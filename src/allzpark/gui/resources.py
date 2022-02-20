@@ -83,7 +83,7 @@ class Resources:
         "jetbrainsmono/JetBrainsMono-Regular.ttf"
     )
     icons_ext = ".png", ".svg"
-    qrc_updated = 1645315964  # !!<qrc-update-time>!! don't touch
+    qrc_updated = 1645381553  # !!<qrc-update-time>!! don't touch
 
     @classmethod
     def load(cls):
@@ -888,8 +888,14 @@ class BaseTheme(object):
             border: 1px solid {self.palette.border};
         }}
         #AvalonProjectView QListView::item {{
-            padding: 5px 1px;
             border: 0px;
+            padding: 5px 1px;
+            padding-left: {px(8).floor};
+            image-position: left center;
+            image: url(:/icons/door-closed.svg);
+        }}
+        #AvalonProjectView QListView::item:hover {{
+            image: url(:/icons/door-open.svg);
         }}
         
         #AvalonAssetView QTreeView {{

@@ -444,6 +444,7 @@ class ProjectListModel(BaseScopeModel):
 
         for project in scopes:
             item = QtGui.QStandardItem()
+            item.setIcon(QtGui.QIcon(":/icons/_.svg"))  # placeholder icon
             item.setText(project.name)
             item.setData(project, self.ScopeRole)
 

@@ -83,7 +83,7 @@ class Resources:
         "jetbrainsmono/JetBrainsMono-Regular.ttf"
     )
     icons_ext = ".png", ".svg"
-    qrc_updated = 1645312893  # !!<qrc-update-time>!! don't touch
+    qrc_updated = 1645315964  # !!<qrc-update-time>!! don't touch
 
     @classmethod
     def load(cls):
@@ -1011,6 +1011,13 @@ class BaseTheme(object):
             icon: url(:/icons/brightness-low-fill.svg);
         }}
         
+        #ContextAttrToggle {{
+            icon: url(:/icons/code-slash.svg);
+        }}
+        #ContextAttrToggle:!checked {{
+            background-color: {self.palette.primary.fade};
+        }}
+        
         #DocStrings {{
             color: {self.palette.on_background.fade};
         }}
@@ -1067,6 +1074,10 @@ class BaseTheme(object):
         #LogUndefinedIcon {{
             image: url(:/icons/log-undefined.svg);
             min-width: {px(26).ceil};
+        }}
+        
+        #ResolvedContextTreeView {{
+            border-top: 1px solid {self.palette.border};
         }}
 
         """

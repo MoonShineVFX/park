@@ -112,7 +112,7 @@ class _Scope(AbstractScope):
     def obtain_workspace(
             self: Union["Entrance", "Project", "Asset", "Task"],
             tool: SuiteTool
-    ) -> Union[str, None]:
+    ) -> str:
         """
 
         :param tool:
@@ -337,13 +337,13 @@ def obtain_avalon_workspace(scope, tool):
 
 
 @obtain_avalon_workspace.register
-def _(scope: Entrance, tool: SuiteTool) -> None:
-    log.debug(f"No workspace for {tool.name} in Avalon scope {elide(scope)}.")
-    return None
+def _(scope: Entrance, tool: SuiteTool) -> str:
+    _ = scope, tool
+    return os.getcwd()
 
 
 @obtain_avalon_workspace.register
-def _(scope: Project, tool: SuiteTool) -> Union[str, None]:
+def _(scope: Project, tool: SuiteTool) -> str:
     _ = tool
     template = "{root}/{project}/Avalon"
     return template.format(**{
@@ -353,7 +353,7 @@ def _(scope: Project, tool: SuiteTool) -> Union[str, None]:
 
 
 @obtain_avalon_workspace.register
-def _(scope: Asset, tool: SuiteTool) -> Union[str, None]:
+def _(scope: Asset, tool: SuiteTool) -> str:
     _ = tool
     template = "{root}/{project}/Avalon"
     return template.format(**{
@@ -363,7 +363,7 @@ def _(scope: Asset, tool: SuiteTool) -> Union[str, None]:
 
 
 @obtain_avalon_workspace.register
-def _(scope: Task, tool: SuiteTool) -> Union[str, None]:
+def _(scope: Task, tool: SuiteTool) -> str:
     task = scope
     template = task.project.work_template
     return template.format(**{
@@ -452,7 +452,7 @@ def scope_suite_path(scope):
 @scope_suite_path.register
 def _(scope: Entrance) -> Union[str, None]:
     _ = scope
-    return os.getenv("AVALON_DEFAULT_SUITE")
+    return os.getenv("AVALON_ENTRANCE_SUITE")
 
 
 @scope_suite_path.register

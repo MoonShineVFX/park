@@ -124,7 +124,7 @@ class ToolsModel(BaseItemModel):
             icon = parse_icon(
                 tool.variant.root,
                 tool.metadata.icon,
-                "joystick.svg"
+                ":/icons/joystick.svg"
             )
             item = QtGui.QStandardItem()
             item.setText(label)
@@ -156,7 +156,7 @@ class HistoryToolModel(BaseItemModel):
             icon = parse_icon(
                 tool.variant.root,
                 tool.metadata.icon,
-                "joystick.svg"
+                ":/icons/joystick.svg"
             )
             item = QtGui.QStandardItem()
             item.setText(label)

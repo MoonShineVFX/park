@@ -701,7 +701,7 @@ class ToolLaunchWidget(QtWidgets.QWidget):
         icon = parse_icon(
             tool.variant.root,
             tool.metadata.icon,
-            "joystick.svg"
+            ":/icons/joystick.svg"
         )
         size = QtCore.QSize(res.px(64), res.px(64))
 

@@ -164,7 +164,7 @@ class Entrance(_Scope):
         return hash(repr(self))
 
     def get_scope_from_breadcrumb(self, breadcrumb: dict):
-        get_scope_from_breadcrumb(self, breadcrumb)
+        return get_scope_from_breadcrumb(self, breadcrumb)
 
 
 @dataclass
@@ -563,8 +563,10 @@ def get_scope_from_breadcrumb(entrance: Entrance, breadcrumb: dict):
         db = AvalonMongo(entrance.uri, entrance.timeout, entrance=entrance)
         doc = db.find_project(coll_name)
         if doc:
+            log.debug(f"Found avalon project: {coll_name}")
             project = _mk_project_scope(coll_name, doc, db)
         else:
+            log.debug(f"Avalon project (collection) not found: {coll_name}")
             return
     else:
         return entrance
@@ -575,8 +577,13 @@ def get_scope_from_breadcrumb(entrance: Entrance, breadcrumb: dict):
             # so to get a full asset hierarchy, and it's hidden state
             (a for a in project.iter_children() if a.name == asset_name), None
         )
-        if asset is None or asset.is_hidden:
+        if asset is None:
+            log.debug(f"Avalon asset not found: {asset_name}")
             return
+        elif asset.is_hidden:
+            log.debug(f"Avalon asset is now hidden: {asset_name}")
+            return
+        log.debug(f"Found avalon asset: {asset_name}")
     else:
         return project
 
@@ -591,8 +598,10 @@ def get_scope_from_breadcrumb(entrance: Entrance, breadcrumb: dict):
                 coll=asset.coll,
                 db=asset.db,
             )
+            log.debug(f"Matched task {task_name!r} in asset {asset_name!r}")
             return task
         else:
+            log.debug(f"Task {task_name!r} not assigned to asset {asset_name!r}")
             return
     else:
         return asset

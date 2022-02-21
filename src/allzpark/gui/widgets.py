@@ -403,7 +403,7 @@ class WorkHistoryWidget(QtWidgets.QWidget):
         self._tools = []
 
     @QtCore.Slot(list, list)  # noqa
-    def on_history_updated(self, tools, history):
+    def on_history_updated(self, history, tools):
         self._model.update_tools(tools)
         self._tools = tools
         self._history = history

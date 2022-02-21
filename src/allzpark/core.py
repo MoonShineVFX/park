@@ -174,7 +174,7 @@ def get_tool_from_breadcrumb(
 
     scope = backend.get_scope_from_breadcrumb(breadcrumb)  # type: AbstractScope
     if scope is None:
-        log.debug("Unable to get scope from backend.")
+        log.warning(f"Unable to get scope from backend: {breadcrumb}")
         return
     log.debug(f"Searching tool {tool_alias!r} in scope {scope}")
 

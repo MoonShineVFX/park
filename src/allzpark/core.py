@@ -221,7 +221,7 @@ class SuiteTool:
             hidden=data.get("hidden", False),
             required_roles=set(data.get("required_roles", [])),
             start_new_session=data.get("start_new_session", True),
-            remember_me=data.get("remember_me", False),
+            remember_me=data.get("remember_me", True),
         )
 
 

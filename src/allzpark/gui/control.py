@@ -148,7 +148,7 @@ class Controller(QtCore.QObject):
         f = inspect.stack()[1].function
         return self._sender.pop(f, super(Controller, self).sender())
 
-    @QtCore.Slot(core.AbstractScope)  # noqa
+    @QtCore.Slot(str)  # noqa
     @_defer(on_time=250)
     def on_backend_changed(self, entrance):
         scope = self._backend_entrances[entrance]

@@ -67,7 +67,7 @@ class BusyEventFilterSingleton(QtCore.QObject, metaclass=QSingleton):
             QtCore.QEvent.MouseButtonRelease,
             QtCore.QEvent.MouseButtonDblClick,
         ):
-            self.overwhelmed.emit("Not allowed at this moment.")
+            self.overwhelmed.emit("Not allowed at this moment.", 5000)
             return True
         return False
 
@@ -480,6 +480,7 @@ class WorkDirWidget(QtWidgets.QWidget):
 
 
 class ToolContextWidget(QtWidgets.QWidget):
+    env_hovered = QtCore.Signal(str, int)
 
     def __init__(self, *args, **kwargs):
         super(ToolContextWidget, self).__init__(*args, **kwargs)
@@ -513,7 +514,7 @@ class ToolContextWidget(QtWidgets.QWidget):
         layout.addWidget(stack)
 
         tabs.currentChanged.connect(stack.setCurrentIndex)
-        # environ.hovered.connect(self.env_hovered.emit)  # todo: env hover
+        environ.hovered.connect(self.env_hovered.emit)
 
         self._launcher = launcher
         self._environ = environ

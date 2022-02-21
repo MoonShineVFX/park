@@ -117,7 +117,7 @@ class Controller(QtCore.QObject):
     work_dir_resetted = QtCore.Signal()
     tools_updated = QtCore.Signal(list)
     tool_selected = QtCore.Signal(core.SuiteTool, dict)
-    status_message = QtCore.Signal(str)
+    status_message = QtCore.Signal(str, int)
     cache_cleared = QtCore.Signal()
     history_made = QtCore.Signal(core.SuiteTool)
     history_updated = QtCore.Signal(list, list)
@@ -241,7 +241,7 @@ class Controller(QtCore.QObject):
             for i, child in enumerate(scope.iter_children()):
                 children.append(child)
                 self.status_message.emit(
-                    f"Pulling{'.' * (int(i / 2) % 5): <5} {child.name}"
+                    f"Pulling{'.' * (int(i / 2) % 5): <5} {child.name}", 5000
                 )
         except Exception as e:
             log.error(traceback.format_exc())
@@ -457,4 +457,4 @@ class QtStatusBarHandler(logging.Handler):
 
     def emit(self, record):
         s = self.format(record)
-        self._ctrl.status_message.emit(s)
+        self._ctrl.status_message.emit(s, 5000)

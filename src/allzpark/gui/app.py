@@ -130,6 +130,7 @@ class Session(object):
         # status bar messages
         ctrl.status_message.connect(view_.spoken)
         busy_filter.overwhelmed.connect(view_.spoken)
+        tool_context.env_hovered.connect(view_.spoken)
 
         self._app = app
         self._ctrl = ctrl

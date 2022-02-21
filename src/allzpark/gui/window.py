@@ -79,9 +79,12 @@ class MainWindow(QtWidgets.QMainWindow):
         style = f"color: {color}; background-color: {bg_cl};"
         self.statusBar().setStyleSheet(style)
 
-    @QtCore.Slot(str)  # noqa
-    def spoken(self, message):
-        self.statusBar().showMessage(message, 2000)
+    @QtCore.Slot(str, int)  # noqa
+    def spoken(self, message, duration=5000):
+        if message:
+            self.statusBar().showMessage(message, duration)
+        else:
+            self.statusBar().clearMessage()
 
     def find(self, widget_cls, name=None):
         return self._body.findChild(widget_cls, name)

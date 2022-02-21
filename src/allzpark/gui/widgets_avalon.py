@@ -77,6 +77,7 @@ class AvalonWidget(QtWidgets.QWidget):
         layout.setSpacing(4)
         layout.addWidget(top_bar)
         layout.addWidget(task_bar)
+        layout.addSpacing(10)
         layout.addWidget(asset_tree)
 
         slider = SlidePageWidget()
@@ -91,9 +92,7 @@ class AvalonWidget(QtWidgets.QWidget):
         home.clicked.connect(self._on_home_clicked)
         project_list.scope_selected.connect(self.workspace_changed.emit)
         project_list.filter_toggled.connect(self._on_project_filtered)
-        project_list.refresh_clicked.connect(self._on_project_refreshed)
         asset_tree.scope_changed.connect(self._on_asset_changed)
-        asset_tree.refresh_clicked.connect(self._on_asset_refreshed)
         tasks.currentTextChanged.connect(asset_tree.on_task_selected)
         only_tasked.toggled.connect(asset_tree.on_asset_filtered)
 
@@ -122,15 +121,6 @@ class AvalonWidget(QtWidgets.QWidget):
         scope.joined = bool(joined)
         log.debug(f"Refresh workspace (filtering projects): {scope}")
         self._workspace_refreshed(scope, cache_clear=True)
-
-    def _on_project_refreshed(self):
-        scope = self._entrance
-        log.debug(f"Refresh workspace (refresh projects): {scope}")
-        self._workspace_refreshed(scope)
-
-    def _on_asset_refreshed(self, scope: Project):
-        log.debug(f"Refresh workspace (refresh assets): {scope}")
-        self._workspace_refreshed(scope)
 
     def _on_asset_changed(self, scope: Union[Asset, Project]):
         if self._page != 1:
@@ -239,7 +229,6 @@ class AvalonWidget(QtWidgets.QWidget):
 
 
 class ProjectListWidget(QtWidgets.QWidget):
-    refresh_clicked = QtCore.Signal()
     filter_toggled = QtCore.Signal(bool)
     scope_selected = QtCore.Signal(object)
 
@@ -249,8 +238,6 @@ class ProjectListWidget(QtWidgets.QWidget):
 
         top_bar = QtWidgets.QWidget()
         top_bar.setObjectName("ButtonBelt")
-        refresh_btn = QtWidgets.QPushButton()
-        refresh_btn.setObjectName("RefreshButton")
         search_bar = QtWidgets.QLineEdit()
         search_bar.setPlaceholderText("search projects..")
         search_bar.setClearButtonEnabled(True)
@@ -269,7 +256,6 @@ class ProjectListWidget(QtWidgets.QWidget):
         layout = QtWidgets.QHBoxLayout(top_bar)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
-        layout.addWidget(refresh_btn)
         layout.addWidget(search_bar, stretch=True)
         layout.addWidget(filter_btn)
 
@@ -280,7 +266,6 @@ class ProjectListWidget(QtWidgets.QWidget):
 
         search_bar.textChanged.connect(self._on_project_searched)
         filter_btn.toggled.connect(self.filter_toggled)
-        refresh_btn.clicked.connect(self.refresh_clicked)
         view.clicked.connect(self._on_item_clicked)
         view.customContextMenuRequested.connect(self._on_right_click)
         model.modelReset.connect(self._on_model_resetted)
@@ -346,7 +331,6 @@ class ProjectListWidget(QtWidgets.QWidget):
 
 
 class AssetTreeWidget(QtWidgets.QWidget):
-    refresh_clicked = QtCore.Signal(Project)
     scope_changed = QtCore.Signal(AbstractScope)
 
     def __init__(self, *args, **kwargs):
@@ -355,8 +339,6 @@ class AssetTreeWidget(QtWidgets.QWidget):
 
         top_bar = QtWidgets.QWidget()
         top_bar.setObjectName("ButtonBelt")
-        refresh_btn = QtWidgets.QPushButton()
-        refresh_btn.setObjectName("RefreshButton")
         search_bar = QtWidgets.QLineEdit()
         search_bar.setPlaceholderText("search assets..")
         search_bar.setClearButtonEnabled(True)
@@ -373,7 +355,6 @@ class AssetTreeWidget(QtWidgets.QWidget):
         layout = QtWidgets.QHBoxLayout(top_bar)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
-        layout.addWidget(refresh_btn)
         layout.addWidget(search_bar, stretch=True)
 
         layout = QtWidgets.QVBoxLayout(self)
@@ -382,7 +363,6 @@ class AssetTreeWidget(QtWidgets.QWidget):
         layout.addWidget(view)
 
         selection.selectionChanged.connect(self._on_selection_changed)
-        refresh_btn.clicked.connect(self._on_refresh_clicked)
         search_bar.textChanged.connect(self._on_asset_searched)
 
         self._view = view
@@ -428,11 +408,6 @@ class AssetTreeWidget(QtWidgets.QWidget):
             scope = self._model.project()
             if scope:  # could be None
                 self.scope_changed.emit(scope)
-
-    def _on_refresh_clicked(self):
-        scope = self._model.project()
-        if scope:  # could be None
-            self.refresh_clicked.emit(scope)
 
     def changeEvent(self, event):
         super(AssetTreeWidget, self).changeEvent(event)

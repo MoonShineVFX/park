@@ -213,7 +213,9 @@ class SuiteTool:
 
     @property
     def metadata(self) -> ToolMetadata:
-        data = getattr(self.variant, "_data", {})
+        data = getattr(self.variant, "_data", {}).copy()
+        tool = data.get("override", {}).get(self.name)  # e.g. pre tool icon
+        data.update(tool or {})
         return ToolMetadata(
             label=data.get("label", self.variant.name),
             icon=data.get("icon"),

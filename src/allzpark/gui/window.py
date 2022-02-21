@@ -79,7 +79,7 @@ class MainWindow(QtWidgets.QMainWindow):
         style = f"color: {color}; background-color: {bg_cl};"
         self.statusBar().setStyleSheet(style)
 
-    @QtCore.Slot()  # noqa
+    @QtCore.Slot(str)  # noqa
     def spoken(self, message):
         self.statusBar().showMessage(message, 2000)
 

@@ -148,7 +148,7 @@ class Controller(QtCore.QObject):
         f = inspect.stack()[1].function
         return self._sender.pop(f, super(Controller, self).sender())
 
-    @QtCore.Slot(core.AbstractScope)  # noqa
+    @QtCore.Slot(str)  # noqa
     @_defer(on_time=250)
     def on_backend_changed(self, entrance):
         scope = self._backend_entrances[entrance]
@@ -442,7 +442,11 @@ class Thread(QtCore.QThread):
         self._kwargs = kwargs
 
     def run(self):
-        self._func(*self._args, **self._kwargs)
+        try:
+            self._func(*self._args, **self._kwargs)
+        except Exception as e:
+            message = f"\n{traceback.format_exc()}\n{str(e)}"
+            log.critical(message)
 
 
 # https://docs.python.org/3/howto/logging-cookbook.html#a-qt-gui-for-logging

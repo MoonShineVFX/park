@@ -517,7 +517,7 @@ class ToolContextWidget(QtWidgets.QWidget):
         # init
         context.reset()
 
-    @QtCore.Slot(core.SuiteTool)  # noqa
+    @QtCore.Slot(core.SuiteTool, dict)  # noqa
     def on_tool_selected(self, suite_tool: core.SuiteTool, work_env: dict):
         context = suite_tool.context
         env = context.get_environ()
@@ -701,7 +701,7 @@ class ToolLaunchWidget(QtWidgets.QWidget):
         icon = parse_icon(
             tool.variant.root,
             tool.metadata.icon,
-            "joystick.svg"
+            ":/icons/joystick.svg"
         )
         size = QtCore.QSize(res.px(64), res.px(64))
 

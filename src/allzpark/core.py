@@ -221,7 +221,7 @@ class SuiteTool:
             hidden=data.get("hidden", False),
             required_roles=set(data.get("required_roles", [])),
             start_new_session=data.get("start_new_session", True),
-            remember_me=data.get("remember_me", False),
+            remember_me=data.get("remember_me", True),
         )
 
 
@@ -383,15 +383,4 @@ def re_resolve_rxt(context):
         package_filter=rxt.package_filter,
         package_orderers=rxt.package_orderers,
         building=rxt.building,
-    )
-
-
-def make_shell_tool(scope):
-    name = "<shell>"
-    return SuiteTool(
-        name=name,
-        alias=name,
-        ctx_name="",
-        variant=None,
-        scope=scope,
     )

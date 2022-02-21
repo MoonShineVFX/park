@@ -874,8 +874,19 @@ class BaseTheme(object):
     def _q_tool_view(self):
         return f"""
 
+        #ToolsView QListView {{
+            icon-size: {px(36).floor};
+        }}
         #ToolsView QListView::item {{
-            padding: 5px 1px;
+            padding: {px(6).floor} {px(6).floor};
+            border: 0px;
+        }}
+        
+        #WorkHistoryWidget QTreeView {{
+            icon-size: {px(36).floor};
+        }}
+        #WorkHistoryWidget QTreeView::item {{
+            padding: {px(6).floor} {px(6).floor};
             border: 0px;
         }}
 

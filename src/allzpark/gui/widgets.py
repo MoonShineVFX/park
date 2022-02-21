@@ -483,6 +483,11 @@ class ToolContextWidget(QtWidgets.QWidget):
 
     def __init__(self, *args, **kwargs):
         super(ToolContextWidget, self).__init__(*args, **kwargs)
+        # todo:
+        #   1. enable changing packages path
+        #   2. enable context patching
+        #   3. enable package filter
+        #   4. remember context patching (by tool, scope agnostic)
 
         launcher = ToolLaunchWidget()
         environ = ResolvedEnvironment()

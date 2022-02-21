@@ -344,19 +344,37 @@ def _(scope: Entrance, tool: SuiteTool) -> None:
 
 @obtain_avalon_workspace.register
 def _(scope: Project, tool: SuiteTool) -> Union[str, None]:
-    log.debug(f"No workspace for {tool.name} in Avalon scope {elide(scope)}.")
-    return None
+    _ = tool
+    template = "{root}/{project}/Avalon"
+    return template.format(**{
+        "root": scope.root,
+        "project": scope.name,
+    })
 
 
 @obtain_avalon_workspace.register
 def _(scope: Asset, tool: SuiteTool) -> Union[str, None]:
-    log.debug(f"No workspace for {tool.name} in Avalon scope {elide(scope)}.")
-    return None
+    _ = tool
+    template = "{root}/{project}/Avalon"
+    return template.format(**{
+        "root": scope.project.root,
+        "project": scope.project.name,
+    })
 
 
 @obtain_avalon_workspace.register
 def _(scope: Task, tool: SuiteTool) -> Union[str, None]:
-    return get_avalon_task_workspace(scope, tool)
+    task = scope
+    template = task.project.work_template
+    return template.format(**{
+        "root": task.project.root,
+        "project": task.project.name,
+        "silo": task.asset.silo,
+        "asset": task.asset.name,
+        "task": task.name,
+        "app": tool.name,
+        "user": task.project.username,
+    })
 
 
 @singledispatch
@@ -412,7 +430,7 @@ def _(scope: Task, tool: SuiteTool) -> dict:
     environ = scope.upstream.additional_env(tool)
     environ.update({
         "AVALON_TASK": task.name,
-        "AVALON_WORKDIR": get_avalon_task_workspace(task, tool),
+        "AVALON_WORKDIR": obtain_avalon_workspace(task, tool),
         "AVALON_APP": tool.name,
         "AVALON_APP_NAME": tool.name,  # application dir
     })
@@ -578,19 +596,6 @@ def get_scope_from_breadcrumb(entrance: Entrance, breadcrumb: dict):
             return
     else:
         return asset
-
-
-def get_avalon_task_workspace(task: Task, tool: SuiteTool):
-    template = task.project.work_template
-    return template.format(**{
-        "root": task.project.root,
-        "project": task.project.name,
-        "silo": task.asset.silo,
-        "asset": task.asset.name,
-        "task": task.name,
-        "app": tool.name,
-        "user": task.project.username,
-    })
 
 
 def _mk_project_scope(coll_name, doc, database, active_only=True):

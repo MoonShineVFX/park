@@ -56,7 +56,7 @@ class ComboBox(QtWidgets.QComboBox):
 
 
 class BusyEventFilterSingleton(QtCore.QObject, metaclass=QSingleton):
-    overwhelmed = QtCore.Signal(str)
+    overwhelmed = QtCore.Signal(str, int)
 
     def eventFilter(self, watched: QtCore.QObject, event: QtCore.QEvent) -> bool:
         if event.type() in (

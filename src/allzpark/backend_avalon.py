@@ -457,7 +457,7 @@ def _(scope: Entrance) -> Union[str, None]:
 
 @scope_suite_path.register
 def _(scope: Project) -> str:
-    roots = parkconfig.suite_roots()
+    roots = parkconfig.suite_roots  # type: dict
     if not isinstance(roots, dict):
         raise BackendError("Invalid configuration, 'suite_roots' should be "
                            "dict type value.")

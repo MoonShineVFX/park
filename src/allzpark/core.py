@@ -360,6 +360,10 @@ class ReadOnlySuite(SweetSuite):
                 scope=scope,
             )
 
+    def get_tools(self):
+        self._update_tools(suppress_err=True)
+        return self.tools
+
 
 def re_resolve_rxt(context):
     """Re-resolve context loaded from .rxt file

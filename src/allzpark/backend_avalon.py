@@ -6,6 +6,7 @@ import getpass
 from itertools import groupby
 from dataclasses import dataclass
 from functools import singledispatch
+from collections import MutableMapping
 from typing import Iterator, overload, Union, Set, List, Callable
 from bson.objectid import ObjectId
 from pymongo import MongoClient
@@ -458,9 +459,9 @@ def _(scope: Entrance) -> Union[str, None]:
 @scope_suite_path.register
 def _(scope: Project) -> str:
     roots = parkconfig.suite_roots  # type: dict
-    if not isinstance(roots, dict):
+    if not isinstance(roots, MutableMapping):
         raise BackendError("Invalid configuration, 'suite_roots' should be "
-                           "dict type value.")
+                           f"dict-like type value, not {type(roots)}.")
 
     avalon_suite_root = roots.get("avalon")
     if not avalon_suite_root:

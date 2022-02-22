@@ -16,6 +16,8 @@ from ..core import SuiteTool
 
 log = logging.getLogger("allzpark")
 
+allzparkconfig = rezconfig.plugins.command.park
+
 
 class QSingleton(type(QtCore.QObject), type):
     """A metaclass for creating QObject singleton
@@ -118,6 +120,11 @@ class ToolsModel(BaseItemModel):
         :return:
         """
         self.reset()
+
+        def key(t):
+            return order.index(t.name) if t.name in order else float("inf")
+        order = allzparkconfig.tool_ordering or []  # type: list
+        tools = sorted(tools, key=key)
 
         for tool in tools:
             label = f"{tool.metadata.label} ({tool.ctx_name})"

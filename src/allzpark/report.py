@@ -33,3 +33,7 @@ def init_logging():
     logger = logging.getLogger("allzpark")
     logger.addHandler(handler)
     logger.setLevel(logging.DEBUG)
+
+    logger = logging.getLogger("sweet")
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)

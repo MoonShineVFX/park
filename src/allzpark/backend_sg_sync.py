@@ -192,8 +192,11 @@ def tool_filter_factory(scope) -> ToolFilterCallable:
 def _(scope: Entrance) -> ToolFilterCallable:
     def _filter(tool: SuiteTool) -> bool:
         required_roles = tool.metadata.required_roles
+        ctx_category = tool.ctx_name.split(".", 1)[0]
+        categories = {"entrance"}
         return (
             not tool.metadata.hidden
+            and ctx_category in categories
             and (not required_roles
                  or getpass.getuser() in required_roles)
         )
@@ -205,9 +208,11 @@ def _(scope: Entrance) -> ToolFilterCallable:
 def _(scope: Project) -> ToolFilterCallable:
     def _filter(tool: SuiteTool) -> bool:
         required_roles = tool.metadata.required_roles
+        ctx_category = tool.ctx_name.split(".", 1)[0]
+        categories = {"project", "entrance"}
         return (
             not tool.metadata.hidden
-            and tool.ctx_name.startswith("project.")
+            and ctx_category in categories
             and (not required_roles
                  or scope.roles.intersection(required_roles))
         )

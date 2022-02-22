@@ -384,7 +384,7 @@ def re_resolve_rxt(context):
     """
     assert context.load_path, "Not a loaded context."
     rxt = context
-    return RollingContext(
+    new = RollingContext(
         package_requests=rxt.requested_packages(),
         timestamp=rxt.requested_timestamp,
         package_paths=rxt.package_paths,
@@ -392,3 +392,5 @@ def re_resolve_rxt(context):
         package_orderers=rxt.package_orderers,
         building=rxt.building,
     )
+    new.suite_context_name = rxt.suite_context_name
+    return new

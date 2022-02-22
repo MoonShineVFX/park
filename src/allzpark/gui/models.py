@@ -127,7 +127,7 @@ class ToolsModel(BaseItemModel):
         tools = sorted(tools, key=key)
 
         for tool in tools:
-            label = f"{tool.metadata.label} ({tool.ctx_name})"
+            label = f"{tool.metadata.label}"
             icon = parse_icon(
                 tool.variant.root,
                 tool.metadata.icon,

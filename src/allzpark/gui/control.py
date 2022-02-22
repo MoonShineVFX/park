@@ -307,6 +307,7 @@ class Controller(QtCore.QObject):
             command=suite_tool.name,  # todo: able to append args
             cwd=self._cwd or None,
             environ=env,  # todo: inject additional env
+            no_console=suite_tool.metadata.no_console,
             start_new_session=suite_tool.metadata.start_new_session,
             parent=self,
         )
@@ -330,6 +331,7 @@ class Command(QtCore.QObject):
                  command,
                  cwd=None,
                  environ=None,
+                 no_console=False,
                  start_new_session=False,
                  parent=None):
         super(Command, self).__init__(parent)
@@ -338,6 +340,7 @@ class Command(QtCore.QObject):
         self.context = context
         self.cwd = cwd
         self.popen = None
+        self.no_console = no_console
         self.start_new_session = start_new_session
 
         # `cmd` rather than `command`, to distinguish
@@ -367,12 +370,11 @@ class Command(QtCore.QObject):
 
     def _execute(self):
         startupinfo = None
-        no_console = getattr(allzparkconfig, "__noconsole__", True)
 
         # Windows-only
         # Prevent additional windows from appearing when running
         # Allzpark without a console, e.g. via pythonw.exe.
-        if no_console and hasattr(subprocess, "STARTUPINFO"):
+        if self.no_console and hasattr(subprocess, "STARTUPINFO"):
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 

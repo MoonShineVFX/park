@@ -195,6 +195,7 @@ class ToolMetadata:
     color: str
     hidden: bool
     required_roles: Set[str]
+    no_console: bool
     start_new_session: bool
     remember_me: bool
 
@@ -222,6 +223,7 @@ class SuiteTool:
             color=data.get("color"),
             hidden=data.get("hidden", False),
             required_roles=set(data.get("required_roles", [])),
+            no_console=data.get("no_console", True),
             start_new_session=data.get("start_new_session", True),
             remember_me=data.get("remember_me", True),
         )

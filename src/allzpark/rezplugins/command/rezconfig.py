@@ -13,7 +13,7 @@ def suite_roots():
 
 park = {
     # saved suite root paths
-    "suite_roots": suite_roots,
+    "suite_roots": suite_roots(),
 
     # ordering tools by name
     "tool_ordering": [],

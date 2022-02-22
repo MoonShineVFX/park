@@ -127,7 +127,8 @@ class ToolsModel(BaseItemModel):
         tools = sorted(tools, key=key)
 
         for tool in tools:
-            label = f"{tool.metadata.label}"
+            alias = f"  ({tool.alias})" if tool.name != tool.alias else ""
+            label = f"{tool.metadata.label}{alias}"
             icon = parse_icon(
                 tool.variant.root,
                 tool.metadata.icon,

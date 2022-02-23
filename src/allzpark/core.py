@@ -387,7 +387,8 @@ def re_resolve_rxt(context):
     new = RollingContext(
         package_requests=rxt.requested_packages(),
         timestamp=rxt.requested_timestamp,
-        package_paths=rxt.package_paths,
+        # todo: ignore this so the local package can be used
+        # package_paths=rxt.package_paths,
         package_filter=rxt.package_filter,
         package_orderers=rxt.package_orderers,
         building=rxt.building,

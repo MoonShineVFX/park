@@ -8,6 +8,7 @@
     <file>icons/avalon-logomark.svg</file>
     <file>icons/box-arrow-down.svg</file>
     <file>icons/box-seam.svg</file>
+    <file>icons/boxes.svg</file>
     <file>icons/brightness-high-fill.svg</file>
     <file>icons/brightness-low-fill.svg</file>
     <file>icons/card-list.svg</file>
@@ -24,8 +25,10 @@
     <file>icons/chevron_left.svg</file>
     <file>icons/chevron_right.svg</file>
     <file>icons/chevron_up.svg</file>
+    <file>icons/clock-history.svg</file>
     <file>icons/code-slash.svg</file>
     <file>icons/collection.svg</file>
+    <file>icons/command.svg</file>
     <file>icons/dash.svg</file>
     <file>icons/door-closed.svg</file>
     <file>icons/door-open.svg</file>
@@ -50,6 +53,7 @@
     <file>icons/log-info.svg</file>
     <file>icons/log-undefined.svg</file>
     <file>icons/log-warning.svg</file>
+    <file>icons/magic.svg</file>
     <file>icons/people-fill-ok.svg</file>
     <file>icons/people-fill.svg</file>
     <file>icons/person-circle.svg</file>

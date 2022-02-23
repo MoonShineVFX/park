@@ -631,6 +631,12 @@ class ToolLaunchWidget(QtWidgets.QWidget):
         tool_name.setReadOnly(True)
         tool_name.setPlaceholderText("App command")
 
+        _size = QtCore.QSize(res.px(24), res.px(24))
+        ctx_icon = QtWidgets.QLabel()
+        ctx_icon.setPixmap(QtGui.QIcon(":/icons/boxes.svg").pixmap(_size))
+        tool_icon = QtWidgets.QLabel()
+        tool_icon.setPixmap(QtGui.QIcon(":/icons/command.svg").pixmap(_size))
+
         packages = ResolvedPackages()
 
         launch_bar = QtWidgets.QWidget()
@@ -648,9 +654,16 @@ class ToolLaunchWidget(QtWidgets.QWidget):
         layout.addWidget(launch)
         layout.addWidget(shell)
 
+        _c_lay = QtWidgets.QHBoxLayout()
+        _c_lay.addWidget(ctx_icon)
+        _c_lay.addWidget(ctx_name)
+        _t_lay = QtWidgets.QHBoxLayout()
+        _t_lay.addWidget(tool_icon)
+        _t_lay.addWidget(tool_name)
+
         layout = QtWidgets.QVBoxLayout(body)
-        layout.addWidget(ctx_name)
-        layout.addWidget(tool_name)
+        layout.addLayout(_c_lay)
+        layout.addLayout(_t_lay)
         layout.addWidget(packages)
         layout.addWidget(launch_bar)
 

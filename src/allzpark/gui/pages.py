@@ -1,5 +1,5 @@
 
-from ._vendor.Qt5 import QtCore, QtWidgets
+from ._vendor.Qt5 import QtCore, QtGui, QtWidgets
 from . import widgets
 
 
@@ -42,9 +42,9 @@ class ProductionPage(widgets.BusyWidget):
         tabs.setDocumentMode(True)
         # QTabWidget's frame (pane border) will not be rendered if documentMode
         # is enabled, so we make our own with bar + stack with border.
-        tabs.addTab("Workspaces")
+        tabs.addTab(QtGui.QIcon(":/icons/magic.svg"), "Workspaces")
         stack.addWidget(work_split)
-        tabs.addTab("History")
+        tabs.addTab(QtGui.QIcon(":/icons/clock-history.svg"), "History")
         stack.addWidget(work_history)
 
         body_split = QtWidgets.QSplitter()

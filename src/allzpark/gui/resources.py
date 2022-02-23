@@ -83,7 +83,7 @@ class Resources:
         "jetbrainsmono/JetBrainsMono-Regular.ttf"
     )
     icons_ext = ".png", ".svg"
-    qrc_updated = 1645387393  # !!<qrc-update-time>!! don't touch
+    qrc_updated = 1645588401  # !!<qrc-update-time>!! don't touch
 
     @classmethod
     def load(cls):
@@ -555,6 +555,8 @@ class BaseTheme(object):
         QTabBar::tab::top {{
             border-right: none;
             border-bottom: none;
+            padding-left: {px(12)};
+            padding-right: {px(12)};
         }}
         QTabBar::tab::top:only-one {{
             border-right: 1px solid {self.palette.border};
@@ -568,6 +570,8 @@ class BaseTheme(object):
         QTabBar::tab::bottom {{
             border-right: none;
             border-top: none;
+            padding-left: {px(12)};
+            padding-right: {px(12)};
         }}
         QTabBar::tab::bottom:only-one {{
             border-right: 1px solid {self.palette.border};
@@ -581,6 +585,8 @@ class BaseTheme(object):
         QTabBar::tab::left {{
             border-right: none;
             border-bottom: none;
+            padding-top: {px(12)};
+            padding-bottom: {px(12)};
         }}
         QTabBar::tab::left:only-one {{
             border-bottom: 1px solid {self.palette.border};
@@ -594,6 +600,8 @@ class BaseTheme(object):
         QTabBar::tab::right {{
             border-left: none;
             border-bottom: none;
+            padding-top: {px(12)};
+            padding-bottom: {px(12)};
         }}
         QTabBar::tab::right:only-one {{
             border-bottom: 1px solid {self.palette.border};

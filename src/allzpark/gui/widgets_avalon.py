@@ -380,8 +380,9 @@ class AssetTreeWidget(QtWidgets.QWidget):
         else:
             self._view.update()
 
-        index = self._view.currentIndex()
-        if index.isValid():
+        indexes = self._view.selectionModel().selectedIndexes()
+        if indexes and indexes[0].isValid():
+            index = indexes[0]  # SingleSelection view
             scope = index.data(BaseScopeModel.ScopeRole)
             self.scope_changed.emit(scope)  # for update task
         else:

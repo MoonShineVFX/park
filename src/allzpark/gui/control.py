@@ -8,7 +8,7 @@ import functools
 import threading
 import subprocess
 from rez.config import config as rezconfig
-from ._vendor.Qt5 import QtCore
+from ._vendor.Qt5 import QtCore, QtWidgets
 from .widgets import BusyWidget
 from .. import core, util
 
@@ -66,10 +66,6 @@ def _thread(name, blocks=None):
     :type blocks: tuple[str] or None
     :return:
     """
-    # todo:
-    #  closing app while thread running ->
-    #   QThread: Destroyed while thread is still running
-
     def decorator(func):
         @functools.wraps(func)
         def decorated(*args, **kwargs):
@@ -77,7 +73,10 @@ def _thread(name, blocks=None):
             fn_name = func.__name__
 
             if name not in self._thread:
-                self._thread[name] = Thread(self)
+                thread = Thread(self)
+                _app = QtWidgets.QApplication.instance()
+                _app.aboutToQuit.connect(thread.on_app_quit)
+                self._thread[name] = thread
             thread = self._thread[name]
 
             if thread.isRunning():
@@ -437,6 +436,10 @@ class Thread(QtCore.QThread):
         self._func = None
         self._args = None
         self._kwargs = None
+
+    def on_app_quit(self):
+        self.requestInterruption()
+        self.wait()
 
     def set_job(self, func, *args, **kwargs):
         self._func = func

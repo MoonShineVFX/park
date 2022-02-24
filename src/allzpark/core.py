@@ -124,7 +124,7 @@ class AbstractScope:
         """
         raise NotImplementedError
 
-    def obtain_workspace(self, tool: "SuiteTool") -> Union[str, None]:
+    def obtain_workspace(self, tool: "SuiteTool" = None) -> Union[str, None]:
         """Returns a working directory for this scope, if allowed"""
         raise NotImplementedError
 

@@ -88,7 +88,7 @@ class _Scope(AbstractScope):
 
     def obtain_workspace(
             self: Union["Entrance", "Project"],
-            tool: SuiteTool
+            tool: SuiteTool = None,
     ) -> Union[str, None]:
         """
 
@@ -243,21 +243,27 @@ def _(scope: Project) -> ToolFilterCallable:
 
 
 @singledispatch
-def obtain_workspace(scope, tool):
+def obtain_workspace(scope, tool=None):
     _ = tool  # consume unused arg
     raise NotImplementedError(f"Unknown scope type: {type(scope)}")
 
 
 @obtain_workspace.register
-def _(scope: Entrance, tool: SuiteTool) -> None:
-    log.debug(f"No workspace for {tool.name} in scope {elide(scope)}.")
+def _(scope: Entrance, tool: SuiteTool = None) -> None:
+    _tool = f" for {tool.name!r}" if tool else ""
+    log.debug(f"No workspace{_tool} in scope {elide(scope)}.")
     return None
 
 
 @obtain_workspace.register
-def _(scope: Project, tool: SuiteTool) -> Union[str, None]:
+def _(scope: Project, tool: SuiteTool = None) -> Union[str, None]:
     _ = tool
-    return os.path.join(scope.sg_project_root, scope.tank_name)
+    root = scope.sg_project_root
+    root += "/" if ":" in root else ""
+    # note: instead of checking root.endswith ':', just seeing if ':' in
+    #   string let us also check if there is redundant path sep written
+    #   in ShotGrid. We are on Windows.
+    return os.path.join(root, scope.tank_name)
 
 
 def iter_shotgrid_projects(server: "ShotGridConn"):

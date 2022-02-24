@@ -210,9 +210,10 @@ class Controller(QtCore.QObject):
 
     @_thread(name="tools", blocks=("ProductionPage",))
     def update_tools(self, scope):
-        self.work_dir_resetted.emit()
+        work_dir = scope.obtain_workspace()
         self.tools_updated.emit(core.list_tools(scope))
-        self._cwd = None
+        self.work_dir_obtained.emit(work_dir or "")
+        self._cwd = work_dir
         self._env = None
 
     @_thread(name="history", blocks=("WorkHistoryWidget",))

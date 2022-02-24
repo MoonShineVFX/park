@@ -112,12 +112,12 @@ class _Scope(AbstractScope):
 
     def obtain_workspace(
             self: Union["Entrance", "Project", "Asset", "Task"],
-            tool: SuiteTool
+            tool: SuiteTool = None,
     ) -> str:
         """
 
         :param tool:
-        :type tool: SuiteTool
+        :type tool: SuiteTool or None
         :type self: Entrance or Project or Asset or Task
         :return:
         :rtype: str or None
@@ -329,13 +329,13 @@ def _(scope: Task) -> ToolFilterCallable:
 
 
 @singledispatch
-def obtain_avalon_workspace(scope, tool):
+def obtain_avalon_workspace(scope, tool=None):
     """
 
     :param scope: The scope of workspace. Could be at project/asset/task.
     :param tool: A tool provided by Rez suite.
     :type scope: Entrance or Project or Asset or Task
-    :type tool: SuiteTool
+    :type tool: SuiteTool or None
     :return: A filesystem path to workspace if available
     :rtype: str or None
     """
@@ -344,13 +344,13 @@ def obtain_avalon_workspace(scope, tool):
 
 
 @obtain_avalon_workspace.register
-def _(scope: Entrance, tool: SuiteTool) -> str:
+def _(scope: Entrance, tool: SuiteTool = None) -> str:
     _ = scope, tool
     return os.getcwd()
 
 
 @obtain_avalon_workspace.register
-def _(scope: Project, tool: SuiteTool) -> str:
+def _(scope: Project, tool: SuiteTool = None) -> str:
     _ = tool
     template = "{root}/{project}/Avalon"
     return template.format(**{
@@ -360,7 +360,7 @@ def _(scope: Project, tool: SuiteTool) -> str:
 
 
 @obtain_avalon_workspace.register
-def _(scope: Asset, tool: SuiteTool) -> str:
+def _(scope: Asset, tool: SuiteTool = None) -> str:
     _ = tool
     template = "{root}/{project}/Avalon"
     return template.format(**{
@@ -370,16 +370,18 @@ def _(scope: Asset, tool: SuiteTool) -> str:
 
 
 @obtain_avalon_workspace.register
-def _(scope: Task, tool: SuiteTool) -> str:
+def _(scope: Task, tool: SuiteTool = None) -> str:
     task = scope
     template = task.project.work_template
+    if tool is None:
+        template = template.split("{app}")[0]
     return template.format(**{
         "root": task.project.root,
         "project": task.project.name,
         "silo": task.asset.silo,
         "asset": task.asset.name,
         "task": task.name,
-        "app": tool.name,
+        "app": tool.name if tool else "",
         "user": task.project.username,
     })
 

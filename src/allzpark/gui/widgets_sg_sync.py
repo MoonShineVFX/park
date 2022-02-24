@@ -29,12 +29,19 @@ class ShotGridSyncWidget(QtWidgets.QWidget):
         layout.addWidget(label)
         layout.addWidget(project_list)
 
-        project_list.scope_selected.connect(self.workspace_changed.emit)
+        project_list.scope_selected.connect(self._on_project_scope_changed)
+        project_list.scope_deselected.connect(self._on_project_scope_changed)
 
         self.__inited = False
         self._entrance = None  # type: Entrance or None
         self._projects = project_list
         self._entered_scope = None
+
+    def _on_project_scope_changed(self, scope=None):
+        if scope is None and self._entrance is None:
+            return
+        scope = scope or self._entrance
+        self.workspace_changed.emit(scope)
 
     def _workspace_refreshed(self, scope, cache_clear=False):
         self.workspace_refreshed.emit(scope, cache_clear)
@@ -75,7 +82,8 @@ class ShotGridSyncWidget(QtWidgets.QWidget):
 
 
 class ProjectListWidget(QtWidgets.QWidget):
-    scope_selected = QtCore.Signal(object)
+    scope_selected = QtCore.Signal(AbstractScope)
+    scope_deselected = QtCore.Signal()
 
     def __init__(self, *args, **kwargs):
         super(ProjectListWidget, self).__init__(*args, **kwargs)
@@ -92,14 +100,15 @@ class ProjectListWidget(QtWidgets.QWidget):
         proxy.setSourceModel(model)
         view = QtWidgets.QListView()
         view.setModel(proxy)
+        selection = view.selectionModel()
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 4, 0, 4)
         layout.addWidget(search_bar)
         layout.addWidget(view)
 
-        view.clicked.connect(self._on_item_clicked)
         search_bar.textChanged.connect(self._on_project_searched)
+        selection.selectionChanged.connect(self._on_selection_changed)
 
         self._view = view
         self._proxy = proxy
@@ -108,12 +117,18 @@ class ProjectListWidget(QtWidgets.QWidget):
     def model(self):
         return self._model
 
-    def _on_item_clicked(self, index):
-        scope = index.data(BaseScopeModel.ScopeRole)
-        self.scope_selected.emit(scope)
-
     def _on_project_searched(self, text):
         self._proxy.setFilterRegExp(text)
+
+    def _on_selection_changed(self, selected, _):
+        indexes = selected.indexes()
+        if indexes and indexes[0].isValid():
+            index = indexes[0]  # SingleSelection view
+            index = self._proxy.mapToSource(index)
+            scope = index.data(BaseScopeModel.ScopeRole)
+            self.scope_selected.emit(scope)
+        else:
+            self.scope_deselected.emit()
 
 
 class ProjectListModel(BaseScopeModel):

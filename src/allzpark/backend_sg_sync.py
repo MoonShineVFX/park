@@ -6,7 +6,9 @@ import getpass
 from shotgun_api3 import Shotgun
 from dataclasses import dataclass
 from functools import singledispatch
+from collections import MutableMapping
 from typing import Union, Iterator, Callable, Set, overload
+from rez.config import config as rezconfig
 from .core import SuiteTool, AbstractScope
 from .util import elide
 from .exceptions import BackendError
@@ -15,6 +17,9 @@ from .exceptions import BackendError
 ToolFilterCallable = Callable[[SuiteTool], bool]
 
 log = logging.getLogger("allzpark")
+
+
+parkconfig = rezconfig.plugins.command.park
 
 
 def get_entrance(sg_server=None, api_key=None, script_name=None):
@@ -30,16 +35,12 @@ def get_entrance(sg_server=None, api_key=None, script_name=None):
     api_key = api_key or os.getenv("SHOTGRID_APIKEY")
     script_name = script_name or os.getenv("SHOTGRID_SCRIPT")
 
-    sg_suite = os.getenv("SHOTGRID_DEFAULT_SUITE")
-
     if not sg_server:
         raise BackendError("ShotGrid server URL not given.")
     if not api_key:
         raise BackendError("ShotGrid API key not given.")
     if not script_name:
         raise BackendError("ShotGrid script-name not given.")
-    if not sg_suite:
-        raise BackendError("ShotGrid default suite path not set.")
 
     return Entrance(sg_server=sg_server,
                     api_key=api_key,
@@ -110,6 +111,13 @@ class _Scope(AbstractScope):
         :return:
         :rtype: dict
         """
+        if isinstance(self, Project):
+            return {
+                # for sg_sync
+                "AVALON_PROJECTS": self.sg_project_root,
+                "AVALON_PROJECT": self.tank_name,
+                "SG_PROJECT_ID": self.id,
+            }
         return dict()
 
 
@@ -134,6 +142,7 @@ class Project(_Scope):
     upstream: Entrance
     roles: Set[str]
     code: str
+    id: str
     tank_name: str
     sg_project_root: str
 
@@ -174,13 +183,27 @@ def scope_suite_path(scope):
 @scope_suite_path.register
 def _(scope: Entrance) -> str:
     _ = scope
-    return os.environ["SHOTGRID_DEFAULT_SUITE"]
+    return os.getenv("SHOTGRID_ENTRANCE_SUITE")
 
 
 @scope_suite_path.register
-def _(scope: Project) -> None:
-    _ = scope
-    return
+def _(scope: Project) -> Union[str, None]:
+    roots = parkconfig.suite_roots  # type: dict
+    if not isinstance(roots, MutableMapping):
+        raise BackendError("Invalid configuration, 'suite_roots' should be "
+                           f"dict-like type value, not {type(roots)}.")
+
+    shotgrid_suite_root = roots.get("shotgrid")
+    if not shotgrid_suite_root:
+        log.debug("No suite root for ShotGrid.")
+        return
+
+    suite_path = os.path.join(shotgrid_suite_root, scope.name)
+    if not os.path.isdir(suite_path):
+        log.debug(f"No suite root for ShotGrid project {scope.name}")
+        return
+
+    return suite_path
 
 
 @singledispatch
@@ -242,7 +265,7 @@ def iter_shotgrid_projects(server: "ShotGridConn"):
         roles = set()
         username = getpass.getuser()
         sg_user_ids = set([
-            d["id"] for d in (d.get("sg_cg_lead", []) + d.get("sg_pc", []))
+            _["id"] for _ in (d.get("sg_cg_lead", []) + d.get("sg_pc", []))
         ])
         if username in server.find_human_logins(list(sg_user_ids)):
             roles.add(MANAGER_ROLE)
@@ -254,6 +277,7 @@ def iter_shotgrid_projects(server: "ShotGridConn"):
             upstream=server.entrance,
             roles=roles,
             code=d["code"],
+            id=str(d["id"]),
             tank_name=d["tank_name"],
             sg_project_root=d["sg_project_root"]
         )
@@ -285,6 +309,7 @@ class ShotGridConn(object):
 
     def iter_valid_projects(self):
         fields = [
+            "id",
             "code",
             "name",
             "tank_name",

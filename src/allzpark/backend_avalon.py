@@ -800,8 +800,11 @@ class AvalonMongo(object):
         query_filter = {
             "type": "project",
             "name": {"$exists": 1},
-            f"data.role.{MEMBER_ROLE}": _user if joined else {"$ne": _user}
         }
+        if joined is not None:
+            query_filter.update({
+                f"data.role.{MEMBER_ROLE}": _user if joined else {"$ne": _user}
+            })
         coll = db.get_collection(coll_name)  # type: MongoCollection
         return coll.find_one(query_filter, projection=_projection)
 

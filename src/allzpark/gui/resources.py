@@ -83,7 +83,7 @@ class Resources:
         "jetbrainsmono/JetBrainsMono-Regular.ttf"
     )
     icons_ext = ".png", ".svg"
-    qrc_updated = 1645588401  # !!<qrc-update-time>!! don't touch
+    qrc_updated = 1645721007  # !!<qrc-update-time>!! don't touch
 
     @classmethod
     def load(cls):
@@ -903,29 +903,51 @@ class BaseTheme(object):
     def _q_avalon(self):
         return f"""
         
-        #AvalonProjectView QListView {{
+        #AvalonProjectView QTreeView {{
             border: 1px solid {self.palette.border};
         }}
-        #AvalonProjectView QListView::item {{
+        #AvalonProjectView QTreeView::item {{
             border: 0px;
             padding: 5px 1px;
             padding-left: {px(8).floor};
             image-position: left center;
             image: url(:/icons/door-closed.svg);
         }}
-        #AvalonProjectView QListView::item:hover {{
+        #AvalonProjectView QTreeView::item:hover {{
             image: url(:/icons/door-open.svg);
         }}
+        #AvalonProjectView QTreeView::indicator {{
+            left: {px(36).floor};
+        }}
+        #AvalonProjectView QTreeView::indicator:unchecked {{
+            image: url(:icons/toggle-off.svg);
+        }}
+        #AvalonProjectView QTreeView::indicator:unchecked:hover {{
+            image: url(:icons/toggle-off-bright.svg);
+        }}
+        #AvalonProjectView QTreeView::indicator:unchecked:disabled {{
+            image: url(:icons/toggle-off-dim.svg);
+        }}
+        #AvalonProjectView QTreeView::indicator:checked {{
+            image: url(:icons/toggle-on.svg);
+        }}
+        #AvalonProjectView QTreeView::indicator:checked:hover {{
+            image: url(:icons/toggle-on-bright.svg);
+        }}
+        #AvalonProjectView QTreeView::indicator:checked:disabled {{
+            image: url(:icons/toggle-on-dim.svg);
+        }}
+
         
         #AvalonAssetView QTreeView {{
             border: 1px solid {self.palette.border};
         }}
         
         #AvalonProjectArchive:checked {{
-            icon: url(:/icons/journal-plus.svg);
+            icon: url(:/icons/filter-on.svg);
         }}
         #AvalonProjectArchive:!checked {{
-            icon: url(:/icons/chevron-double-left.svg);
+            icon: url(:/icons/filter.svg);
         }}
         
         #AvalonHomeButton {{
@@ -933,10 +955,10 @@ class BaseTheme(object):
         }}
         
         #AvalonTaskFilter {{
-            icon: url(:icons/funnel-fill.svg);
+            icon: url(:icons/filter.svg);
         }}
         #AvalonTaskFilter:checked {{
-            icon: url(:icons/funnel-fill-on.svg);
+            icon: url(:icons/filter-on.svg);
             background-color: {self.palette.primary.fade};
         }}
 

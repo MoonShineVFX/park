@@ -118,7 +118,7 @@ class AvalonWidget(QtWidgets.QWidget):
 
     def _on_project_filtered(self, joined):
         scope = self._entrance
-        scope.joined = bool(joined)
+        scope.joined = True if bool(joined) else None
         log.debug(f"Refresh workspace (filtering projects): {scope}")
         self._workspace_refreshed(scope, cache_clear=True)
 
@@ -249,9 +249,10 @@ class ProjectListWidget(QtWidgets.QWidget):
         model = ProjectListModel()
         proxy = BaseProxyModel()
         proxy.setSourceModel(model)
-        view = QtWidgets.QListView()
+        view = QtWidgets.QTreeView()
         view.setModel(proxy)
-        view.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        view.setIndentation(2)
+        view.setHeaderHidden(True)
 
         layout = QtWidgets.QHBoxLayout(top_bar)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -265,9 +266,8 @@ class ProjectListWidget(QtWidgets.QWidget):
         layout.addWidget(view)
 
         search_bar.textChanged.connect(self._on_project_searched)
-        filter_btn.toggled.connect(self.filter_toggled)
+        filter_btn.toggled.connect(self._on_filter_toggled)
         view.clicked.connect(self._on_item_clicked)
-        view.customContextMenuRequested.connect(self._on_right_click)
         model.modelReset.connect(self._on_model_resetted)
 
         self._view = view
@@ -278,45 +278,41 @@ class ProjectListWidget(QtWidgets.QWidget):
     def model(self):
         return self._model
 
+    def _on_filter_toggled(self, state):
+        self.filter_toggled.emit(state)
+        self._model.set_filtered(state)
+
     def _on_item_clicked(self, index):
-        scope = index.data(BaseScopeModel.ScopeRole)
+        toggled = index.data(ProjectListModel.ToggledRole)
+        if toggled:  # user is toggling, not clicking it.
+            self._on_item_toggled(self._proxy.mapToSource(index))
+            return
+
+        scope = index.data(ProjectListModel.ScopeRole)
         self.scope_selected.emit(scope)
 
     def _on_project_searched(self, text):
         self._proxy.setFilterRegExp(text)
 
-    def _on_right_click(self, position):
-        index = self._view.indexAt(position)
-
-        if not index.isValid():
-            # Clicked outside any item
-            return
-
-        menu = QtWidgets.QMenu(self._view)
+    def _on_item_toggled(self, index):
         model_ = index.model()
         project = model_.data(index, self._model.ScopeRole)  # type: Project
-        is_member = MEMBER_ROLE in project.roles
+        join = bool(index.data(QtCore.Qt.CheckStateRole))
+        if join:
+            log.debug(f"Joining project {project.name}")
+            result = project.db.join_project(project.coll)
+        else:
+            log.debug(f"Leaving project {project.name}")
+            result = project.db.leave_project(project.coll)
 
-        _label = "Leave" if is_member else "Join"
-        member_action = QtWidgets.QAction(_label, menu)
+        if result.modified_count:
+            log.debug("Project membership status updated.")
+            self.__member_changed = project.name
+        else:
+            log.warning("Project membership status not changed.")
 
-        menu.addAction(member_action)
-
-        def on_member():
-            if is_member:
-                result = project.db.leave_project(project.coll)
-            else:
-                result = project.db.join_project(project.coll)
-
-            if result.modified_count:
-                _index = self._proxy.mapToSource(index)
-                self._model.removeRow(_index.row(), _index.parent())
-                self.__member_changed = project.name
-
-        member_action.triggered.connect(on_member)
-
-        menu.move(QtGui.QCursor.pos())
-        menu.show()
+        # reset
+        self._model.setData(index, False, ProjectListModel.ToggledRole)
 
     def _on_model_resetted(self):
         if self.__member_changed:
@@ -422,7 +418,15 @@ class AssetTreeWidget(QtWidgets.QWidget):
 
 
 class ProjectListModel(BaseScopeModel):
+    ToggledRole = QtCore.Qt.UserRole + 20
     Headers = ["Name"]
+
+    def __init__(self, *args, **kwargs):
+        super(ProjectListModel, self).__init__(*args, **kwargs)
+        self._filtered = True  # default filtered (only joined projects)
+
+    def set_filtered(self, state):
+        self._filtered = bool(state)
 
     def refresh(self, scopes):
         self.beginResetModel()
@@ -433,15 +437,78 @@ class ProjectListModel(BaseScopeModel):
             item.setIcon(QtGui.QIcon(":/icons/_.svg"))  # placeholder icon
             item.setText(project.name)
             item.setData(project, self.ScopeRole)
+            item.setData(False, self.ToggledRole)
 
             if MEMBER_ROLE not in project.roles:
                 font = QtGui.QFont()
                 font.setItalic(True)
                 item.setFont(font)
+                item.setData(QtCore.Qt.Unchecked, QtCore.Qt.CheckStateRole)
+            else:
+                item.setData(QtCore.Qt.Checked, QtCore.Qt.CheckStateRole)
 
             self.appendRow(item)
 
         self.endResetModel()
+
+    def data(self, index, role=QtCore.Qt.DisplayRole):
+        """
+        :param QtCore.QModelIndex index:
+        :param int role:
+        :rtype: Any
+        """
+        if not index.isValid():
+            return
+
+        if role == QtCore.Qt.CheckStateRole:
+            if not self._filtered:
+                item = self.itemFromIndex(index)
+                return item.data(QtCore.Qt.CheckStateRole)
+            else:
+                return
+
+        return super(ProjectListModel, self).data(index, role)
+
+    def setData(self, index, value, role=QtCore.Qt.EditRole):
+        """
+
+        :param index:
+        :param value:
+        :param role:
+        :type index: QtCore.QModelIndex
+        :type value: Any
+        :type role: int
+        :return:
+        :rtype: bool
+        """
+        if not index.isValid():
+            return False
+
+        if role == QtCore.Qt.CheckStateRole:
+            item = self.itemFromIndex(index)
+            item.setData(value, QtCore.Qt.CheckStateRole)
+            item.setData(True, self.ToggledRole)
+            return True
+
+        if role == self.ToggledRole:
+            item = self.itemFromIndex(index)
+            item.setData(False, self.ToggledRole)
+            return True
+
+        return super(ProjectListModel, self).setData(index, value, role)
+
+    def flags(self, index):
+        """
+        :param QtCore.QModelIndex index:
+        :rtype: QtCore.Qt.ItemFlags
+        """
+        if not index.isValid():
+            return
+
+        base_flags = QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
+        if not self._filtered:
+            return base_flags | QtCore.Qt.ItemIsUserCheckable
+        return base_flags
 
 
 class AssetTreeModel(BaseScopeModel):

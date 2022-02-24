@@ -150,8 +150,8 @@ class Controller(QtCore.QObject):
     @QtCore.Slot(str)  # noqa
     @_defer(on_time=250)
     def on_backend_changed(self, entrance):
-        scope = self._backend_entrances[entrance]
-        self.enter_workspace(scope)
+        self.tools_updated.emit([])
+        self.enter_workspace(self._backend_entrances[entrance])
 
     @QtCore.Slot(core.AbstractScope)  # noqa
     def on_workspace_changed(self, scope):

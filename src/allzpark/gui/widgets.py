@@ -525,13 +525,23 @@ class ToolContextWidget(QtWidgets.QWidget):
 
     @QtCore.Slot(core.SuiteTool, dict)  # noqa
     def on_tool_selected(self, suite_tool: core.SuiteTool, work_env: dict):
+        error = False
         context = suite_tool.context
-        env = context.get_environ()
+        try:
+            env = context.get_environ()
+        except Exception as e:
+            log.error(f"{e.__class__.__name__}: {str(e)}")
+            error = True
+            env = {}
+
         env.update(work_env)
         self._context.load(context)
-        self._environ.model().load(env)
-        self._environ.model().note(lib.ContextEnvInspector.inspect(context))
         self._launcher.set_tool(suite_tool)
+        self._environ.model().load(env)
+        if not error:
+            self._environ.model().note(
+                lib.ContextEnvInspector.inspect(context)
+            )
 
     def on_tool_cleared(self):
         self._context.reset()

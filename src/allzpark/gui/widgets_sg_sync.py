@@ -122,7 +122,7 @@ class ProjectListModel(BaseScopeModel):
     def refresh(self, scopes):
         self.reset()
 
-        for project in scopes:
+        for project in sorted(scopes, key=lambda s: s.name):
             item = QtGui.QStandardItem()
             item.setText(project.name)
             item.setData(project, self.ScopeRole)

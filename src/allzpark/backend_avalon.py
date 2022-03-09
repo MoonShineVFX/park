@@ -442,6 +442,7 @@ def _(scope: Task, tool: SuiteTool) -> dict:
         "AVALON_WORKDIR": obtain_avalon_workspace(task, tool),
         "AVALON_APP": tool.name,
         "AVALON_APP_NAME": tool.name,  # application dir
+        "REZ_ALIAS_NAME": tool.alias
     })
     return environ
 

@@ -1,5 +1,7 @@
 
 import os
+import json
+import getpass
 import logging
 from contextlib import contextmanager
 from functools import singledispatch, update_wrapper
@@ -103,3 +105,16 @@ def singledispatchmethod(func):
     wrapper.register = dispatcher.register
     update_wrapper(wrapper, func)
     return wrapper
+
+
+def get_user_task():
+    db = "T:/rez-studio/setup/configs/user_task.json"
+    if not os.path.isfile(db):
+        return ''
+
+    with open(db, "rb") as f:
+        user_docs = json.load(f)
+
+    user = getpass.getuser().lower()
+    task = user_docs.get(user, {}).get('task', '')
+    return task

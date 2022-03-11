@@ -3,7 +3,7 @@ import logging
 from typing import List, Union
 from ._vendor.Qt5 import QtCore, QtGui, QtWidgets
 from ..backend_avalon import Entrance, Project, Asset, Task, MEMBER_ROLE
-from ..util import elide
+from ..util import elide, get_user_task
 from ..core import AbstractScope
 from .widgets import SlidePageWidget, ScopeLineLabel, ComboBox
 from .models import BaseScopeModel, BaseProxyModel
@@ -172,6 +172,11 @@ class AvalonWidget(QtWidgets.QWidget):
         log.debug(f"Refresh workspace (enter workspace): {scope}")
         self._workspace_refreshed(scope)
         self._entered_scope = scope
+
+        # Set task by user
+        index = self._tasks.findText(get_user_task())
+        if index >= 0:
+            self._tasks.setCurrentIndex(index)
 
     def update_workspace(
             self, scopes: Union[List[Project], List[Asset], List[Task]]

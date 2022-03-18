@@ -191,6 +191,7 @@ class Project(_Scope):
 @dataclass
 class Asset(_Scope):
     name: str
+    label: str
     upstream: Project
     project: Project
     parent: "Asset" or None
@@ -204,7 +205,8 @@ class Asset(_Scope):
     db: "AvalonMongo"
 
     def __repr__(self):
-        return f"Asset(name={self.name}, upstream={self.upstream})"
+        return f"Asset(name={self.name}, label={self.label}, " \
+               f"upstream={self.upstream})"
 
     def __hash__(self):
         return hash(repr(self))
@@ -686,6 +688,7 @@ def iter_avalon_assets(avalon_project):
 
         silo = Asset(
             name=key,
+            label=key,
             upstream=this,
             project=this,
             parent=None,
@@ -710,6 +713,7 @@ def iter_avalon_assets(avalon_project):
             tasks = doc["data"].get("tasks") or []
             asset = Asset(
                 name=doc["name"],
+                label=doc["data"]['label'],
                 upstream=this,
                 project=this,
                 parent=_parent,
@@ -843,6 +847,7 @@ class AvalonMongo(object):
             "data.trash": True,
             "data.tasks": True,
             "data.visualParent": True,
+            "data.label": True
         }
 
         all_asset_docs = {d["_id"]: d for d in coll.find({

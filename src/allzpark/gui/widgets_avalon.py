@@ -559,7 +559,7 @@ class AssetTreeModel(BaseScopeModel):
         for asset in scopes:
             if not asset.is_hidden:
                 item = QtGui.QStandardItem()
-                item.setText(asset.name)
+                item.setText(asset.label)
                 item.setData(asset, self.ScopeRole)
 
                 _asset_items[asset.name] = item

@@ -685,7 +685,7 @@ def iter_avalon_assets(avalon_project):
     for depth, key, assets in grouped_assets:
         if not isinstance(key, str):
             continue  #
-
+        _hidden = this.db.get_silo_hidden(this.coll, key)
         silo = Asset(
             name=key,
             label=key,
@@ -695,7 +695,7 @@ def iter_avalon_assets(avalon_project):
             silo="",
             tasks=[],
             is_silo=True,
-            is_hidden=False,
+            is_hidden=_hidden,
             is_leaf=False,
             child_task=set(),
             coll=this.coll,
@@ -882,6 +882,15 @@ class AvalonMongo(object):
                 key=group_key
             )
         ]
+
+    def get_silo_hidden(self, coll_name, silo_name):
+        db = self.conn[self._db_name]  # type: MongoDatabase
+        coll = db.get_collection(coll_name)  # type: MongoCollection
+
+        silo = coll.find_one({'type': 'silo', 'name': silo_name})
+        if silo:
+            return silo.get('data', {}).get('trash', False)
+        return False
 
     def join_project(self, coll_name):
         """

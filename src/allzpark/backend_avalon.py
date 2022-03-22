@@ -850,10 +850,13 @@ class AvalonMongo(object):
             "data.label": True
         }
 
-        all_asset_docs = {d["_id"]: d for d in coll.find({
-            "type": "asset",
-            "name": {"$exists": 1},
-        }, projection=_projection)}
+        _assets = coll.find(
+            {"type": "asset", "name": {"$exists": 1}},
+            projection=_projection
+        )
+        _assets = sorted(_assets, key=lambda d: d['name'])
+
+        all_asset_docs = {d["_id"]: d for d in _assets}
 
         def count_depth(doc_):
             def depth(_d):

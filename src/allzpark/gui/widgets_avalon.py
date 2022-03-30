@@ -1,4 +1,4 @@
-
+import os
 import logging
 from typing import List, Union
 from ._vendor.Qt5 import QtCore, QtGui, QtWidgets
@@ -138,6 +138,22 @@ class AvalonWidget(QtWidgets.QWidget):
         else:
             log.warning(f"No matched task for {asset.name!r}.")
             self.tools_requested.emit(asset)
+
+        if current == 'lighting':
+            self._create_precomp_folder(task.obtain_workspace())
+
+    def _create_precomp_folder(self, work_dir):
+        log.debug(f"Create precomp folder... ...")
+        _root = r'{}/_lgt_precomp'.format(work_dir)
+
+        for _folder in ['_nuke', '_seq', '_sf']:
+            _dir = '{}/{}'.format(_root, _folder)
+            if not os.path.exists(_dir):
+                try:
+                    os.makedirs(_dir)
+                    os.chmod(_dir, 777)
+                except Exception as e:
+                    print('makedir error: ', e)
 
     def set_page(self, page):
         current = self._slider.currentIndex()

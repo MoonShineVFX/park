@@ -3,6 +3,7 @@ import os
 import time
 import logging
 import getpass
+import functools
 from itertools import groupby
 from dataclasses import dataclass
 from functools import singledispatch
@@ -756,6 +757,11 @@ def iter_avalon_tasks(avalon_asset):
         )
 
 
+@functools.lru_cache(maxsize=None)
+def _get_connection(uri, timeout):
+    return MongoClient(uri, serverSelectionTimeoutMS=timeout)
+
+
 class AvalonMongo(object):
     """Avalon MongoDB connector
     """
@@ -767,7 +773,7 @@ class AvalonMongo(object):
             connection. Optional.
         :type entrance: Entrance or None
         """
-        conn = MongoClient(uri, serverSelectionTimeoutMS=timeout)
+        conn = _get_connection(uri, timeout)
 
         self.uri = uri
         self.conn = conn

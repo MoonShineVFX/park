@@ -867,7 +867,8 @@ class AvalonMongo(object):
         def count_depth(doc_):
             def depth(_d):
                 p = _d["data"].get("visualParent")
-                yield 0 if p is None else 1 + sum(depth(all_asset_docs[p]))
+                p_doc = all_asset_docs.get(p)
+                yield 0 if p is None or p_doc is None else 1 + sum(depth(p_doc))
 
             return sum(depth(doc_))
 

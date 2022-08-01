@@ -639,6 +639,7 @@ def _mk_project_scope(coll_name, doc, database, active_only=True):
     for task in doc["config"]["tasks"]:
         if task["name"] not in tasks:
             tasks.append(task["name"])
+    tasks.sort()
 
     return Project(
         name=doc["name"],

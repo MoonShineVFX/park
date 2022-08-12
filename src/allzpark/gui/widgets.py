@@ -223,6 +223,7 @@ class ClearCacheWidget(QtWidgets.QWidget):
         super(ClearCacheWidget, self).__init__(*args, **kwargs)
         clear_cache = QtWidgets.QPushButton()
         clear_cache.setObjectName("ClearCacheBtn")
+        clear_cache.setToolTip("Refresh")
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(clear_cache)

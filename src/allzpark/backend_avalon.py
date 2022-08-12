@@ -197,8 +197,12 @@ class Asset(_Scope):
     project: Project
     parent: "Asset" or None
     silo: str
+    episode: str
+    sequence: str
     tasks: List[str]
     is_silo: bool
+    is_episode: bool
+    is_sequence: bool
     is_leaf: bool
     is_hidden: bool
     child_task: set
@@ -356,20 +360,22 @@ def _(scope: Entrance, tool: SuiteTool = None) -> str:
 def _(scope: Project, tool: SuiteTool = None) -> str:
     _ = tool
     template = "{root}/{project}/Avalon"
-    return template.format(**{
+    path = template.format(**{
         "root": scope.root,
         "project": scope.name,
     })
+    return os.path.normpath(path).replace('\\', '/')
 
 
 @obtain_avalon_workspace.register
 def _(scope: Asset, tool: SuiteTool = None) -> str:
     _ = tool
     template = "{root}/{project}/Avalon"
-    return template.format(**{
+    path = template.format(**{
         "root": scope.project.root,
         "project": scope.project.name,
     })
+    return os.path.normpath(path).replace('\\', '/')
 
 
 @obtain_avalon_workspace.register
@@ -378,15 +384,18 @@ def _(scope: Task, tool: SuiteTool = None) -> str:
     template = task.project.work_template
     if tool is None:
         template = template.split("{app}")[0]
-    return template.format(**{
+    path = template.format(**{
         "root": task.project.root,
         "project": task.project.name,
         "silo": task.asset.silo,
+        "episode": task.asset.episode,
+        "sequence": task.asset.sequence,
         "asset": task.asset.name,
         "task": task.name,
         "app": tool.name if tool else "",
         "user": task.project.username,
     })
+    return os.path.normpath(path).replace('\\', '/')
 
 
 @singledispatch
@@ -429,6 +438,8 @@ def _(scope: Asset, tool: SuiteTool) -> dict:
     environ = scope.upstream.additional_env(tool)
     environ.update({
         "AVALON_SILO": asset.silo,
+        "AVALON_EPISODE": asset.episode,
+        "AVALON_SEQUENCE": asset.sequence,
         "AVALON_ASSET": asset.name,
         "AVALON_APP": tool.name,
         "AVALON_APP_NAME": tool.name,  # application dir
@@ -695,8 +706,12 @@ def iter_avalon_assets(avalon_project):
             project=this,
             parent=None,
             silo="",
+            episode="",
+            sequence="",
             tasks=[],
             is_silo=True,
+            is_episode=False,
+            is_sequence=False,
             is_hidden=_hidden,
             is_leaf=False,
             child_task=set(),
@@ -712,6 +727,10 @@ def iter_avalon_assets(avalon_project):
         for doc in assets:
             _parent = _assets[key] if depth else _silos[key]
             _hidden = _parent.is_hidden or bool(doc["data"].get("trash"))
+            _is_episode = doc["type"] == "episode"
+            _episode = doc["name"] if _is_episode else _parent.episode
+            _is_sequence = doc["type"] == "sequence"
+            _sequence = doc["name"] if _is_sequence else _parent.sequence
             tasks = doc["data"].get("tasks") or []
             asset = Asset(
                 name=doc["name"],
@@ -720,8 +739,12 @@ def iter_avalon_assets(avalon_project):
                 project=this,
                 parent=_parent,
                 silo=doc.get("silo"),
+                episode=_episode,
+                sequence=_sequence,
                 tasks=tasks,
                 is_silo=False,
+                is_episode=_is_episode,
+                is_sequence=_is_sequence,
                 is_leaf=True,
                 is_hidden=_hidden,
                 child_task=set(),
@@ -850,6 +873,7 @@ class AvalonMongo(object):
 
         _projection = {
             "name": True,
+            "type": True,
             "silo": True,
             "data.trash": True,
             "data.tasks": True,
@@ -863,7 +887,19 @@ class AvalonMongo(object):
         )
         _assets = sorted(_assets, key=lambda d: d['name'])
 
-        all_asset_docs = {d["_id"]: d for d in _assets}
+        _episodes = coll.find(
+            {"type": "episode", "name": {"$exists": 1}},
+            projection=_projection
+        )
+        _episodes = sorted(_episodes, key=lambda d: d['name'])
+
+        _sequences = coll.find(
+            {"type": "sequence", "name": {"$exists": 1}},
+            projection=_projection
+        )
+        _sequences = sorted(_sequences, key=lambda d: d['name'])
+
+        all_asset_docs = {d["_id"]: d for d in _assets + _episodes + _sequences}
 
         def count_depth(doc_):
             def depth(_d):

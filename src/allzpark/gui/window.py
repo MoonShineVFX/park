@@ -28,6 +28,7 @@ class MainWindow(QtWidgets.QMainWindow):
         buttons.setObjectName("ButtonBelt")
         dark_btn = QtWidgets.QPushButton()
         dark_btn.setObjectName("DarkSwitch")
+        dark_btn.setToolTip("Switch Theme")
         dark_btn.setCheckable(True)
 
         self.statusBar().setSizeGripEnabled(False)

@@ -35,6 +35,7 @@
     <file>icons/dot-red-on.svg</file>
     <file>icons/dot-red.svg</file>
     <file>icons/dot.svg</file>
+    <file>icons/episode.svg</file>
     <file>icons/exclamation-triangle-fill.svg</file>
     <file>icons/exclamation-warn.svg</file>
     <file>icons/filter-dim.svg</file>
@@ -59,6 +60,7 @@
     <file>icons/person-circle.svg</file>
     <file>icons/plus.svg</file>
     <file>icons/rez_logo.svg</file>
+    <file>icons/sequence.png</file>
     <file>icons/server.svg</file>
     <file>icons/sg_logo.png</file>
     <file>icons/slash-lg.svg</file>

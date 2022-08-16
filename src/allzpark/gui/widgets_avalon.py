@@ -50,12 +50,14 @@ class AvalonWidget(QtWidgets.QWidget):
         top_bar.setObjectName("ButtonBelt")
         home = QtWidgets.QPushButton()
         home.setObjectName("AvalonHomeButton")
+        home.setToolTip("Back to project list")
         current_project = ScopeLineLabel("current project..")
 
         task_bar = QtWidgets.QWidget()
         task_bar.setObjectName("ButtonBelt")
         only_tasked = QtWidgets.QPushButton()
         only_tasked.setObjectName("AvalonTaskFilter")
+        only_tasked.setToolTip("Filter tasks")
         only_tasked.setCheckable(True)
         only_tasked.setChecked(False)
         tasks = ComboBox()
@@ -264,6 +266,7 @@ class ProjectListWidget(QtWidgets.QWidget):
         search_bar.setClearButtonEnabled(True)
         filter_btn = QtWidgets.QPushButton()
         filter_btn.setObjectName("AvalonProjectArchive")
+        filter_btn.setToolTip("Filter projects")
         filter_btn.setCheckable(True)
         filter_btn.setChecked(True)  # the default defined in backend module
 
@@ -541,6 +544,8 @@ class AssetTreeModel(BaseScopeModel):
         self._project = None    # type: Project or None
         self._task = None       # type: str or None
         self._icon_silo = QtGui.QIcon(":/icons/collection.svg")
+        self._icon_episode = QtGui.QIcon(":/icons/episode.svg")
+        self._icon_sequence = QtGui.QIcon(":/icons/sequence.png")
         self._icon_tasked = QtGui.QIcon(":/icons/folder.svg")
         self._icon_tasked_not = QtGui.QIcon(":/icons/folder-x.svg")
         self._icon_tasked_semi = QtGui.QIcon(":/icons/folder-minus.svg")
@@ -600,19 +605,35 @@ class AssetTreeModel(BaseScopeModel):
 
         if role == QtCore.Qt.ForegroundRole:
             scope = index.data(self.ScopeRole)  # type: Asset
-            if scope.is_leaf and not is_asset_tasked(scope, self._task):
+            if scope.is_leaf and not is_asset_tasked(scope, self._task) \
+                    and not scope.is_episode and not scope.is_sequence:
                 return self._placeholder_color
 
         if role == QtCore.Qt.DecorationRole:
             scope = index.data(self.ScopeRole)  # type: Asset
             if scope.is_silo:
                 return self._icon_silo
+            elif scope.is_episode:
+                return self._icon_episode
+            elif scope.is_sequence:
+                return self._icon_sequence
             elif self._task_filtering or is_asset_tasked(scope, self._task):
                 return self._icon_tasked
             elif not scope.is_leaf and self._task in scope.child_task:
                 return self._icon_tasked_semi
             else:
                 return self._icon_tasked_not
+
+        if role == QtCore.Qt.ToolTipRole:
+            scope = index.data(self.ScopeRole)  # type: Asset
+            if scope.is_silo:
+                return "Silo: %s" % scope.name
+            elif scope.is_episode:
+                return "Episode: %s" % scope.name
+            elif scope.is_sequence:
+                return "Sequence: %s" % scope.name
+            else:
+                return "Asset: %s" % scope.name
 
         if role == self.TaskFilterRole:
             scope = index.data(self.ScopeRole)  # type: Asset

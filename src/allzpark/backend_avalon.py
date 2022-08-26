@@ -181,6 +181,7 @@ class Project(_Scope):
     work_template: str
     coll: str
     db: "AvalonMongo"
+    cacheRoot: str
 
     def __repr__(self):
         return f"Project(name={self.name}, upstream={self.upstream})"
@@ -428,6 +429,7 @@ def _(scope: Project, tool: SuiteTool) -> dict:
         "AVALON_PROJECT": project.name,
         "AVALON_APP": tool.name,
         "AVALON_APP_NAME": tool.name,  # application dir
+        "AVALON_CACHE_ROOT": project.cacheRoot
     })
     return environ
 
@@ -652,6 +654,14 @@ def _mk_project_scope(coll_name, doc, database, active_only=True):
             tasks.append(task["name"])
     tasks.sort()
 
+    cache_root = doc["data"].get("cacheRoot", project_root)
+
+    # Check project created time, temp code for switch L: to Q:
+    _p_time = doc["name"].split('_')[0]
+    if _p_time.isdigit():
+        if int(_p_time) <= 202208 and cache_root != "Q:":
+            cache_root = "L:"
+
     return Project(
         name=doc["name"],
         upstream=database.entrance,
@@ -663,6 +673,7 @@ def _mk_project_scope(coll_name, doc, database, active_only=True):
         work_template=doc["config"]["template"]["work"],
         coll=coll_name,
         db=database,
+        cacheRoot=cache_root
     )
 
 

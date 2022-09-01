@@ -743,6 +743,19 @@ class BaseTheme(object):
             background-color: {self.palette.primary};
         }}
 
+        QTreeView::indicator:unchecked {{
+            image: url(:/icons/square.svg);
+        }}
+        QTreeView::indicator:unchecked:disabled {{
+            image: url(:/icons/square-dim.svg);
+        }}
+        QTreeView::indicator:checked {{
+            image: url(:/icons/square-check.svg);
+        }}
+        QTreeView::indicator:checked:disabled {{
+            image: url(:/icons/square-check-dim.svg);
+        }}
+
         QTreeView::branch::has-children::!has-siblings:closed {{
             image: url(:/icons/caret-right-fill.svg);
         }}

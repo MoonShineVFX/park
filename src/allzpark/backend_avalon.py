@@ -52,6 +52,7 @@ def get_entrance(uri=None, timeout=None):
 
 MEMBER_ROLE = "member"
 MANAGER_ROLE = "admin"
+DEVELOPER_ROLE = "developer"
 
 
 class _Scope(AbstractScope):
@@ -138,6 +139,16 @@ class _Scope(AbstractScope):
         :rtype: dict
         """
         return avalon_pipeline_env(self, tool)
+
+    def current_user_roles(
+            self: Union["Entrance", "Project", "Asset", "Task"]
+    ) -> list:
+        """
+        :type self: Entrance or Project or Asset or Task
+        :return:
+        :rtype: list
+        """
+        return avalon_current_user_roles(self)
 
     def generate_breadcrumb(
             self: Union["Entrance", "Project", "Asset", "Task"]
@@ -462,6 +473,38 @@ def _(scope: Task, tool: SuiteTool) -> dict:
     })
     return environ
 
+@singledispatch
+def avalon_current_user_roles(scope):
+    """
+
+    :param scope: The scope of workspace. Could be at project/asset/task.
+    :type scope: Entrance or Project or Asset or Task
+    :return:
+    :rtype: list
+    """
+    raise NotImplementedError(f"Unknown scope type: {type(scope)}")
+
+
+@avalon_current_user_roles.register
+def _(scope: Entrance) -> list:
+    _ = scope
+    return []
+
+
+@avalon_current_user_roles.register
+def _(scope: Project) -> list:
+    return scope.roles
+
+
+@avalon_current_user_roles.register
+def _(scope: Asset) -> list:
+    return scope.upstream.current_user_roles()
+
+
+@avalon_current_user_roles.register
+def _(scope: Task) -> list:
+    return scope.upstream.current_user_roles()
+
 
 @singledispatch
 def scope_suite_path(scope):
@@ -647,6 +690,8 @@ def _mk_project_scope(coll_name, doc, database, active_only=True):
         roles.add(MEMBER_ROLE)
     if username in _role_book.get(MANAGER_ROLE, []):
         roles.add(MANAGER_ROLE)
+    if username in _role_book.get(DEVELOPER_ROLE, []):
+        roles.add(DEVELOPER_ROLE)
 
     tasks = []
     for task in doc["config"]["tasks"]:

@@ -267,6 +267,7 @@ class JsonModel(qjsonmodel.QJsonModel):
 
 class ResolvedPackagesModel(BaseItemModel):
     Headers = [
+        "Load",
         "Package Name",
         "Version",
         "Local/Released",
@@ -274,42 +275,45 @@ class ResolvedPackagesModel(BaseItemModel):
 
     PackageRole = QtCore.Qt.UserRole + 10
 
+    def __init__(self, parent=None):
+        super(ResolvedPackagesModel, self).__init__(parent)
+        self.current_user_roles = []
+
     def pkg_icon_from_metadata(self, variant):
         metadata = getattr(variant, "_data", {})
         return parse_icon(variant.root, metadata.icon)
 
-    def load(self, packages):
+    def load(self, tool):
         """
-        :param packages:
-        :type packages: list[Variant]
+        :param tool:
+        :type tool: SuiteTool
         :return:
         """
         self.reset()
-        indicator = _LocationIndicator()
+
+        packages = tool.context.resolved_packages
+        self.current_user_roles = tool.scope.current_user_roles()
 
         for pkg in packages:
-            metadata = getattr(pkg, "_data", {})
-            pkg_icon = parse_icon(pkg.root, metadata.get("icon"))
-
-            loc_text, loc_icon = indicator.compute(pkg.resource.location)
+            load_item = QtGui.QStandardItem()
+            load_item.setCheckState(QtCore.Qt.Checked)
 
             name_item = QtGui.QStandardItem(pkg.name)
-            name_item.setIcon(pkg_icon)
             name_item.setData(pkg, self.PackageRole)
 
             version_item = QtGui.QStandardItem(str(pkg.version))
+            version_item.setData(pkg.parent, QtCore.Qt.UserRole)
 
-            location_item = QtGui.QStandardItem(loc_text)
-            location_item.setIcon(loc_icon)
+            location_item = QtGui.QStandardItem()
 
-            self.appendRow([name_item, version_item, location_item])
+            self.appendRow([load_item, name_item, version_item, location_item])
 
     def pkg_path_from_index(self, index):
         if not index.isValid():
             return
 
-        item_index = self.index(index.row(), 0)
-        package = item_index.data(role=self.PackageRole)
+        item_index = self.index(index.row(), 2)
+        package = item_index.data(role=QtCore.Qt.UserRole)
         resource = package.resource
 
         if resource.key == "filesystem.package":
@@ -320,6 +324,63 @@ class ResolvedPackagesModel(BaseItemModel):
             return resource.parent.filepath
         elif resource.key == "filesystem.variant.combined":
             return resource.parent.parent.filepath
+
+    def data(self, index, role=QtCore.Qt.DisplayRole):
+        if not index.isValid():
+            return None
+
+        name_item = self.item(index.row(), self.Headers.index("Package Name"))
+        pkg = name_item.data(self.PackageRole)
+
+        version_item = self.item(index.row(), self.Headers.index("Version"))
+        pkg_version = version_item.data(QtCore.Qt.UserRole)
+
+        if role == QtCore.Qt.DisplayRole:
+            if index.column() == self.Headers.index("Local/Released"):
+                indicator = _LocationIndicator()
+                loc_text, loc_icon = indicator.compute(pkg_version.resource.location)
+                return loc_text
+
+        if role == QtCore.Qt.DecorationRole:
+            if index.column() == self.Headers.index("Package Name"):
+                metadata = getattr(pkg, "_data", {})
+                pkg_icon = parse_icon(pkg.root, metadata.get("icon"))
+                return pkg_icon
+            if index.column() == self.Headers.index("Local/Released"):
+                indicator = _LocationIndicator()
+                loc_text, loc_icon = indicator.compute(pkg_version.resource.location)
+                return loc_icon
+
+        return super(ResolvedPackagesModel, self).data(index, role)
+
+    def flags(self, index):
+        """
+
+        :param index:
+        :type index: QtCore.QModelIndex
+        :return:
+        :rtype: QtCore.Qt.ItemFlags
+        """
+
+        flags = QtCore.Qt.ItemIsSelectable
+
+        load_item = self.item(index.row(), self.Headers.index("Load"))
+
+        if index.column() == self.Headers.index("Version"):
+            if "developer" in self.current_user_roles:
+                flags = flags | QtCore.Qt.ItemIsEditable
+
+        if index.column() == self.Headers.index("Load"):
+            version_item = self.item(index.row(), self.Headers.index("Version"))
+            pkg = version_item.data(QtCore.Qt.UserRole)
+            metadata = getattr(pkg, "_data", {})
+            unloadable = metadata.get("unloadable", False)
+            if unloadable:
+                flags = flags | QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsUserCheckable
+        elif load_item.checkState() == QtCore.Qt.Checked:
+            flags = flags | QtCore.Qt.ItemIsEnabled
+
+        return flags
 
 
 class ResolvedEnvironmentModel(JsonModel):
@@ -646,7 +707,7 @@ class ContextDataModel(BaseItemModel):
         # long path), item-editable flag is given. We re-implementing this
         # method is just to ensure the value unchanged after edit-mode ended.
         #
-        self.dataChanged.emit(index, index, 1)  # trigger column width update
+        self.dataChanged.emit(index, index, [1])  # trigger column width update
         return True
 
     def data(self, index, role=QtCore.Qt.DisplayRole):

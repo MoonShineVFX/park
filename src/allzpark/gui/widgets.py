@@ -5,6 +5,7 @@ import traceback
 from typing import List
 from ._vendor.Qt5 import QtCore, QtGui, QtWidgets
 from ._vendor import qoverview
+from .delegates import VersionDelegate
 from .. import core, lib
 from . import resources as res
 from .models import (
@@ -515,6 +516,7 @@ class ToolContextWidget(QtWidgets.QWidget):
         layout.addWidget(stack)
 
         tabs.currentChanged.connect(stack.setCurrentIndex)
+        launcher.tool_changed.connect(self.on_tool_changed)
         environ.hovered.connect(self.env_hovered.emit)
 
         self._launcher = launcher
@@ -548,6 +550,19 @@ class ToolContextWidget(QtWidgets.QWidget):
         self._context.reset()
         self._environ.model().clear()
         self._launcher.reset()
+
+    def on_tool_changed(self, suite_tool: core.SuiteTool):
+        work_env = suite_tool.scope.additional_env(suite_tool)
+        context = suite_tool.context
+        try:
+            env = context.get_environ()
+        except Exception as e:
+            log.error(f"{e.__class__.__name__}: {str(e)}")
+            env = {}
+
+        env.update(work_env)
+        self._context.load(context)
+        self._environ.model().load(env)
 
     def changeEvent(self, event):
         super(ToolContextWidget, self).changeEvent(event)
@@ -619,6 +634,7 @@ class JsonView(TreeView):
 
 
 class ToolLaunchWidget(QtWidgets.QWidget):
+    tool_changed = QtCore.Signal(core.SuiteTool)
     tool_launched = QtCore.Signal(core.SuiteTool)
     shell_launched = QtCore.Signal(core.SuiteTool)
 
@@ -687,6 +703,7 @@ class ToolLaunchWidget(QtWidgets.QWidget):
         timer.setSingleShot(True)
         timer.timeout.connect(lambda: self._unlock_launch_btn(True))
 
+        packages.packages_changed.connect(self._on_packages_changed)
         launch.clicked.connect(self._on_launch_tool_clicked)
         shell.clicked.connect(self._on_launch_shell_clicked)
 
@@ -705,6 +722,29 @@ class ToolLaunchWidget(QtWidgets.QWidget):
     def _unlock_launch_btn(self, lock):
         self._shell.setEnabled(lock)
         self._launch.setEnabled(lock)
+
+    def _on_packages_changed(self):
+        # Get packages
+        packages = self._packages.get_packages()
+        packages = [pkg.qualified_name for pkg in packages]
+
+        # Create modified context
+        context_modified = core.RollingContext(packages)
+
+        # Create modified variant
+        variant_modified = core.Variant(self._tool.variant.resource)
+        variant_modified.set_context(context_modified)
+
+        # Create modified tool
+        self._tool = core.SuiteTool(
+            name=self._tool.name,
+            alias=self._tool.alias,
+            ctx_name=self._tool.ctx_name,
+            variant=variant_modified,
+            scope=self._tool.scope,
+        )
+
+        self.tool_changed.emit(self._tool)
 
     def _on_launch_tool_clicked(self):
         self.tool_launched.emit(self._tool)
@@ -739,12 +779,13 @@ class ToolLaunchWidget(QtWidgets.QWidget):
         self._label.setText(tool.metadata.label)
         self._ctx.setText(tool.ctx_name)
         self._name.setText(tool.name)
-        self._packages.model().load(tool.context.resolved_packages)
+        self._packages.model().load(tool)
         self._tool = tool
         self._unlock_launch_btn(True)
 
 
 class ResolvedPackages(QtWidgets.QWidget):
+    packages_changed = QtCore.Signal()
 
     def __init__(self, *args, **kwargs):
         super(ResolvedPackages, self).__init__(*args, **kwargs)
@@ -753,23 +794,43 @@ class ResolvedPackages(QtWidgets.QWidget):
         view = TreeView()
         view.setModel(model)
         view.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        view.setIndentation(10)
+
+        # Set view delegates
+        version_delegate = VersionDelegate()
+        column = model.Headers.index("Version")
+        view.setItemDelegateForColumn(column, version_delegate)
 
         header = view.header()
-        header.setSectionResizeMode(0, header.Stretch)
-        header.setSectionResizeMode(1, header.ResizeToContents)
-        header.setSectionResizeMode(2, header.Stretch)
+        header.setSectionResizeMode(0, header.ResizeToContents)
+        header.setSectionResizeMode(1, header.Stretch)
+        header.setSectionResizeMode(2, header.ResizeToContents)
+        header.setSectionResizeMode(3, header.Stretch)
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 20, 0, 10)
         layout.addWidget(view)
 
         view.customContextMenuRequested.connect(self.on_right_click)
+        model.itemChanged.connect(self.on_item_changed)
 
         self._view = view
         self._model = model
 
     def model(self):
         return self._model
+
+    def get_packages(self):
+        packages = []
+        for i in range(self._model.rowCount()):
+            load_item = self._model.item(i, 0)
+            version_item = self._model.item(i, 2)
+            if load_item.checkState() == QtCore.Qt.Checked:
+                packages.append(version_item.data(role=QtCore.Qt.UserRole))
+        return packages
+
+    def on_item_changed(self, item):
+        self.packages_changed.emit()
 
     def on_right_click(self, position):
         if not _in_debug_mode():
@@ -824,6 +885,7 @@ class ResolvedEnvironment(QtWidgets.QWidget):
         switch = QtWidgets.QCheckBox()
         switch.setObjectName("EnvFilterSwitch")
         inverse = QtWidgets.QCheckBox("Inverse")
+        inverse.setToolTip("Search vars without the word")
 
         model = ResolvedEnvironmentModel()
         proxy = ResolvedEnvironmentProxyModel()
@@ -930,6 +992,7 @@ class ResolvedContextView(QtWidgets.QWidget):
         top_bar.setObjectName("ButtonBelt")
         attr_toggle = QtWidgets.QPushButton()
         attr_toggle.setObjectName("ContextAttrToggle")
+        attr_toggle.setToolTip("Pretty Name / Attribute name")
         attr_toggle.setCheckable(True)
         attr_toggle.setChecked(True)
 

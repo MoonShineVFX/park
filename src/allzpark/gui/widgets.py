@@ -332,7 +332,7 @@ class WorkspaceWidget(BusyWidget):
 class ToolsView(QtWidgets.QWidget):
     tool_cleared = QtCore.Signal()
     tool_selected = QtCore.Signal(core.SuiteTool)
-    tool_launched = QtCore.Signal(core.SuiteTool)
+    tool_launched = QtCore.Signal()
 
     def __init__(self, *args, **kwargs):
         super(ToolsView, self).__init__(*args, **kwargs)
@@ -363,8 +363,7 @@ class ToolsView(QtWidgets.QWidget):
 
     def _on_double_clicked(self, index):
         if index.isValid():
-            tool = index.data(self._model.ToolRole)
-            self.tool_launched.emit(tool)
+            self.tool_launched.emit()
 
     def on_tools_updated(self, tools):
         self._model.update_tools(tools)
@@ -377,7 +376,7 @@ class WorkHistoryWidget(QtWidgets.QWidget):
     MAX_ENTRY_COUNT = 20
     tool_cleared = QtCore.Signal()
     tool_selected = QtCore.Signal(core.SuiteTool)
-    tool_launched = QtCore.Signal(core.SuiteTool)
+    tool_launched = QtCore.Signal()
     history_saved = QtCore.Signal(list)  # list of dict
 
     def __init__(self, *args, **kwargs):
@@ -455,8 +454,7 @@ class WorkHistoryWidget(QtWidgets.QWidget):
 
     def _on_double_clicked(self, index):
         if index.isValid():
-            tool = index.data(self._model.ToolRole)
-            self.tool_launched.emit(tool)
+            self.tool_launched.emit()
 
 
 class WorkDirWidget(QtWidgets.QWidget):
@@ -704,8 +702,8 @@ class ToolLaunchWidget(QtWidgets.QWidget):
         timer.timeout.connect(lambda: self._unlock_launch_btn(True))
 
         packages.packages_changed.connect(self._on_packages_changed)
-        launch.clicked.connect(self._on_launch_tool_clicked)
-        shell.clicked.connect(self._on_launch_shell_clicked)
+        launch.clicked.connect(self.launch_tool)
+        shell.clicked.connect(self.launch_shell)
 
         self._timer = timer
         self._label = label
@@ -757,12 +755,12 @@ class ToolLaunchWidget(QtWidgets.QWidget):
 
         self.tool_changed.emit(self._tool)
 
-    def _on_launch_tool_clicked(self):
+    def launch_tool(self):
         self.tool_launched.emit(self._tool)
         self._unlock_launch_btn(False)
         self._timer.start(1000)
 
-    def _on_launch_shell_clicked(self):
+    def launch_shell(self):
         self.shell_launched.emit(self._tool)
         self._unlock_launch_btn(False)
         self._timer.start(1000)

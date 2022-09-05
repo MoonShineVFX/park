@@ -723,13 +723,24 @@ class ToolLaunchWidget(QtWidgets.QWidget):
         self._shell.setEnabled(lock)
         self._launch.setEnabled(lock)
 
-    def _on_packages_changed(self):
-        # Get packages
-        packages = self._packages.get_packages()
+    def _on_packages_changed(self, packages):
         packages = [pkg.qualified_name for pkg in packages]
 
         # Create modified context
         context_modified = core.RollingContext(packages)
+        if context_modified.broken:
+            log.debug("Try to crate context with packages: %s" % packages)
+            log.error("Create modified context failed: context is broken")
+            return
+        elif not context_modified.usable:
+            log.debug("Try to crate context with packages: %s" % packages)
+            log.error("Create modified context failed: context is not usable")
+            return
+        elif context_modified.status.name == "failed":
+            log.debug("Try to crate context with packages: %s" % packages)
+            log.error("Create modified context failed")
+            return
+        log.info("Crate context with packages: %s" % packages)
 
         # Create modified variant
         variant_modified = core.Variant(self._tool.variant.resource)
@@ -785,7 +796,7 @@ class ToolLaunchWidget(QtWidgets.QWidget):
 
 
 class ResolvedPackages(QtWidgets.QWidget):
-    packages_changed = QtCore.Signal()
+    packages_changed = QtCore.Signal(list)
 
     def __init__(self, *args, **kwargs):
         super(ResolvedPackages, self).__init__(*args, **kwargs)
@@ -820,17 +831,10 @@ class ResolvedPackages(QtWidgets.QWidget):
     def model(self):
         return self._model
 
-    def get_packages(self):
-        packages = []
-        for i in range(self._model.rowCount()):
-            load_item = self._model.item(i, 0)
-            version_item = self._model.item(i, 2)
-            if load_item.checkState() == QtCore.Qt.Checked:
-                packages.append(version_item.data(role=QtCore.Qt.UserRole))
-        return packages
-
     def on_item_changed(self, item):
-        self.packages_changed.emit()
+        packages = self._model.get_packages()
+        self.packages_changed.emit(packages)
+        self._model.update_requires_dict(packages)
 
     def on_right_click(self, position):
         if not _in_debug_mode():

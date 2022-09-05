@@ -4,18 +4,9 @@ from ._vendor.Qt5 import QtCore, QtGui, QtWidgets
 
 
 class VersionDelegate(QtWidgets.QStyledItemDelegate):
-    first_run = False
 
     def createEditor(self, parent, option, index):
         editor = QtWidgets.QComboBox(parent)
-
-        def commit_data():
-            if not self.first_run:
-                self.commitData.emit(editor)  # Update model data
-        editor.currentIndexChanged.connect(commit_data)
-
-        self.first_run = True
-
         return editor
 
     def setEditorData(self, editor, index):
@@ -35,7 +26,6 @@ class VersionDelegate(QtWidgets.QStyledItemDelegate):
                 editor_index = editor.count() - 1
 
         editor.setCurrentIndex(editor_index)
-        self.first_run = False
 
     def setModelData(self, editor, model, index):
         package_version = editor.itemData(editor.currentIndex())

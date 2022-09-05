@@ -278,10 +278,24 @@ class ResolvedPackagesModel(BaseItemModel):
     def __init__(self, parent=None):
         super(ResolvedPackagesModel, self).__init__(parent)
         self.current_user_roles = []
+        self.requires_dict = {}
 
     def pkg_icon_from_metadata(self, variant):
         metadata = getattr(variant, "_data", {})
         return parse_icon(variant.root, metadata.icon)
+
+    def update_requires_dict(self, packages):
+        self.requires_dict = {}
+        for pkg in packages:
+            for require in pkg.requires or []:
+                require_range = require.range
+                if require.conflict:
+                    require_range = require_range.inverse()
+                if not require_range:
+                    continue
+                if self.requires_dict.get(require.name):
+                    require_range = require_range.intersection(self.requires_dict[require.name])
+                self.requires_dict[require.name] = require_range
 
     def load(self, tool):
         """
@@ -294,7 +308,11 @@ class ResolvedPackagesModel(BaseItemModel):
         packages = tool.context.resolved_packages
         self.current_user_roles = tool.scope.current_user_roles()
 
+        self.update_requires_dict(packages)
+
         for pkg in packages:
+            #required_range = requires_dict.get(pkg.name)
+
             load_item = QtGui.QStandardItem()
             load_item.setCheckState(QtCore.Qt.Checked)
 
@@ -303,10 +321,20 @@ class ResolvedPackagesModel(BaseItemModel):
 
             version_item = QtGui.QStandardItem(str(pkg.version))
             version_item.setData(pkg.parent, QtCore.Qt.UserRole)
+            #version_item.setData(required_range, QtCore.Qt.UserRole+1)
 
             location_item = QtGui.QStandardItem()
 
             self.appendRow([load_item, name_item, version_item, location_item])
+
+    def get_packages(self):
+        packages = []
+        for i in range(self.rowCount()):
+            load_item = self.item(i, self.Headers.index("Load"))
+            version_item = self.item(i, self.Headers.index("Version"))
+            if load_item.checkState() == QtCore.Qt.Checked:
+                packages.append(version_item.data(role=QtCore.Qt.UserRole))
+        return packages
 
     def pkg_path_from_index(self, index):
         if not index.isValid():
@@ -350,6 +378,12 @@ class ResolvedPackagesModel(BaseItemModel):
                 indicator = _LocationIndicator()
                 loc_text, loc_icon = indicator.compute(pkg_version.resource.location)
                 return loc_icon
+
+        if role == QtCore.Qt.ForegroundRole:
+            required_range = self.requires_dict.get(pkg.name)
+            if required_range:
+                if not required_range.contains_version(pkg_version.version):
+                    return QtGui.QBrush(QtGui.QColor(255, 23, 68))
 
         return super(ResolvedPackagesModel, self).data(index, role)
 
@@ -646,8 +680,12 @@ class ContextDataModel(BaseItemModel):
 
         elif field == "resolved_packages":
             indicator = _LocationIndicator()
-            icon = [indicator.compute(pkg.resource.location)[1] for pkg in value]
-            value = [pkg.qualified_name for pkg in value]
+            if value:
+                icon = [indicator.compute(pkg.resource.location)[1] for pkg in value]
+                value = [pkg.qualified_name for pkg in value]
+            else:
+                icon = []
+                value = ""
 
         elif field == "err_on_get_tools":
             field = ""

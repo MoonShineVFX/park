@@ -25,7 +25,10 @@ class VersionDelegate(QtWidgets.QStyledItemDelegate):
         editor_index = 0
         for package_version in package_versions:
             label = str(package_version.version)
+            requires = ",\n".join([str(r) for r in package_version.requires or []])
+
             editor.addItem(label, userData=package_version)
+            editor.setItemData(editor.count() - 1, requires, QtCore.Qt.ToolTipRole)
 
             if label == version_name:
                 editor_index = editor.count() - 1

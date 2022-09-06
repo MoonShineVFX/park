@@ -311,8 +311,6 @@ class ResolvedPackagesModel(BaseItemModel):
         self.update_requires_dict(packages)
 
         for pkg in packages:
-            #required_range = requires_dict.get(pkg.name)
-
             load_item = QtGui.QStandardItem()
             load_item.setCheckState(QtCore.Qt.Checked)
 
@@ -321,7 +319,6 @@ class ResolvedPackagesModel(BaseItemModel):
 
             version_item = QtGui.QStandardItem(str(pkg.version))
             version_item.setData(pkg.parent, QtCore.Qt.UserRole)
-            #version_item.setData(required_range, QtCore.Qt.UserRole+1)
 
             location_item = QtGui.QStandardItem()
 
@@ -359,6 +356,7 @@ class ResolvedPackagesModel(BaseItemModel):
 
         name_item = self.item(index.row(), self.Headers.index("Package Name"))
         pkg = name_item.data(self.PackageRole)
+        required_range = self.requires_dict.get(pkg.name)
 
         version_item = self.item(index.row(), self.Headers.index("Version"))
         pkg_version = version_item.data(QtCore.Qt.UserRole)
@@ -379,11 +377,13 @@ class ResolvedPackagesModel(BaseItemModel):
                 loc_text, loc_icon = indicator.compute(pkg_version.resource.location)
                 return loc_icon
 
+            if index.column() == self.Headers.index("Version"):
+                if required_range and not required_range.contains_version(pkg_version.version):
+                    return QtGui.QIcon(":/icons/exclamation-triangle-fill.svg")
+
         if role == QtCore.Qt.ForegroundRole:
-            required_range = self.requires_dict.get(pkg.name)
-            if required_range:
-                if not required_range.contains_version(pkg_version.version):
-                    return QtGui.QBrush(QtGui.QColor(255, 23, 68))
+            if required_range and not required_range.contains_version(pkg_version.version):
+                return QtGui.QBrush(QtGui.QColor(255, 23, 68))
 
         return super(ResolvedPackagesModel, self).data(index, role)
 

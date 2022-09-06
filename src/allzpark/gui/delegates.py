@@ -9,6 +9,11 @@ class VersionDelegate(QtWidgets.QStyledItemDelegate):
         editor = QtWidgets.QComboBox(parent)
         return editor
 
+    def sizeHint(self, option, index):
+        size = super(VersionDelegate, self).sizeHint(option, index)
+        size.setWidth(size.width()+25)
+        return size
+
     def setEditorData(self, editor, index):
         editor.clear()
 

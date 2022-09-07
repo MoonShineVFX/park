@@ -821,6 +821,7 @@ class ResolvedPackages(QtWidgets.QWidget):
         layout.addWidget(view)
 
         view.customContextMenuRequested.connect(self.on_right_click)
+        view.doubleClicked.connect(self._on_double_clicked)
         model.itemChanged.connect(self.on_item_changed)
 
         self._view = view
@@ -873,6 +874,18 @@ class ResolvedPackages(QtWidgets.QWidget):
 
         menu.move(QtGui.QCursor.pos())
         menu.show()
+
+    def _on_double_clicked(self, index):
+        if not index.isValid():
+            return
+
+        load_item = self._model.item(index.row(), self._model.Headers.index("Load"))
+        if load_item.checkState() == QtCore.Qt.Checked:
+            if index.column() == self._model.Headers.index("Version"):
+                return
+            load_item.setCheckState(QtCore.Qt.Unchecked)
+        else:
+            load_item.setCheckState(QtCore.Qt.Checked)
 
 
 class ResolvedEnvironment(QtWidgets.QWidget):

@@ -103,9 +103,9 @@ class Session(object):
         workspace.tools_requested.connect(ctrl.on_scope_tools_requested)
         clear_cache.clear_clicked.connect(ctrl.on_cache_clear_clicked)
         tool_list.tool_selected.connect(ctrl.on_tool_selected)
-        tool_list.tool_launched.connect(ctrl.on_tool_launched)
+        tool_list.tool_launched.connect(tool_launcher.launch_tool)
         work_history.tool_selected.connect(ctrl.on_tool_selected)
-        work_history.tool_launched.connect(ctrl.on_tool_launched)
+        work_history.tool_launched.connect(tool_launcher.launch_tool)
         tool_launcher.tool_launched.connect(ctrl.on_tool_launched)
         tool_launcher.shell_launched.connect(ctrl.on_shell_launched)
 

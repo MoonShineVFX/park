@@ -120,6 +120,15 @@ class _Scope(AbstractScope):
             }
         return dict()
 
+    def current_user_roles(
+            self: Union["Entrance", "Project", "Asset", "Task"]
+    ) -> list:
+        """
+        :type self: Entrance or Project or Asset or Task
+        :return:
+        :rtype: list
+        """
+        return []
 
 @dataclass(frozen=True)
 class Entrance(_Scope):

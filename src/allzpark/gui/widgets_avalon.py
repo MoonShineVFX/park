@@ -182,6 +182,7 @@ class AvalonWidget(QtWidgets.QWidget):
             self._tasks.clear()
             self._tasks.addItems(scope.tasks)
             self._tasks.blockSignals(False)
+            self._assets.clear_search_bar()
         else:
             return
 
@@ -385,12 +386,16 @@ class AssetTreeWidget(QtWidgets.QWidget):
         selection.selectionChanged.connect(self._on_selection_changed)
         search_bar.textChanged.connect(self._on_asset_searched)
 
+        self._search = search_bar
         self._view = view
         self._model = model
         self._proxy = proxy
 
     def model(self):
         return self._model
+
+    def clear_search_bar(self):
+        self._search.clear()
 
     def on_task_selected(self, task_name):
         self._model.set_task(task_name)

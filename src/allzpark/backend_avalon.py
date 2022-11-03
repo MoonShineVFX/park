@@ -211,10 +211,12 @@ class Asset(_Scope):
     silo: str
     episode: str
     sequence: str
+    asset_type: str
     tasks: List[str]
     is_silo: bool
     is_episode: bool
     is_sequence: bool
+    is_asset_type: bool
     is_leaf: bool
     is_hidden: bool
     child_task: set
@@ -396,12 +398,21 @@ def _(scope: Task, tool: SuiteTool = None) -> str:
     template = task.project.work_template
     if tool is None:
         template = template.split("{app}")[0]
+
+    if task.asset.silo == "Assets":
+        template = template.replace("{category}", "{asset_type}")
+    elif task.asset.silo == "Shots":
+        template = template.replace("{category}", "{episode}/{sequence}")
+    else:
+        template = template.replace("{category}", "")
+
     path = template.format(**{
         "root": task.project.root,
         "project": task.project.name,
         "silo": task.asset.silo,
         "episode": task.asset.episode,
         "sequence": task.asset.sequence,
+        "asset_type": task.asset.asset_type,
         "asset": task.asset.name,
         "task": task.name,
         "app": tool.name if tool else "",
@@ -453,6 +464,7 @@ def _(scope: Asset, tool: SuiteTool) -> dict:
         "AVALON_SILO": asset.silo,
         "AVALON_EPISODE": asset.episode,
         "AVALON_SEQUENCE": asset.sequence,
+        "AVALON_ASSET_TYPE": asset.asset_type,
         "AVALON_ASSET": asset.name,
         "AVALON_APP": tool.name,
         "AVALON_APP_NAME": tool.name,  # application dir
@@ -764,10 +776,12 @@ def iter_avalon_assets(avalon_project):
             silo="",
             episode="",
             sequence="",
+            asset_type="",
             tasks=[],
             is_silo=True,
             is_episode=False,
             is_sequence=False,
+            is_asset_type=False,
             is_hidden=_hidden,
             is_leaf=False,
             child_task=set(),
@@ -787,6 +801,8 @@ def iter_avalon_assets(avalon_project):
             _episode = doc["name"] if _is_episode else _parent.episode
             _is_sequence = doc["type"] == "sequence"
             _sequence = doc["name"] if _is_sequence else _parent.sequence
+            _is_asset_type = doc["type"] == "asset_type"
+            _asset_type = doc["name"] if _is_asset_type else _parent.asset_type
             tasks = doc["data"].get("tasks") or []
             asset = Asset(
                 name=doc["name"],
@@ -797,10 +813,12 @@ def iter_avalon_assets(avalon_project):
                 silo=doc.get("silo"),
                 episode=_episode,
                 sequence=_sequence,
+                asset_type=_asset_type,
                 tasks=tasks,
                 is_silo=False,
                 is_episode=_is_episode,
                 is_sequence=_is_sequence,
+                is_asset_type=_is_asset_type,
                 is_leaf=True,
                 is_hidden=_hidden,
                 child_task=set(),
@@ -955,7 +973,13 @@ class AvalonMongo(object):
         )
         _sequences = sorted(_sequences, key=lambda d: d['name'])
 
-        all_asset_docs = {d["_id"]: d for d in _assets + _episodes + _sequences}
+        _asset_types = coll.find(
+            {"type": "asset_type", "name": {"$exists": 1}},
+            projection=_projection
+        )
+        _asset_types = sorted(_asset_types, key=lambda d: d['name'])
+
+        all_asset_docs = {d["_id"]: d for d in _assets + _episodes + _sequences + _asset_types}
 
         def count_depth(doc_):
             def depth(_d):

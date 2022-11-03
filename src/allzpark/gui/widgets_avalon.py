@@ -611,7 +611,7 @@ class AssetTreeModel(BaseScopeModel):
         if role == QtCore.Qt.ForegroundRole:
             scope = index.data(self.ScopeRole)  # type: Asset
             if scope.is_leaf and not is_asset_tasked(scope, self._task) \
-                    and not scope.is_episode and not scope.is_sequence:
+                    and not scope.is_episode and not scope.is_sequence and not scope.is_asset_type:
                 return self._placeholder_color
 
         if role == QtCore.Qt.DecorationRole:
@@ -622,6 +622,8 @@ class AssetTreeModel(BaseScopeModel):
                 return self._icon_episode
             elif scope.is_sequence:
                 return self._icon_sequence
+            elif scope.is_asset_type:
+                return self._icon_silo
             elif self._task_filtering or is_asset_tasked(scope, self._task):
                 return self._icon_tasked
             elif not scope.is_leaf and self._task in scope.child_task:
@@ -637,6 +639,8 @@ class AssetTreeModel(BaseScopeModel):
                 return "Episode: %s" % scope.name
             elif scope.is_sequence:
                 return "Sequence: %s" % scope.name
+            elif scope.is_asset_type:
+                return "Asset type: %s" % scope.name
             else:
                 return "Asset: %s" % scope.name
 

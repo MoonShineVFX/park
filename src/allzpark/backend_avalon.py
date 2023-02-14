@@ -959,7 +959,7 @@ class AvalonMongo(object):
             {"type": "asset", "name": {"$exists": 1}},
             projection=_projection
         )
-        _assets = sorted(_assets, key=lambda d: d['name'])
+        _assets = sorted(_assets, key=lambda d: d['data']['label'])
 
         _episodes = coll.find(
             {"type": "episode", "name": {"$exists": 1}},

@@ -713,12 +713,6 @@ def _mk_project_scope(coll_name, doc, database, active_only=True):
 
     cache_root = doc["data"].get("cacheRoot", project_root)
 
-    # Check project created time, temp code for switch L: to Q:
-    _p_time = doc["name"].split('_')[0]
-    if _p_time.isdigit():
-        if int(_p_time) <= 202208 and cache_root != "Q:":
-            cache_root = "L:"
-
     return Project(
         name=doc["name"],
         upstream=database.entrance,

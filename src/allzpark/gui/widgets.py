@@ -598,7 +598,8 @@ class JsonView(TreeView):
 
         model_ = index.model()
         menu = QtWidgets.QMenu(self)
-        copy = QtWidgets.QAction("Copy JSON", menu)
+        # copy = QtWidgets.QAction("Copy JSON", menu)
+        copy = QtWidgets.QAction("Copy value", menu)
         copy_full = QtWidgets.QAction("Copy full JSON", menu)
 
         menu.addAction(copy)
@@ -847,13 +848,6 @@ class ResolvedPackages(QtWidgets.QWidget):
             # Clicked outside any item
             return
 
-        menu = QtWidgets.QMenu(view)
-        openfile = QtWidgets.QAction("Open file location", menu)
-        copyfile = QtWidgets.QAction("Copy file location", menu)
-
-        menu.addAction(openfile)
-        menu.addAction(copyfile)
-
         def on_openfile():
             file_path = model.pkg_path_from_index(index)
             if file_path:
@@ -868,6 +862,23 @@ class ResolvedPackages(QtWidgets.QWidget):
                 clipboard.setText(file_path)
             else:
                 log.error("Not a valid filesystem package.")
+
+        def do_install():
+            model.install_pkg(index)
+            self.on_item_changed('')
+
+        menu = QtWidgets.QMenu(view)
+
+        if model.pkg_has_installer(index):
+            run_installer = QtWidgets.QAction("Install", menu)
+            menu.addAction(run_installer)
+            run_installer.triggered.connect(do_install)
+
+        openfile = QtWidgets.QAction("Open file location", menu)
+        copyfile = QtWidgets.QAction("Copy file location", menu)
+
+        menu.addAction(openfile)
+        menu.addAction(copyfile)
 
         openfile.triggered.connect(on_openfile)
         copyfile.triggered.connect(on_copyfile)

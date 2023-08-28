@@ -350,12 +350,30 @@ class ResolvedPackagesModel(BaseItemModel):
         elif resource.key == "filesystem.variant.combined":
             return resource.parent.parent.filepath
 
+    def pkg_has_installer(self, index):
+        if not index.isValid():
+            return
+
+        item_index = self.index(index.row(), 2)
+        pkg = item_index.data(role=QtCore.Qt.UserRole)
+        metadata = getattr(pkg, "_data", {})
+        return 'installer' in metadata
+
+    def install_pkg(self, index):
+        if not index.isValid():
+            return
+        item_index = self.index(index.row(), 2)
+        pkg = item_index.data(role=QtCore.Qt.UserRole)
+        metadata = getattr(pkg, "_data", {})
+        metadata['installer'].install()
+
     def data(self, index, role=QtCore.Qt.DisplayRole):
         if not index.isValid():
             return None
 
         name_item = self.item(index.row(), self.Headers.index("Package Name"))
         pkg = name_item.data(self.PackageRole)
+        metadata = getattr(pkg, "_data", {})
         required_range = self.requires_dict.get(pkg.name)
 
         version_item = self.item(index.row(), self.Headers.index("Version"))
@@ -367,6 +385,13 @@ class ResolvedPackagesModel(BaseItemModel):
                 loc_text, loc_icon = indicator.compute(pkg_version.resource.location)
                 return loc_text
 
+            pkg_label = metadata.get("label")
+            if pkg_label and index.column() == self.Headers.index("Package Name"):
+                if not metadata.get("installed", True):
+                    return '{} (Not installed)'.format(pkg_label)
+                return pkg_label
+
+        # Set icon
         if role == QtCore.Qt.DecorationRole:
             if index.column() == self.Headers.index("Package Name"):
                 metadata = getattr(pkg, "_data", {})
@@ -378,10 +403,14 @@ class ResolvedPackagesModel(BaseItemModel):
                 return loc_icon
 
             if index.column() == self.Headers.index("Version"):
+                if not metadata.get("installed", True):
+                    return QtGui.QIcon(":/icons/exclamation-warn.svg")
                 if required_range and not required_range.contains_version(pkg_version.version):
                     return QtGui.QIcon(":/icons/exclamation-triangle-fill.svg")
 
         if role == QtCore.Qt.ForegroundRole:
+            if not metadata.get("installed", True):
+                return QtGui.QBrush(QtGui.QColor(242, 226, 44))
             if required_range and not required_range.contains_version(pkg_version.version):
                 return QtGui.QBrush(QtGui.QColor(255, 23, 68))
 

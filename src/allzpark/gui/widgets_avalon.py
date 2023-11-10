@@ -170,12 +170,15 @@ class AvalonWidget(QtWidgets.QWidget):
                         scope: Union[Entrance, Project],
                         backend_changed: bool) -> None:
         if isinstance(scope, Entrance):
+            if os.getenv('AVALON_PROJECT'):
+                os.environ.pop('AVALON_PROJECT')
             self._entrance = scope
             if backend_changed and self.__inited:
                 return
             self.set_page(0)
 
         elif isinstance(scope, Project):
+            os.environ['AVALON_PROJECT'] = scope.name
             self._current_project.setText(scope.name)
             self.set_page(1)
             self._tasks.blockSignals(True)

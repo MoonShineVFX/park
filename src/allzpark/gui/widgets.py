@@ -535,6 +535,14 @@ class ToolContextWidget(QtWidgets.QWidget):
             error = True
             env = {}
 
+        for _key in ['HOUDINI_PATH']:
+            if _key in work_env and _key in env:
+                _show_path = ''
+                for _v in work_env[_key]:
+                    _show_path += '{};'.format(_v)
+                work_env.pop(_key)
+                env[_key] = '{}{}'.format(_show_path, env[_key])
+
         env.update(work_env)
         self._context.load(context)
         self._launcher.set_tool(suite_tool)

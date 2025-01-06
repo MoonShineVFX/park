@@ -404,7 +404,7 @@ def _(scope: Task, tool: SuiteTool = None) -> str:
     elif task.asset.silo == "Shots":
         template = template.replace("{category}", "{episode}/{sequence}")
     else:
-        template = template.replace("{category}", "")
+        template = template.replace("{category}", "{asset_type}")
 
     path = template.format(**{
         "root": task.project.root,
@@ -469,6 +469,17 @@ def _(scope: Asset, tool: SuiteTool) -> dict:
         "AVALON_APP": tool.name,
         "AVALON_APP_NAME": tool.name,  # application dir
     })
+    if tool.name in ['houdinifx']:
+        hou_path = f'{environ["AVALON_PROJECTS"]}/{environ["AVALON_PROJECT"]}/Houdini'
+        if os.path.exists(hou_path):
+            environ.update({"HOUDINI_PATH": [hou_path]})
+        else:
+            try:
+                os.makedirs(hou_path)
+                environ.update({"HOUDINI_PATH": [hou_path]})
+            except Exception as e:
+                print(f'Create show Houdini path failed.\n{e}')
+
     return environ
 
 

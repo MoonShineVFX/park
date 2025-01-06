@@ -1147,6 +1147,7 @@ class BaseDarkTheme(BaseTheme):
         secondary=HSL(258.75, 100.00, 56.08),       # Deep Purple A400
 
         surface=HSL(0.00, 0.00, 19.02),             # Grey 850
+        # background=HSL(234.60,65.79,29.80),         # Indigo 900
         background=HSL(0.00, 0.00, 12.94),          # Grey 900
         border=HSL(0.00, 0.00, 25.88),              # Grey 800
 

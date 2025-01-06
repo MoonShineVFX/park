@@ -504,7 +504,7 @@ class ResolvedEnvironmentModel(JsonModel):
                     return scope.qualified_name
                 elif isinstance(scope, str):
                     return f"({scope})"
-                return None
+                return 'system'
 
         if role == QtCore.Qt.DecorationRole:
             if index.column() == 2:
@@ -518,7 +518,7 @@ class ResolvedEnvironmentModel(JsonModel):
                     return parse_icon(scope.root, metadata.get("icon"))
                 elif isinstance(scope, str):
                     return self._sys_icon
-                return None
+                return self._sys_icon
 
         if role == QtCore.Qt.ForegroundRole:
             column = index.column()

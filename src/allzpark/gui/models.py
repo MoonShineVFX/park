@@ -311,8 +311,13 @@ class ResolvedPackagesModel(BaseItemModel):
         self.update_requires_dict(packages)
 
         for pkg in packages:
+            metadata = getattr(pkg, "_data", {})
+
             load_item = QtGui.QStandardItem()
             load_item.setCheckState(QtCore.Qt.Checked)
+
+            if metadata.get('unload', False):
+                load_item.setCheckState(QtCore.Qt.Unchecked)
 
             name_item = QtGui.QStandardItem(pkg.name)
             name_item.setData(pkg, self.PackageRole)

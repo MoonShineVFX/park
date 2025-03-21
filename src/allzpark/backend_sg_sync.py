@@ -337,6 +337,7 @@ class ShotGridConn(object):
             ["is_template", "is", False],
             ["tank_name", "is_not", None],
             ["sg_project_root", "is_not", None],
+            ["sg_status", 'is', 'active']
         ]
         for doc in self.conn.find("Project", filters, fields):
             lower_name = doc["name"].lower()

@@ -451,7 +451,8 @@ def _(scope: Project, tool: SuiteTool) -> dict:
         "AVALON_PROJECT": project.name,
         "AVALON_APP": tool.name,
         "AVALON_APP_NAME": tool.name,  # application dir
-        "AVALON_CACHE_ROOT": project.cacheRoot
+        "AVALON_CACHE_ROOT": project.cacheRoot,
+        "PROJECT_ROOT": r'{}/{}'.format(project.root, project.name)
     })
     return environ
 

@@ -472,14 +472,21 @@ def _(scope: Asset, tool: SuiteTool) -> dict:
     })
     if tool.name in ['houdinifx']:
         hou_path = f'{environ["AVALON_PROJECTS"]}/{environ["AVALON_PROJECT"]}/Houdini'
-        if os.path.exists(hou_path):
-            environ.update({"HOUDINI_PATH": [hou_path]})
-        else:
-            try:
-                os.makedirs(hou_path)
-                environ.update({"HOUDINI_PATH": [hou_path]})
-            except Exception as e:
-                print(f'Create show Houdini path failed.\n{e}')
+        os.environ['SHOW_HOUDINI_PATH'] = hou_path
+
+        if not os.path.exists(hou_path):
+            os.makedirs(hou_path)
+    elif os.getenv('SHOW_HOUDINI_PATH'):
+        os.environ.pop('SHOW_HOUDINI_PATH')
+
+        # if os.path.exists(hou_path):
+        #     environ.update({"HOUDINI_PATH": [hou_path]})
+        # else:
+        #     try:
+        #         os.makedirs(hou_path)
+        #         environ.update({"HOUDINI_PATH": [hou_path]})
+        #     except Exception as e:
+        #         print(f'Create show Houdini path failed.\n{e}')
 
     return environ
 
